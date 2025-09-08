@@ -24,6 +24,11 @@ public class AccountTransaction {
     private String walletAddress;
 
     /**
+     * 账号ID
+     */
+    private Integer accountId;
+
+    /**
      * 交易类型
      */
     private String transactionType;
@@ -31,7 +36,17 @@ public class AccountTransaction {
     /**
      * 交易数量
      */
-    private String amount;
+    private String number;
+
+    /**
+     * 交易前余额
+     */
+    private String beforeNumber;
+
+    /**
+     * 交易后余额
+     */
+    private String afterNumber;
 
     /**
      * 交易时间

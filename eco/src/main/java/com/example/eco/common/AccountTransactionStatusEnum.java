@@ -5,6 +5,8 @@ import lombok.Getter;
 @Getter
 public enum AccountTransactionStatusEnum {
 
+    DEALING("DEALING", "处理中"),
+
     SUCCESS("SUCCESS", "成功"),
 
     FAIL("FAIL", "失败");
