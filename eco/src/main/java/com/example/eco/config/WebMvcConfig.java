@@ -1,7 +1,8 @@
 package com.example.eco.config;
 
 
-import com.example.odyssey.filter.AuthInterceptor;
+
+import com.example.eco.filter.AuthInterceptor;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
