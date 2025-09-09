@@ -29,6 +29,11 @@ public class PurchaseMinerProject {
     private String walletAddress;
 
     /**
+     * 矿机项目ID
+     */
+    private Integer minerProjectId;
+
+    /**
      * 价格
      */
     private String price;
@@ -39,9 +44,24 @@ public class PurchaseMinerProject {
     private String computingPower;
 
     /**
+     * 实际到账算力
+     */
+    private String realComputingPower;
+
+    /**
      * 购买方式类型
      */
     private String type;
+
+    /**
+     * 状态
+     */
+    private String status;
+
+    /**
+     * 失败原因
+     */
+    private String reason;
 
     /**
      * 创建时间

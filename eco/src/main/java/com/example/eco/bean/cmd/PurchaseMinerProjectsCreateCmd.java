@@ -3,21 +3,20 @@ package com.example.eco.bean.cmd;
 import lombok.Data;
 
 @Data
-public class AccountBuyNumberCmd {
+public class PurchaseMinerProjectsCreateCmd {
+
     /**
      * 钱包地址
      */
     private String walletAddress;
 
     /**
-     * 账号类型
+     * 矿机项目ID
      */
-    private String type;
+    private Integer minerProjectId;
 
     /**
-     * 数量
+     * 购买方式类型
      */
-    private String number;
-
-
+    private String type;
 }

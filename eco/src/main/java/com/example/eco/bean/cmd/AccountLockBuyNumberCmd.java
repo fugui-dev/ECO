@@ -3,7 +3,7 @@ package com.example.eco.bean.cmd;
 import lombok.Data;
 
 @Data
-public class AccountBuyNumberCmd {
+public class AccountLockBuyNumberCmd {
     /**
      * 钱包地址
      */

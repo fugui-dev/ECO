@@ -31,4 +31,44 @@ public interface AccountService {
      * 购买金额
      */
     SingleResponse<Void> buyNumber(AccountBuyNumberCmd accountBuyNumberCmd);
+
+    /**
+     * 添加锁定购买金额
+     */
+    SingleResponse<Void> lockBuyNumber(AccountLockBuyNumberCmd accountLockBuyNumberCmd);
+
+    /**
+     * 添加销售金额
+     */
+    SingleResponse<Void> sellNumber(AccountSellNumberCmd accountSellNumberCmd);
+
+    /**
+     * 添加锁定销售金额
+     */
+    SingleResponse<Void> lockSellNumber(AccountLockSellNumberCmd accountLockSellNumberCmd);
+
+    /**
+     * 添加充值金额
+     */
+    SingleResponse<Void> chargeNumber(AccountChargeNumberCmd accountChargeNumberCmd);
+
+    /**
+     * 添加锁定充值金额
+     */
+    SingleResponse<Void> lockChargeNumber(AccountLockChargeNumberCmd accountLockChargeNumberCmd);
+
+    /**
+     * 添加提现金额
+     */
+    SingleResponse<Void> withdrawNumber(AccountWithdrawNumberCmd accountWithdrawNumberCmd);
+
+    /**
+     * 添加锁定充值金额
+     */
+    SingleResponse<Void> lockWithdrawNumber(AccountLockWithdrawNumberCmd accountLockWithdrawNumberCmd);
+
+    /**
+     * 购买矿机项目扣除账户金额 不能使用购买金额
+     */
+    SingleResponse<Void> purchaseMinerProjectNumber(AccountDeductCmd accountDeductCmd);
 }

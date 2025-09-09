@@ -25,8 +25,4 @@ public interface RecommendService {
      */
     SingleResponse<Void> recommend(RecommendCreateCmd recommendCreateCmd);
 
-    /**
-     * 创建
-     */
-    SingleResponse<Void> create(RecommendCreateCmd recommendCreateCmd);
 }

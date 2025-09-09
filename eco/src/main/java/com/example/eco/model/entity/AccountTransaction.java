@@ -60,6 +60,11 @@ public class AccountTransaction {
     private String hash;
 
     /**
+     * 订单ID
+     */
+    private Integer orderId;
+
+    /**
      * 状态
      */
     private String status;

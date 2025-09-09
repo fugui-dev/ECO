@@ -1,5 +1,6 @@
 package com.example.eco.common;
 
+import lombok.Data;
 import lombok.Getter;
 
 @Getter
@@ -7,15 +8,37 @@ public enum AccountTransactionType {
 
     BUY("BUY", "买入"),
 
+    LOCK_BUY("LOCK_BUY", "锁定买入"),
+
+    RELEASE_LOCK_BUY("RELEASE_LOCK_BUY", "释放锁定买入"),
+
     SELL("SELL", "卖出"),
+
+    LOCK_SELL("LOCK_SELL", "锁定卖出"),
+
+    RELEASE_LOCK_SELL("RELEASE_LOCK_SELL", "释放锁定卖出"),
 
     CHARGE("CHARGE", "充值"),
 
+    LOCK_CHARGE("LOCK_CHARGE", "锁定充值"),
+
+    RELEASE_LOCK_CHARGE("RELEASE_LOCK_CHARGE", "释放锁定充值"),
+
+    DEDUCT_CHARGE("DEDUCT_CHARGE", "扣除充值"),
+
     WITHDRAW("WITHDRAW", "提现"),
+
+    LOCK_WITHDRAW("LOCK_WITHDRAW", "锁定提现"),
+
+    RELEASE_LOCK_WITHDRAW("RELEASE_LOCK_WITHDRAW", "释放锁定提现"),
 
     STATIC_REWARD("STATIC_REWARD", "静态奖励"),
 
-    DYNAMIC_REWARD("DYNAMIC_REWARD", "动态奖励");
+    DEDUCT_STATIC_REWARD("DEDUCT_STATIC_REWARD", "扣除静态奖励"),
+
+    DYNAMIC_REWARD("DYNAMIC_REWARD", "动态奖励"),
+
+    DEDUCT_DYNAMIC_REWARD("DEDUCT_DYNAMIC_REWARD", "扣除动态奖励");
 
     private String code;
 

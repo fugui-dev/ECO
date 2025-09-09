@@ -37,8 +37,6 @@ public class RecommendServiceImpl implements RecommendService {
     @Resource
     private RecommendRecordMapper recommendRecordMapper;
     @Resource
-    private AccountMapper accountMapper;
-    @Resource
     private AccountService accountService;
 
     @Override
@@ -49,7 +47,10 @@ public class RecommendServiceImpl implements RecommendService {
 
         Recommend recommend = recommendMapper.selectOne(lambdaQueryWrapper);
         if (Objects.isNull(recommend)) {
-            return SingleResponse.buildFailure("钱包地址未被推荐");
+            //不存在就创建
+            RecommendCreateCmd recommendCreateCmd = new RecommendCreateCmd();
+            recommendCreateCmd.setWalletAddress(recommendQry.getWalletAddress());
+            recommend = create(recommendCreateCmd);
         }
 
         RecommendDTO recommendDTO = new RecommendDTO();
@@ -86,30 +87,34 @@ public class RecommendServiceImpl implements RecommendService {
         LambdaQueryWrapper<Recommend> lambdaQueryWrapper = new LambdaQueryWrapper<>();
         lambdaQueryWrapper.eq(Recommend::getWalletAddress, recommendCreateCmd.getRecommendWalletAddress());
 
+        //查询被推荐人信息
         Recommend recommended = recommendMapper.selectOne(lambdaQueryWrapper);
-        if (Objects.nonNull(recommended)) {
-            return SingleResponse.buildFailure("该钱包地址已被推荐");
+        if (Objects.isNull(recommended)) {
+            //不存在就创建
+            RecommendCreateCmd recommendedCreateCmd = new RecommendCreateCmd();
+            recommendedCreateCmd.setWalletAddress(recommendCreateCmd.getRecommendWalletAddress());
+            recommended = create(recommendedCreateCmd);
+        }
+
+        if (Objects.nonNull(recommended.getRecommendWalletAddress())) {
+            return SingleResponse.buildFailure("该钱包已被推荐，不能重复推荐");
         }
 
         LambdaQueryWrapper<Recommend> recommendLambdaQueryWrapper = new LambdaQueryWrapper<>();
         recommendLambdaQueryWrapper.eq(Recommend::getWalletAddress, recommendCreateCmd.getWalletAddress());
-        //查询推荐人信息
+        //查询推荐人信息 推荐人必须存在
         Recommend recommender = recommendMapper.selectOne(recommendLambdaQueryWrapper);
         if (Objects.isNull(recommender)) {
             return SingleResponse.buildFailure("推荐人钱包地址不存在");
         }
 
-        recommended = new Recommend();
-        recommended.setWalletAddress(recommendCreateCmd.getRecommendWalletAddress());
-        recommended.setRecommendWalletAddress(recommendCreateCmd.getWalletAddress());
-
-        if (Objects.nonNull(recommender.getLeaderWalletAddress())) {
-            recommended.setLeaderWalletAddress(recommender.getLeaderWalletAddress());
-        } else {
-            recommended.setLeaderWalletAddress(recommender.getWalletAddress());
+        String leaderRecommender = recommender.getLeaderWalletAddress();
+        if (Objects.isNull(recommender.getLeaderWalletAddress())) {
+            leaderRecommender = recommender.getWalletAddress();
         }
-        recommended.setCreateTime(System.currentTimeMillis());
-        recommendMapper.insert(recommended);
+        recommended.setLeaderWalletAddress(leaderRecommender);
+        recommended.setUpdateTime(System.currentTimeMillis());
+        recommendMapper.updateById(recommended);
 
         RecommendRecord recommendRecord = new RecommendRecord();
         recommendRecord.setWalletAddress(recommendCreateCmd.getRecommendWalletAddress());
@@ -118,23 +123,33 @@ public class RecommendServiceImpl implements RecommendService {
 
         recommendRecordMapper.insert(recommendRecord);
 
-        AccountCreateCmd accountCreateCmd = new AccountCreateCmd();
-        accountCreateCmd.setWalletAddress(recommendCreateCmd.getRecommendWalletAddress());
 
-        accountService.createAccount(accountCreateCmd);
+        //更新被推荐者的下级leader
+        LambdaQueryWrapper<Recommend> leaderLambdaQueryWrapper = new LambdaQueryWrapper<>();
+        leaderLambdaQueryWrapper.eq(Recommend::getLeaderWalletAddress, recommendCreateCmd.getRecommendWalletAddress());
 
+        List<Recommend> recommendList = recommendMapper.selectList(leaderLambdaQueryWrapper);
+        for (Recommend recommend : recommendList) {
+
+            recommend.setLeaderWalletAddress(leaderRecommender);
+            recommend.setUpdateTime(System.currentTimeMillis());
+
+            recommendMapper.updateById(recommend);
+        }
         return SingleResponse.buildSuccess();
     }
 
-    @Override
-    public SingleResponse<Void> create(RecommendCreateCmd recommendCreateCmd) {
+    /**
+     * 创建推荐关系
+     */
+    public Recommend create(RecommendCreateCmd recommendCreateCmd) {
 
         LambdaQueryWrapper<Recommend> lambdaQueryWrapper = new LambdaQueryWrapper<>();
         lambdaQueryWrapper.eq(Recommend::getWalletAddress, recommendCreateCmd.getWalletAddress());
 
         Recommend recommend = recommendMapper.selectOne(lambdaQueryWrapper);
         if (Objects.nonNull(recommend)) {
-            return SingleResponse.buildFailure("该钱包地址已创建");
+            return recommend;
         }
 
         recommend = new Recommend();
@@ -148,7 +163,8 @@ public class RecommendServiceImpl implements RecommendService {
 
         accountService.createAccount(accountCreateCmd);
 
-        return SingleResponse.buildSuccess();
+
+        return recommend;
 
     }
 }

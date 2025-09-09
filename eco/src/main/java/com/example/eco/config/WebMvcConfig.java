@@ -13,7 +13,7 @@ import javax.annotation.Resource;
 public class WebMvcConfig implements WebMvcConfigurer {
 
     @Resource
-    AuthInterceptor authInterceptor;
+      AuthInterceptor authInterceptor;
 
 //    @Override
 //    public void addInterceptors(InterceptorRegistry registry) {
