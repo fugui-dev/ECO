@@ -16,11 +16,15 @@ public enum AccountTransactionType {
 
     RELEASE_LOCK_BUY("RELEASE_LOCK_BUY", "释放锁定买入"),
 
+    ROLLBACK_LOCK_BUY("ROLLBACK_LOCK_BUY", "回滚锁定买入"),
+
     SELL("SELL", "卖出"),
 
     LOCK_SELL("LOCK_SELL", "锁定卖出"),
 
     RELEASE_LOCK_SELL("RELEASE_LOCK_SELL", "释放锁定卖出"),
+
+    ROLLBACK_LOCK_SELL("ROLLBACK_LOCK_SELL", "回滚锁定卖出"),
 
     CHARGE("CHARGE", "充值"),
 
