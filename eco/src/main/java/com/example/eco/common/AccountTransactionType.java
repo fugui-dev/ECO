@@ -6,6 +6,10 @@ import lombok.Getter;
 @Getter
 public enum AccountTransactionType {
 
+    ADD_NUMBER("ADD_NUMBER", "增加积分"),
+
+    DEDUCT_NUMBER("DEDUCT_NUMBER", "扣除积分"),
+
     BUY("BUY", "买入"),
 
     LOCK_BUY("LOCK_BUY", "锁定买入"),

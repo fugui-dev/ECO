@@ -33,9 +33,9 @@ public interface AccountService {
     SingleResponse<Void> buyNumber(AccountBuyNumberCmd accountBuyNumberCmd);
 
     /**
-     * 添加锁定购买金额
+     * 释放购买金额
      */
-    SingleResponse<Void> lockBuyNumber(AccountLockBuyNumberCmd accountLockBuyNumberCmd);
+    SingleResponse<Void> releaseLockBuyNumber(AccountReleaseLockBuyNumberCmd accountReleaseLockBuyNumberCmd);
 
     /**
      * 添加销售金额

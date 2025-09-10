@@ -1,9 +1,13 @@
 package com.example.eco.core.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.example.eco.bean.MultiResponse;
 import com.example.eco.bean.SingleResponse;
 import com.example.eco.bean.cmd.AccountDeductCmd;
+import com.example.eco.bean.cmd.PurchaseMinerProjectPageQry;
 import com.example.eco.bean.cmd.PurchaseMinerProjectsCreateCmd;
+import com.example.eco.bean.dto.PurchaseMinerProjectDTO;
 import com.example.eco.common.AccountType;
 import com.example.eco.common.PurchaseMinerProjectStatus;
 import com.example.eco.common.PurchaseMinerType;
@@ -18,12 +22,17 @@ import com.example.eco.model.mapper.AccountMapper;
 import com.example.eco.model.mapper.MinerProjectMapper;
 import com.example.eco.model.mapper.PurchaseMinerProjectMapper;
 import com.example.eco.model.mapper.SystemConfigMapper;
+import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.CollectionUtils;
+import org.springframework.util.StringUtils;
 
 import javax.annotation.Resource;
 import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 @Service
@@ -135,7 +144,47 @@ public class PurchaseMinerProjectServiceImpl implements PurchaseMinerProjectServ
                 purchaseMinerProjectMapper.updateById(purchaseMinerProject);
                 return ecoResponse;
             }
+
+            AccountDeductCmd esgAccountDeductCmd = new AccountDeductCmd();
+            esgAccountDeductCmd.setAccountType(AccountType.ECO.getCode());
+            esgAccountDeductCmd.setNumber(new BigDecimal(minerProject.getPrice()).divide(new BigDecimal(2), 4, BigDecimal.ROUND_HALF_UP).toString());
+            esgAccountDeductCmd.setWalletAddress(purchaseMinerProjectsCreateCmd.getWalletAddress());
+            esgAccountDeductCmd.setOrderId(purchaseMinerProject.getId());
+            SingleResponse<Void> esgResponse = accountService.purchaseMinerProjectNumber(esgAccountDeductCmd);
+            if (!esgResponse.isSuccess()) {
+
+                purchaseMinerProject.setStatus(PurchaseMinerProjectStatus.FAIL.getCode());
+                purchaseMinerProject.setReason(esgResponse.getErrMessage());
+                purchaseMinerProjectMapper.updateById(purchaseMinerProject);
+                return esgResponse;
+            }
         }
-        return null;
+        return SingleResponse.buildSuccess();
+    }
+
+    @Override
+    public MultiResponse<PurchaseMinerProjectDTO> page(PurchaseMinerProjectPageQry purchaseMinerProjectPageQry) {
+
+        LambdaQueryWrapper<PurchaseMinerProject> lambdaQueryWrapper = new LambdaQueryWrapper<>();
+        if (StringUtils.hasLength(purchaseMinerProjectPageQry.getWalletAddress())) {
+            lambdaQueryWrapper.eq(PurchaseMinerProject::getWalletAddress, purchaseMinerProjectPageQry.getWalletAddress());
+        }
+
+        Page<PurchaseMinerProject> purchaseMinerProjectPage = purchaseMinerProjectMapper.selectPage(Page.of(purchaseMinerProjectPageQry.getPageNum(), purchaseMinerProjectPageQry.getPageSize()), lambdaQueryWrapper);
+
+        if (CollectionUtils.isEmpty(purchaseMinerProjectPage.getRecords())) {
+            return MultiResponse.buildSuccess();
+        }
+
+        List<PurchaseMinerProjectDTO> purchaseMinerProjectDTOS = new ArrayList<>();
+
+        for (PurchaseMinerProject purchaseMinerProject : purchaseMinerProjectPage.getRecords()) {
+            PurchaseMinerProjectDTO purchaseMinerProjectDTO = new PurchaseMinerProjectDTO();
+            BeanUtils.copyProperties(purchaseMinerProject, purchaseMinerProjectDTO);
+            purchaseMinerProjectDTO.setTypeName(PurchaseMinerType.of(purchaseMinerProject.getType()).getName());
+            purchaseMinerProjectDTO.setStatusName(PurchaseMinerProjectStatus.of(purchaseMinerProject.getStatus()).getName());
+            purchaseMinerProjectDTOS.add(purchaseMinerProjectDTO);
+        }
+        return MultiResponse.of(purchaseMinerProjectDTOS, (int) purchaseMinerProjectPage.getTotal());
     }
 }

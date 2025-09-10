@@ -19,6 +19,11 @@ public class AccountDTO {
     private String type;
 
     /**
+     * 账号可以积分
+     */
+    private String number;
+
+    /**
      * 销售数量
      */
     private String sellNumber;

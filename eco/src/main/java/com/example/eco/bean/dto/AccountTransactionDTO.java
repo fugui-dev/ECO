@@ -1,21 +1,10 @@
-package com.example.eco.model.entity;
+package com.example.eco.bean.dto;
 
-import com.baomidou.mybatisplus.annotation.IdType;
-import com.baomidou.mybatisplus.annotation.TableId;
-import com.baomidou.mybatisplus.annotation.TableName;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
 import lombok.Data;
-import lombok.NoArgsConstructor;
 
 @Data
-@Builder
-@NoArgsConstructor
-@AllArgsConstructor
-@TableName("account_transaction")
-public class AccountTransaction {
+public class AccountTransactionDTO {
 
-    @TableId(type = IdType.AUTO)
     private Integer id;
 
     /**
@@ -34,9 +23,19 @@ public class AccountTransaction {
     private String accountType;
 
     /**
+     * 账号类型名称
+     */
+    private String accountTypeName;
+
+    /**
      * 交易类型
      */
     private String transactionType;
+
+    /**
+     * 交易类型名称
+     */
+    private String transactionTypeName;
 
     /**
      * 交易数量
@@ -65,14 +64,19 @@ public class AccountTransaction {
     private String hash;
 
     /**
-     * 订单
+     * 订单ID
      */
-    private String order;
+    private Integer orderId;
 
     /**
      * 状态
      */
     private String status;
+
+    /**
+     * 状态名称
+     */
+    private String statusName;
 
     /**
      * 备注
