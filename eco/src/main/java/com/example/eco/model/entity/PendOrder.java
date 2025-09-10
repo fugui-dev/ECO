@@ -83,6 +83,11 @@ public class PendOrder {
      */
     private Long confirmTime;
 
+    /**
+     * 取消时间
+     */
+    private Long cancelTime;
+
 
     @Version
     private Long version;

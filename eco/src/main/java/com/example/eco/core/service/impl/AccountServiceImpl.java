@@ -360,6 +360,11 @@ public class AccountServiceImpl implements AccountService {
             return SingleResponse.buildFailure("账户不存在");
         }
 
+        String number = account.getNumber();
+        if (new BigDecimal(number).compareTo(new BigDecimal(accountSellNumberCmd.getNumber())) < 0) {
+            return SingleResponse.buildFailure("账户余额不足");
+        }
+
         String beforeSellLockNumber = account.getSellLockNumber();
 
         account.setSellLockNumber(String.valueOf(new BigDecimal(account.getSellLockNumber()).add(new BigDecimal(accountSellNumberCmd.getNumber()))));
@@ -468,6 +473,65 @@ public class AccountServiceImpl implements AccountService {
         }
 
         return SingleResponse.buildSuccess();
+    }
+
+    @Override
+    @Retryable(value = OptimisticLockingFailureException.class, maxAttempts = 3, backoff = @Backoff(delay = 100))
+    @Transactional(isolation = Isolation.REPEATABLE_READ, rollbackFor = Exception.class)
+    public SingleResponse<Void> rollbackLockSellNumber(RollbackLockSellNumberCmd rollbackLockSellNumberCmd) {
+
+
+        LambdaQueryWrapper<AccountTransaction> lambdaQueryWrapper = new LambdaQueryWrapper<>();
+        lambdaQueryWrapper.eq(AccountTransaction::getWalletAddress, rollbackLockSellNumberCmd.getWalletAddress());
+        lambdaQueryWrapper.eq(AccountTransaction::getOrder, rollbackLockSellNumberCmd.getOrder());
+        lambdaQueryWrapper.eq(AccountTransaction::getTransactionType, AccountTransactionType.LOCK_SELL.getCode());
+        lambdaQueryWrapper.eq(AccountTransaction::getStatus, AccountTransactionStatusEnum.DEALING.getCode());
+
+        AccountTransaction lockSellTransaction = accountTransactionMapper.selectOne(lambdaQueryWrapper);
+        lockSellTransaction.setStatus(AccountTransactionStatusEnum.SUCCESS.getCode());
+        accountTransactionMapper.updateById(lockSellTransaction);
+
+        Account account = accountMapper.selectById(lockSellTransaction.getAccountId());
+
+
+        String beforeSellLockNumber = account.getSellLockNumber();
+        String beforeNumber = account.getNumber();
+
+        account.setSellLockNumber(String.valueOf(new BigDecimal(account.getSellLockNumber()).subtract(new BigDecimal(lockSellTransaction.getNumber()))));
+        account.setNumber(String.valueOf(new BigDecimal(account.getNumber()).add(new BigDecimal(lockSellTransaction.getNumber()))));
+        account.setUpdateTime(System.currentTimeMillis());
+        accountMapper.updateById(account);
+
+        AccountTransaction accountTransaction = new AccountTransaction();
+        accountTransaction.setWalletAddress(rollbackLockSellNumberCmd.getWalletAddress());
+        accountTransaction.setAccountId(account.getId());
+        accountTransaction.setBeforeNumber(beforeNumber);
+        accountTransaction.setTransactionTime(System.currentTimeMillis());
+        accountTransaction.setNumber(lockSellTransaction.getNumber());
+        accountTransaction.setAfterNumber(account.getNumber());
+        accountTransaction.setAccountType(account.getType());
+        accountTransaction.setStatus(AccountTransactionStatusEnum.SUCCESS.getCode());
+        accountTransaction.setTransactionType(AccountTransactionType.ADD_NUMBER.getCode());
+        accountTransaction.setOrder(rollbackLockSellNumberCmd.getOrder());
+
+        accountTransactionMapper.insert(accountTransaction);
+
+        AccountTransaction accountRollbackSellLockTransaction = new AccountTransaction();
+        accountRollbackSellLockTransaction.setWalletAddress(rollbackLockSellNumberCmd.getWalletAddress());
+        accountRollbackSellLockTransaction.setAccountId(account.getId());
+        accountRollbackSellLockTransaction.setBeforeNumber(beforeSellLockNumber);
+        accountRollbackSellLockTransaction.setTransactionTime(System.currentTimeMillis());
+        accountRollbackSellLockTransaction.setNumber(lockSellTransaction.getNumber());
+        accountRollbackSellLockTransaction.setAfterNumber(account.getSellLockNumber());
+        accountRollbackSellLockTransaction.setAccountType(account.getType());
+        accountRollbackSellLockTransaction.setStatus(AccountTransactionStatusEnum.SUCCESS.getCode());
+        accountRollbackSellLockTransaction.setTransactionType(AccountTransactionType.ROLLBACK_LOCK_SELL.getCode());
+        accountRollbackSellLockTransaction.setOrder(rollbackLockSellNumberCmd.getOrder());
+
+        accountTransactionMapper.insert(accountRollbackSellLockTransaction);
+
+
+        return null;
     }
 
     @Override

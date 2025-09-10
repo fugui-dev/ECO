@@ -48,6 +48,11 @@ public interface AccountService {
     SingleResponse<Void> releaseLockSellNumber(AccountLockSellNumberCmd accountLockSellNumberCmd);
 
     /**
+     * 回滚锁定销售金额
+     */
+    SingleResponse<Void> rollbackLockSellNumber(RollbackLockSellNumberCmd rollbackLockSellNumberCmd);
+
+    /**
      * 添加充值金额
      */
     SingleResponse<Void> chargeNumber(AccountChargeNumberCmd accountChargeNumberCmd);
