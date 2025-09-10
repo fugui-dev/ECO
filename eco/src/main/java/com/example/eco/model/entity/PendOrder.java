@@ -3,22 +3,21 @@ package com.example.eco.model.entity;
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
+import com.baomidou.mybatisplus.annotation.Version;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-
 /**
- * 购买矿机项目
+ * 挂单
  */
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@TableName("purchase_miner_project")
-public class PurchaseMinerProject {
-
+@TableName("pend_order")
+public class PendOrder {
 
     @TableId(type = IdType.AUTO)
     private Integer id;
@@ -34,29 +33,24 @@ public class PurchaseMinerProject {
     private String walletAddress;
 
     /**
-     * 矿机项目ID
+     * 挂单类型
      */
-    private Integer minerProjectId;
+    private String type;
 
     /**
-     * 价格
+     * 挂单数量
+     */
+    private String number;
+
+    /**
+     * 挂单单价
      */
     private String price;
 
     /**
-     * 矿机算力
+     * 挂单总价
      */
-    private String computingPower;
-
-    /**
-     * 实际到账算力
-     */
-    private String realComputingPower;
-
-    /**
-     * 购买方式类型
-     */
-    private String type;
+    private String totalPrice;
 
     /**
      * 状态
@@ -64,12 +58,42 @@ public class PurchaseMinerProject {
     private String status;
 
     /**
-     * 失败原因
+     * 买家钱包地址
      */
-    private String reason;
+    private String buyerWalletAddress;
+
+    /**
+     * 转账凭证图片列表,逗号分隔
+     */
+    private String imageList;
+
+
+    /**
+     * 备注
+     */
+    private String remark;
+
+    /**
+     * 下单时间
+     */
+    private String placeOrderTime;
+
+    /**
+     * 确认时间
+     */
+    private Long confirmTime;
+
+
+    @Version
+    private Long version;
 
     /**
      * 创建时间
      */
     private Long createTime;
+
+    /**
+     * 更新时间
+     */
+    private Long updateTime;
 }

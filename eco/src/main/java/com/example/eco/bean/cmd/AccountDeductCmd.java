@@ -24,7 +24,9 @@ public class AccountDeductCmd {
     private String number;
 
     /**
-     * 订单ID
+     * 订单
      */
-    private Integer orderId;
+    private String order;
+
+
 }

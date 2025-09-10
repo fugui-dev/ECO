@@ -27,7 +27,12 @@ public class AccountTransactionPageQry extends PageQuery {
     private String accountType;
 
     /**
-     * 订单ID
+     * 订单
      */
-    private Integer orderId;
+    private String order;
+
+    /**
+     * 交易哈希
+     */
+    private String hash;
 }

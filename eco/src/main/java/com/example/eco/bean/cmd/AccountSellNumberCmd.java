@@ -19,5 +19,10 @@ public class AccountSellNumberCmd {
      */
     private String number;
 
+    /**
+     * 订单
+     */
+    private String order;
+
 
 }

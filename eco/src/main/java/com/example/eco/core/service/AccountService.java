@@ -45,7 +45,7 @@ public interface AccountService {
     /**
      * 添加锁定销售金额
      */
-    SingleResponse<Void> lockSellNumber(AccountLockSellNumberCmd accountLockSellNumberCmd);
+    SingleResponse<Void> releaseLockSellNumber(AccountLockSellNumberCmd accountLockSellNumberCmd);
 
     /**
      * 添加充值金额
@@ -55,7 +55,7 @@ public interface AccountService {
     /**
      * 添加锁定充值金额
      */
-    SingleResponse<Void> lockChargeNumber(AccountLockChargeNumberCmd accountLockChargeNumberCmd);
+    SingleResponse<Void> releaseLockChargeNumber(AccountLockChargeNumberCmd accountLockChargeNumberCmd);
 
     /**
      * 添加提现金额
@@ -65,7 +65,7 @@ public interface AccountService {
     /**
      * 添加锁定充值金额
      */
-    SingleResponse<Void> lockWithdrawNumber(AccountLockWithdrawNumberCmd accountLockWithdrawNumberCmd);
+    SingleResponse<Void> releaseLockWithdrawNumber(AccountLockWithdrawNumberCmd accountLockWithdrawNumberCmd);
 
     /**
      * 购买矿机项目扣除账户金额 不能使用购买金额

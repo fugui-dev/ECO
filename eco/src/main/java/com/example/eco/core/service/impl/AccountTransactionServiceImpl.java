@@ -3,6 +3,8 @@ package com.example.eco.core.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.example.eco.bean.MultiResponse;
+import com.example.eco.bean.SingleResponse;
+import com.example.eco.bean.cmd.AccountTransactionCreateCmd;
 import com.example.eco.bean.cmd.AccountTransactionPageQry;
 import com.example.eco.bean.dto.AccountTransactionDTO;
 import com.example.eco.common.AccountTransactionStatusEnum;
@@ -35,7 +37,8 @@ public class AccountTransactionServiceImpl implements AccountTransactionService 
         queryWrapper.eq(StringUtils.hasLength(accountTransactionPageQry.getAccountType()), AccountTransaction::getAccountType, accountTransactionPageQry.getAccountType());
         queryWrapper.eq(StringUtils.hasLength(accountTransactionPageQry.getTransactionType()), AccountTransaction::getTransactionType, accountTransactionPageQry.getTransactionType());
         queryWrapper.eq(StringUtils.hasLength(accountTransactionPageQry.getTransactionStatus()), AccountTransaction::getStatus, accountTransactionPageQry.getTransactionStatus());
-        queryWrapper.eq(Objects.nonNull(accountTransactionPageQry.getOrderId()), AccountTransaction::getOrderId, accountTransactionPageQry.getOrderId());
+        queryWrapper.eq(StringUtils.hasLength(accountTransactionPageQry.getOrder()), AccountTransaction::getOrder, accountTransactionPageQry.getOrder());
+        queryWrapper.eq(StringUtils.hasLength(accountTransactionPageQry.getHash()), AccountTransaction::getHash, accountTransactionPageQry.getHash());
         queryWrapper.orderByDesc(AccountTransaction::getTransactionTime);
 
         Page<AccountTransaction> accountTransactionPage = accountTransactionMapper.selectPage(Page.of(accountTransactionPageQry.getPageNum(), accountTransactionPageQry.getPageSize()), queryWrapper);
@@ -55,4 +58,5 @@ public class AccountTransactionServiceImpl implements AccountTransactionService 
         }
         return MultiResponse.of(accountTransactionDTOList,(int)accountTransactionPage.getTotal());
     }
+
 }

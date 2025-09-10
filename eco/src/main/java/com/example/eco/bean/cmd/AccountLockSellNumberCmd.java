@@ -19,5 +19,10 @@ public class AccountLockSellNumberCmd {
      */
     private String number;
 
+    /**
+     * 订单
+     */
+    private String order;
+
 
 }

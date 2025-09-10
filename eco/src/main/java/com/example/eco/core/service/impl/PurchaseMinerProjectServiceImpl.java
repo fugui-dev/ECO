@@ -67,6 +67,8 @@ public class PurchaseMinerProjectServiceImpl implements PurchaseMinerProjectServ
             return SingleResponse.buildFailure("新增算力系统配置错误");
         }
 
+        String order = "PMP" + System.currentTimeMillis();
+
         Double computingPower = Double.parseDouble(minerProject.getComputingPower()) * Math.pow(Double.parseDouble(systemConfig.getValue()), days);
 
         PurchaseMinerProject purchaseMinerProject = new PurchaseMinerProject();
@@ -76,6 +78,7 @@ public class PurchaseMinerProjectServiceImpl implements PurchaseMinerProjectServ
         purchaseMinerProject.setType(purchaseMinerProjectsCreateCmd.getType());
         purchaseMinerProject.setWalletAddress(purchaseMinerProjectsCreateCmd.getWalletAddress());
         purchaseMinerProject.setStatus(PurchaseMinerProjectStatus.DEALING.getCode());
+        purchaseMinerProject.setOrder(order);
         purchaseMinerProject.setCreateTime(System.currentTimeMillis());
 
         purchaseMinerProjectMapper.insert(purchaseMinerProject);
@@ -86,7 +89,7 @@ public class PurchaseMinerProjectServiceImpl implements PurchaseMinerProjectServ
             accountDeductCmd.setAccountType(AccountType.ESG.getCode());
             accountDeductCmd.setNumber(minerProject.getPrice());
             accountDeductCmd.setWalletAddress(purchaseMinerProjectsCreateCmd.getWalletAddress());
-            accountDeductCmd.setOrderId(purchaseMinerProject.getId());
+            accountDeductCmd.setOrder(order);
             SingleResponse<Void> response = accountService.purchaseMinerProjectNumber(accountDeductCmd);
             if (!response.isSuccess()) {
 
@@ -111,7 +114,7 @@ public class PurchaseMinerProjectServiceImpl implements PurchaseMinerProjectServ
             accountDeductCmd.setAccountType(AccountType.ECO.getCode());
             accountDeductCmd.setNumber(minerProject.getPrice());
             accountDeductCmd.setWalletAddress(purchaseMinerProjectsCreateCmd.getWalletAddress());
-            accountDeductCmd.setOrderId(purchaseMinerProject.getId());
+            accountDeductCmd.setOrder(order);
             SingleResponse<Void> response = accountService.purchaseMinerProjectNumber(accountDeductCmd);
             if (!response.isSuccess()) {
 
@@ -135,7 +138,7 @@ public class PurchaseMinerProjectServiceImpl implements PurchaseMinerProjectServ
             ecoAccountDeductCmd.setAccountType(AccountType.ECO.getCode());
             ecoAccountDeductCmd.setNumber(new BigDecimal(minerProject.getPrice()).divide(new BigDecimal(2), 4, BigDecimal.ROUND_HALF_UP).toString());
             ecoAccountDeductCmd.setWalletAddress(purchaseMinerProjectsCreateCmd.getWalletAddress());
-            ecoAccountDeductCmd.setOrderId(purchaseMinerProject.getId());
+            ecoAccountDeductCmd.setOrder(order);
             SingleResponse<Void> ecoResponse = accountService.purchaseMinerProjectNumber(ecoAccountDeductCmd);
             if (!ecoResponse.isSuccess()) {
 
@@ -149,7 +152,7 @@ public class PurchaseMinerProjectServiceImpl implements PurchaseMinerProjectServ
             esgAccountDeductCmd.setAccountType(AccountType.ECO.getCode());
             esgAccountDeductCmd.setNumber(new BigDecimal(minerProject.getPrice()).divide(new BigDecimal(2), 4, BigDecimal.ROUND_HALF_UP).toString());
             esgAccountDeductCmd.setWalletAddress(purchaseMinerProjectsCreateCmd.getWalletAddress());
-            esgAccountDeductCmd.setOrderId(purchaseMinerProject.getId());
+            esgAccountDeductCmd.setOrder(order);
             SingleResponse<Void> esgResponse = accountService.purchaseMinerProjectNumber(esgAccountDeductCmd);
             if (!esgResponse.isSuccess()) {
 
