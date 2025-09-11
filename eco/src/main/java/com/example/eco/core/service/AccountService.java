@@ -63,9 +63,14 @@ public interface AccountService {
     SingleResponse<Void> chargeNumber(AccountChargeNumberCmd accountChargeNumberCmd);
 
     /**
-     * 添加锁定充值金额
+     * 释放锁定充值金额
      */
     SingleResponse<Void> releaseLockChargeNumber(AccountLockChargeNumberCmd accountLockChargeNumberCmd);
+
+    /**
+     * 回滚锁定充值金额
+     */
+    SingleResponse<Void> rollbackLockChargeNumber(RollbackLockChargeNumberCmd rollbackLockChargeNumberCmd);
 
     /**
      * 添加提现金额
@@ -73,7 +78,12 @@ public interface AccountService {
     SingleResponse<Void> withdrawNumber(AccountWithdrawNumberCmd accountWithdrawNumberCmd);
 
     /**
-     * 添加锁定充值金额
+     * 回滚锁定提现金额
+     */
+    SingleResponse<Void> rollbackLockWithdrawNumber(RollbackLockWithdrawNumberCmd rollbackLockWithdrawNumberCmd);
+
+    /**
+     * 释放锁定充值金额
      */
     SingleResponse<Void> releaseLockWithdrawNumber(AccountLockWithdrawNumberCmd accountLockWithdrawNumberCmd);
 

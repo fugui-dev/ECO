@@ -252,7 +252,7 @@ public class AccountServiceImpl implements AccountService {
         accountLockBuyTransaction.setNumber(accountBuyNumberCmd.getNumber());
         accountLockBuyTransaction.setAfterNumber(account.getBuyLockNumber());
         accountLockBuyTransaction.setAccountType(account.getType());
-        accountLockBuyTransaction.setStatus(AccountTransactionStatusEnum.DEALING.getCode());
+        accountLockBuyTransaction.setStatus(AccountTransactionStatusEnum.SUCCESS.getCode());
         accountLockBuyTransaction.setTransactionType(AccountTransactionType.LOCK_BUY.getCode());
         accountLockBuyTransaction.setOrder(accountBuyNumberCmd.getOrder());
 
@@ -270,11 +270,8 @@ public class AccountServiceImpl implements AccountService {
         lambdaQueryWrapper.eq(AccountTransaction::getWalletAddress, accountReleaseLockBuyNumberCmd.getWalletAddress());
         lambdaQueryWrapper.eq(AccountTransaction::getOrder, accountReleaseLockBuyNumberCmd.getOrder());
         lambdaQueryWrapper.eq(AccountTransaction::getTransactionType, AccountTransactionType.LOCK_BUY.getCode());
-        lambdaQueryWrapper.eq(AccountTransaction::getStatus, AccountTransactionStatusEnum.DEALING.getCode());
 
         AccountTransaction lockBuyTransaction = accountTransactionMapper.selectOne(lambdaQueryWrapper);
-        lockBuyTransaction.setStatus(AccountTransactionStatusEnum.SUCCESS.getCode());
-        accountTransactionMapper.updateById(lockBuyTransaction);
 
         Account account = accountMapper.selectById(lockBuyTransaction.getAccountId());
         if (account == null) {
@@ -349,37 +346,18 @@ public class AccountServiceImpl implements AccountService {
         LambdaQueryWrapper<AccountTransaction> lambdaQueryWrapper = new LambdaQueryWrapper<>();
         lambdaQueryWrapper.eq(AccountTransaction::getWalletAddress, rollbackLockBuyNumberCmd.getWalletAddress());
         lambdaQueryWrapper.eq(AccountTransaction::getOrder, rollbackLockBuyNumberCmd.getOrder());
-        lambdaQueryWrapper.eq(AccountTransaction::getTransactionType, AccountTransactionType.BUY.getCode());
-        lambdaQueryWrapper.eq(AccountTransaction::getStatus, AccountTransactionStatusEnum.DEALING.getCode());
+        lambdaQueryWrapper.eq(AccountTransaction::getTransactionType, AccountTransactionType.LOCK_BUY.getCode());
 
         AccountTransaction lockBuyTransaction = accountTransactionMapper.selectOne(lambdaQueryWrapper);
-        lockBuyTransaction.setStatus(AccountTransactionStatusEnum.SUCCESS.getCode());
-        accountTransactionMapper.updateById(lockBuyTransaction);
 
         Account account = accountMapper.selectById(lockBuyTransaction.getAccountId());
 
 
         String beforeBuyLockNumber = account.getBuyLockNumber();
-        String beforeNumber = account.getNumber();
 
         account.setBuyLockNumber(String.valueOf(new BigDecimal(account.getBuyLockNumber()).subtract(new BigDecimal(lockBuyTransaction.getNumber()))));
-        account.setNumber(String.valueOf(new BigDecimal(account.getNumber()).add(new BigDecimal(lockBuyTransaction.getNumber()))));
         account.setUpdateTime(System.currentTimeMillis());
         accountMapper.updateById(account);
-
-        AccountTransaction accountTransaction = new AccountTransaction();
-        accountTransaction.setWalletAddress(rollbackLockBuyNumberCmd.getWalletAddress());
-        accountTransaction.setAccountId(account.getId());
-        accountTransaction.setBeforeNumber(beforeNumber);
-        accountTransaction.setTransactionTime(System.currentTimeMillis());
-        accountTransaction.setNumber(lockBuyTransaction.getNumber());
-        accountTransaction.setAfterNumber(account.getNumber());
-        accountTransaction.setAccountType(account.getType());
-        accountTransaction.setStatus(AccountTransactionStatusEnum.SUCCESS.getCode());
-        accountTransaction.setTransactionType(AccountTransactionType.ADD_NUMBER.getCode());
-        accountTransaction.setOrder(rollbackLockBuyNumberCmd.getOrder());
-
-        accountTransactionMapper.insert(accountTransaction);
 
         AccountTransaction accountRollbackBuyLockTransaction = new AccountTransaction();
         accountRollbackBuyLockTransaction.setWalletAddress(rollbackLockBuyNumberCmd.getWalletAddress());
@@ -417,8 +395,10 @@ public class AccountServiceImpl implements AccountService {
             return SingleResponse.buildFailure("账户余额不足");
         }
 
+        String beforeNumber = account.getNumber();
         String beforeSellLockNumber = account.getSellLockNumber();
 
+        account.setNumber(String.valueOf(new BigDecimal(account.getNumber()).subtract(new BigDecimal(accountSellNumberCmd.getNumber()))));
         account.setSellLockNumber(String.valueOf(new BigDecimal(account.getSellLockNumber()).add(new BigDecimal(accountSellNumberCmd.getNumber()))));
         account.setUpdateTime(System.currentTimeMillis());
         int updateCount = accountMapper.updateById(account);
@@ -426,6 +406,19 @@ public class AccountServiceImpl implements AccountService {
         if (updateCount == 0) {
             throw new OptimisticLockingFailureException("乐观锁异常");
         }
+
+        AccountTransaction accountTransaction = new AccountTransaction();
+        accountTransaction.setWalletAddress(accountSellNumberCmd.getWalletAddress());
+        accountTransaction.setAccountId(account.getId());
+        accountTransaction.setBeforeNumber(beforeNumber);
+        accountTransaction.setTransactionTime(System.currentTimeMillis());
+        accountTransaction.setNumber(accountSellNumberCmd.getNumber());
+        accountTransaction.setAfterNumber(account.getNumber());
+        accountTransaction.setAccountType(account.getType());
+        accountTransaction.setStatus(AccountTransactionStatusEnum.SUCCESS.getCode());
+        accountTransaction.setTransactionType(AccountTransactionType.DEDUCT_NUMBER.getCode());
+        accountTransaction.setOrder(accountSellNumberCmd.getOrder());
+        accountTransactionMapper.insert(accountTransaction);
 
         AccountTransaction accountLockSellTransaction = new AccountTransaction();
         accountLockSellTransaction.setWalletAddress(accountSellNumberCmd.getWalletAddress());
@@ -435,7 +428,7 @@ public class AccountServiceImpl implements AccountService {
         accountLockSellTransaction.setNumber(accountSellNumberCmd.getNumber());
         accountLockSellTransaction.setAfterNumber(account.getSellLockNumber());
         accountLockSellTransaction.setAccountType(account.getType());
-        accountLockSellTransaction.setStatus(AccountTransactionStatusEnum.DEALING.getCode());
+        accountLockSellTransaction.setStatus(AccountTransactionStatusEnum.SUCCESS.getCode());
         accountLockSellTransaction.setTransactionType(AccountTransactionType.LOCK_SELL.getCode());
         accountLockSellTransaction.setOrder(accountSellNumberCmd.getOrder());
         accountTransactionMapper.insert(accountLockSellTransaction);
@@ -452,22 +445,18 @@ public class AccountServiceImpl implements AccountService {
         lambdaQueryWrapper.eq(AccountTransaction::getWalletAddress, accountReleaseLockSellNumberCmd.getWalletAddress());
         lambdaQueryWrapper.eq(AccountTransaction::getOrder, accountReleaseLockSellNumberCmd.getOrder());
         lambdaQueryWrapper.eq(AccountTransaction::getTransactionType, AccountTransactionType.LOCK_SELL.getCode());
-        lambdaQueryWrapper.eq(AccountTransaction::getStatus, AccountTransactionStatusEnum.DEALING.getCode());
 
         AccountTransaction lockSellTransaction = accountTransactionMapper.selectOne(lambdaQueryWrapper);
-        lockSellTransaction.setStatus(AccountTransactionStatusEnum.SUCCESS.getCode());
-        accountTransactionMapper.updateById(lockSellTransaction);
+
 
         Account account = accountMapper.selectById(lockSellTransaction.getId());
         if (account == null) {
             return SingleResponse.buildFailure("账户不存在");
         }
 
-        String beforeNumber = account.getNumber();
         String beforeSellNumber = account.getSellNumber();
         String beforeLockSellNumber = account.getSellLockNumber();
 
-        account.setNumber(String.valueOf(new BigDecimal(account.getNumber()).subtract(new BigDecimal(lockSellTransaction.getNumber()))));
         account.setSellNumber(String.valueOf(new BigDecimal(account.getSellNumber()).add(new BigDecimal(lockSellTransaction.getNumber()))));
         account.setSellLockNumber(String.valueOf(new BigDecimal(account.getSellLockNumber()).subtract(new BigDecimal(lockSellTransaction.getNumber()))));
         account.setUpdateTime(System.currentTimeMillis());
@@ -477,19 +466,6 @@ public class AccountServiceImpl implements AccountService {
         if (updateCount == 0) {
             throw new OptimisticLockingFailureException("乐观锁异常");
         }
-
-        AccountTransaction accountTransaction = new AccountTransaction();
-        accountTransaction.setWalletAddress(lockSellTransaction.getWalletAddress());
-        accountTransaction.setAccountId(account.getId());
-        accountTransaction.setBeforeNumber(beforeNumber);
-        accountTransaction.setTransactionTime(System.currentTimeMillis());
-        accountTransaction.setNumber(lockSellTransaction.getNumber());
-        accountTransaction.setAfterNumber(account.getNumber());
-        accountTransaction.setAccountType(account.getType());
-        accountTransaction.setStatus(AccountTransactionStatusEnum.SUCCESS.getCode());
-        accountTransaction.setTransactionType(AccountTransactionType.DEDUCT_NUMBER.getCode());
-        accountTransaction.setOrder(lockSellTransaction.getOrder());
-        accountTransactionMapper.insert(accountTransaction);
 
 
         AccountTransaction accountSellTransaction = new AccountTransaction();
@@ -532,11 +508,9 @@ public class AccountServiceImpl implements AccountService {
         lambdaQueryWrapper.eq(AccountTransaction::getWalletAddress, rollbackLockSellNumberCmd.getWalletAddress());
         lambdaQueryWrapper.eq(AccountTransaction::getOrder, rollbackLockSellNumberCmd.getOrder());
         lambdaQueryWrapper.eq(AccountTransaction::getTransactionType, AccountTransactionType.LOCK_SELL.getCode());
-        lambdaQueryWrapper.eq(AccountTransaction::getStatus, AccountTransactionStatusEnum.DEALING.getCode());
+
 
         AccountTransaction lockSellTransaction = accountTransactionMapper.selectOne(lambdaQueryWrapper);
-        lockSellTransaction.setStatus(AccountTransactionStatusEnum.SUCCESS.getCode());
-        accountTransactionMapper.updateById(lockSellTransaction);
 
         Account account = accountMapper.selectById(lockSellTransaction.getAccountId());
 
@@ -597,7 +571,7 @@ public class AccountServiceImpl implements AccountService {
 
         String beforeChargeLockNumber = account.getChargeLockNumber();
 
-        account.setChargeLockNumber(String.valueOf(new BigDecimal(account.getChargeLockNumber()).subtract(new BigDecimal(accountChargeNumberCmd.getNumber()))));
+        account.setChargeLockNumber(String.valueOf(new BigDecimal(account.getChargeLockNumber()).add(new BigDecimal(accountChargeNumberCmd.getNumber()))));
 
         account.setUpdateTime(System.currentTimeMillis());
         int updateCount = accountMapper.updateById(account);
@@ -614,9 +588,11 @@ public class AccountServiceImpl implements AccountService {
         accountLockChargeTransaction.setNumber(accountChargeNumberCmd.getNumber());
         accountLockChargeTransaction.setAfterNumber(account.getChargeLockNumber());
         accountLockChargeTransaction.setAccountType(account.getType());
-        accountLockChargeTransaction.setStatus(AccountTransactionStatusEnum.DEALING.getCode());
+        accountLockChargeTransaction.setStatus(AccountTransactionStatusEnum.SUCCESS.getCode());
         accountLockChargeTransaction.setTransactionType(AccountTransactionType.LOCK_CHARGE.getCode());
+        accountLockChargeTransaction.setOrder(accountChargeNumberCmd.getOrder());
         accountLockChargeTransaction.setHash(accountChargeNumberCmd.getHash());
+
         accountTransactionMapper.insert(accountLockChargeTransaction);
 
         return SingleResponse.buildSuccess();
@@ -626,12 +602,15 @@ public class AccountServiceImpl implements AccountService {
     @Retryable(value = OptimisticLockingFailureException.class, maxAttempts = 3, backoff = @Backoff(delay = 100))
     @Transactional(isolation = Isolation.REPEATABLE_READ, rollbackFor = Exception.class)
     public SingleResponse<Void> releaseLockChargeNumber(AccountLockChargeNumberCmd accountLockChargeNumberCmd) {
-        LambdaQueryWrapper<Account> queryWrapper = new LambdaQueryWrapper<>();
-        queryWrapper.eq(Account::getWalletAddress, accountLockChargeNumberCmd.getWalletAddress());
-        queryWrapper.eq(Account::getType, accountLockChargeNumberCmd.getType());
-        queryWrapper.last("FOR UPDATE");
 
-        Account account = accountMapper.selectOne(queryWrapper);
+        LambdaQueryWrapper<AccountTransaction> lambdaQueryWrapper = new LambdaQueryWrapper<>();
+        lambdaQueryWrapper.eq(AccountTransaction::getWalletAddress, accountLockChargeNumberCmd.getWalletAddress());
+        lambdaQueryWrapper.eq(AccountTransaction::getOrder, accountLockChargeNumberCmd.getOrder());
+        lambdaQueryWrapper.eq(AccountTransaction::getTransactionType, AccountTransactionType.LOCK_CHARGE.getCode());
+
+        AccountTransaction lockChargeTransaction = accountTransactionMapper.selectOne(lambdaQueryWrapper);
+
+        Account account = accountMapper.selectById(lockChargeTransaction.getAccountId());
         if (account == null) {
             return SingleResponse.buildFailure("账户不存在");
         }
@@ -691,19 +670,52 @@ public class AccountServiceImpl implements AccountService {
         accountReleaseChargeTransaction.setHash(accountLockChargeNumberCmd.getHash());
         accountTransactionMapper.insert(accountReleaseChargeTransaction);
 
-        LambdaQueryWrapper<AccountTransaction> lambdaQueryWrapper = new LambdaQueryWrapper<>();
-        lambdaQueryWrapper.eq(AccountTransaction::getWalletAddress, accountLockChargeNumberCmd.getWalletAddress());
-        lambdaQueryWrapper.eq(AccountTransaction::getHash, accountLockChargeNumberCmd.getHash());
-        lambdaQueryWrapper.eq(AccountTransaction::getTransactionType, AccountTransactionType.LOCK_CHARGE.getCode());
-        lambdaQueryWrapper.eq(AccountTransaction::getStatus, AccountTransactionStatusEnum.DEALING.getCode());
-
-        AccountTransaction lockChargeTransaction = accountTransactionMapper.selectOne(lambdaQueryWrapper);
-        if (Objects.nonNull(lockChargeTransaction)) {
-            lockChargeTransaction.setStatus(AccountTransactionStatusEnum.SUCCESS.getCode());
-            accountTransactionMapper.updateById(lockChargeTransaction);
-        }
 
         return SingleResponse.buildSuccess();
+    }
+
+    @Override
+    @Retryable(value = OptimisticLockingFailureException.class, maxAttempts = 3, backoff = @Backoff(delay = 100))
+    @Transactional(isolation = Isolation.REPEATABLE_READ, rollbackFor = Exception.class)
+    public SingleResponse<Void> rollbackLockChargeNumber(RollbackLockChargeNumberCmd rollbackLockChargeNumberCmd) {
+
+        LambdaQueryWrapper<AccountTransaction> lambdaQueryWrapper = new LambdaQueryWrapper<>();
+        lambdaQueryWrapper.eq(AccountTransaction::getWalletAddress, rollbackLockChargeNumberCmd.getWalletAddress());
+        lambdaQueryWrapper.eq(AccountTransaction::getOrder, rollbackLockChargeNumberCmd.getOrder());
+        lambdaQueryWrapper.eq(AccountTransaction::getTransactionType, AccountTransactionType.LOCK_CHARGE.getCode());
+
+        AccountTransaction lockChargeTransaction = accountTransactionMapper.selectOne(lambdaQueryWrapper);
+
+        Account account = accountMapper.selectById(lockChargeTransaction.getAccountId());
+        if (account == null) {
+            return SingleResponse.buildFailure("账户不存在");
+        }
+
+        String beforeChargeLockNumber = account.getChargeLockNumber();
+        account.setChargeLockNumber(String.valueOf(new BigDecimal(account.getChargeLockNumber()).subtract(new BigDecimal(lockChargeTransaction.getNumber()))));
+        account.setUpdateTime(System.currentTimeMillis());
+
+        int updateCount = accountMapper.updateById(account);
+
+        if (updateCount == 0) {
+            throw new OptimisticLockingFailureException("乐观锁异常");
+        }
+
+        AccountTransaction accountRollbackLockChargeTransaction = new AccountTransaction();
+        accountRollbackLockChargeTransaction.setWalletAddress(rollbackLockChargeNumberCmd.getWalletAddress());
+        accountRollbackLockChargeTransaction.setAccountId(account.getId());
+        accountRollbackLockChargeTransaction.setBeforeNumber(beforeChargeLockNumber);
+        accountRollbackLockChargeTransaction.setTransactionTime(System.currentTimeMillis());
+        accountRollbackLockChargeTransaction.setNumber(lockChargeTransaction.getNumber());
+        accountRollbackLockChargeTransaction.setAfterNumber(account.getSellLockNumber());
+        accountRollbackLockChargeTransaction.setAccountType(account.getType());
+        accountRollbackLockChargeTransaction.setStatus(AccountTransactionStatusEnum.SUCCESS.getCode());
+        accountRollbackLockChargeTransaction.setTransactionType(AccountTransactionType.ROLLBACK_LOCK_CHARGE.getCode());
+        accountRollbackLockChargeTransaction.setOrder(rollbackLockChargeNumberCmd.getOrder());
+
+        accountTransactionMapper.insert(accountRollbackLockChargeTransaction);
+
+        return null;
     }
 
     @Override
@@ -720,8 +732,15 @@ public class AccountServiceImpl implements AccountService {
             return SingleResponse.buildFailure("账户不存在");
         }
 
-        String beforeWithdrawLockNumber = account.getWithdrawLockNumber();
+        String number = account.getNumber();
+        if (new BigDecimal(number).compareTo(new BigDecimal(accountWithdrawNumberCmd.getNumber())) < 0) {
+            return SingleResponse.buildFailure("账户余额不足");
+        }
 
+        String beforeWithdrawLockNumber = account.getWithdrawLockNumber();
+        String beforeNumber = account.getNumber();
+
+        account.setNumber(String.valueOf(new BigDecimal(account.getNumber()).subtract(new BigDecimal(accountWithdrawNumberCmd.getNumber()))));
         account.setWithdrawLockNumber(String.valueOf(new BigDecimal(account.getWithdrawLockNumber()).add(new BigDecimal(accountWithdrawNumberCmd.getNumber()))));
         account.setUpdateTime(System.currentTimeMillis());
         int updateCount = accountMapper.updateById(account);
@@ -730,6 +749,18 @@ public class AccountServiceImpl implements AccountService {
             throw new OptimisticLockingFailureException("乐观锁异常");
         }
 
+        AccountTransaction accountTransaction = new AccountTransaction();
+        accountTransaction.setWalletAddress(accountWithdrawNumberCmd.getWalletAddress());
+        accountTransaction.setAccountId(account.getId());
+        accountTransaction.setBeforeNumber(beforeNumber);
+        accountTransaction.setTransactionTime(System.currentTimeMillis());
+        accountTransaction.setNumber(accountWithdrawNumberCmd.getNumber());
+        accountTransaction.setAfterNumber(account.getNumber());
+        accountTransaction.setAccountType(account.getType());
+        accountTransaction.setStatus(AccountTransactionStatusEnum.SUCCESS.getCode());
+        accountTransaction.setTransactionType(AccountTransactionType.DEDUCT_NUMBER.getCode());
+        accountTransaction.setOrder(accountWithdrawNumberCmd.getOrder());
+        accountTransactionMapper.insert(accountTransaction);
 
         AccountTransaction accountLockWithdrawTransaction = new AccountTransaction();
         accountLockWithdrawTransaction.setWalletAddress(accountWithdrawNumberCmd.getWalletAddress());
@@ -739,7 +770,7 @@ public class AccountServiceImpl implements AccountService {
         accountLockWithdrawTransaction.setNumber(accountWithdrawNumberCmd.getNumber());
         accountLockWithdrawTransaction.setAfterNumber(account.getWithdrawLockNumber());
         accountLockWithdrawTransaction.setAccountType(account.getType());
-        accountLockWithdrawTransaction.setStatus(AccountTransactionStatusEnum.DEALING.getCode());
+        accountLockWithdrawTransaction.setStatus(AccountTransactionStatusEnum.SUCCESS.getCode());
         accountLockWithdrawTransaction.setTransactionType(AccountTransactionType.LOCK_WITHDRAW.getCode());
         accountLockWithdrawTransaction.setOrder(accountWithdrawNumberCmd.getOrder());
         accountTransactionMapper.insert(accountLockWithdrawTransaction);
@@ -751,22 +782,78 @@ public class AccountServiceImpl implements AccountService {
     @Override
     @Retryable(value = OptimisticLockingFailureException.class, maxAttempts = 3, backoff = @Backoff(delay = 100))
     @Transactional(isolation = Isolation.REPEATABLE_READ, rollbackFor = Exception.class)
-    public SingleResponse<Void> releaseLockWithdrawNumber(AccountLockWithdrawNumberCmd accountLockWithdrawNumberCmd) {
-        LambdaQueryWrapper<Account> queryWrapper = new LambdaQueryWrapper<>();
-        queryWrapper.eq(Account::getWalletAddress, accountLockWithdrawNumberCmd.getWalletAddress());
-        queryWrapper.eq(Account::getType, accountLockWithdrawNumberCmd.getType());
-        queryWrapper.last("FOR UPDATE");
+    public SingleResponse<Void> rollbackLockWithdrawNumber(RollbackLockWithdrawNumberCmd rollbackLockWithdrawNumberCmd) {
+        LambdaQueryWrapper<AccountTransaction> lambdaQueryWrapper = new LambdaQueryWrapper<>();
+        lambdaQueryWrapper.eq(AccountTransaction::getWalletAddress, rollbackLockWithdrawNumberCmd.getWalletAddress());
+        lambdaQueryWrapper.eq(AccountTransaction::getOrder, rollbackLockWithdrawNumberCmd.getOrder());
+        lambdaQueryWrapper.eq(AccountTransaction::getTransactionType, AccountTransactionType.LOCK_WITHDRAW.getCode());
 
-        Account account = accountMapper.selectOne(queryWrapper);
+        AccountTransaction lockWithdrawTransaction = accountTransactionMapper.selectOne(lambdaQueryWrapper);
+
+        Account account = accountMapper.selectById(lockWithdrawTransaction.getAccountId());
+
+
+        String beforeWithdrawLockNumber = account.getWithdrawLockNumber();
+
+        String beforeNumber = account.getNumber();
+
+        account.setWithdrawLockNumber(String.valueOf(new BigDecimal(account.getWithdrawLockNumber()).subtract(new BigDecimal(lockWithdrawTransaction.getNumber()))));
+        account.setNumber(String.valueOf(new BigDecimal(account.getNumber()).add(new BigDecimal(lockWithdrawTransaction.getNumber()))));
+        account.setUpdateTime(System.currentTimeMillis());
+        accountMapper.updateById(account);
+
+        AccountTransaction accountTransaction = new AccountTransaction();
+        accountTransaction.setWalletAddress(lockWithdrawTransaction.getWalletAddress());
+        accountTransaction.setAccountId(account.getId());
+        accountTransaction.setBeforeNumber(beforeNumber);
+        accountTransaction.setTransactionTime(System.currentTimeMillis());
+        accountTransaction.setNumber(lockWithdrawTransaction.getNumber());
+        accountTransaction.setAfterNumber(account.getNumber());
+        accountTransaction.setAccountType(account.getType());
+        accountTransaction.setStatus(AccountTransactionStatusEnum.SUCCESS.getCode());
+        accountTransaction.setTransactionType(AccountTransactionType.ADD_NUMBER.getCode());
+        accountTransaction.setOrder(rollbackLockWithdrawNumberCmd.getOrder());
+
+        accountTransactionMapper.insert(accountTransaction);
+
+        AccountTransaction accountRollbackLockWithdrawTransaction = new AccountTransaction();
+        accountRollbackLockWithdrawTransaction.setWalletAddress(lockWithdrawTransaction.getWalletAddress());
+        accountRollbackLockWithdrawTransaction.setAccountId(account.getId());
+        accountRollbackLockWithdrawTransaction.setBeforeNumber(beforeWithdrawLockNumber);
+        accountRollbackLockWithdrawTransaction.setTransactionTime(System.currentTimeMillis());
+        accountRollbackLockWithdrawTransaction.setNumber(lockWithdrawTransaction.getNumber());
+        accountRollbackLockWithdrawTransaction.setAfterNumber(account.getSellLockNumber());
+        accountRollbackLockWithdrawTransaction.setAccountType(account.getType());
+        accountRollbackLockWithdrawTransaction.setStatus(AccountTransactionStatusEnum.SUCCESS.getCode());
+        accountRollbackLockWithdrawTransaction.setTransactionType(AccountTransactionType.ROLLBACK_LOCK_WITHDRAW.getCode());
+        accountRollbackLockWithdrawTransaction.setOrder(rollbackLockWithdrawNumberCmd.getOrder());
+
+        accountTransactionMapper.insert(accountRollbackLockWithdrawTransaction);
+
+        return SingleResponse.buildSuccess();
+    }
+
+    @Override
+    @Retryable(value = OptimisticLockingFailureException.class, maxAttempts = 3, backoff = @Backoff(delay = 100))
+    @Transactional(isolation = Isolation.REPEATABLE_READ, rollbackFor = Exception.class)
+    public SingleResponse<Void> releaseLockWithdrawNumber(AccountLockWithdrawNumberCmd accountLockWithdrawNumberCmd) {
+
+        LambdaQueryWrapper<AccountTransaction> lambdaQueryWrapper = new LambdaQueryWrapper<>();
+        lambdaQueryWrapper.eq(AccountTransaction::getWalletAddress, accountLockWithdrawNumberCmd.getWalletAddress());
+        lambdaQueryWrapper.eq(AccountTransaction::getOrder, accountLockWithdrawNumberCmd.getOrder());
+        lambdaQueryWrapper.eq(AccountTransaction::getTransactionType, AccountTransactionType.LOCK_WITHDRAW.getCode());
+
+        AccountTransaction lockWithdrawTransaction = accountTransactionMapper.selectOne(lambdaQueryWrapper);
+
+        Account account = accountMapper.selectById(lockWithdrawTransaction.getAccountId());
         if (account == null) {
             return SingleResponse.buildFailure("账户不存在");
         }
 
-        String beforeNumber = account.getNumber();
         String beforeWithdrawNumber = account.getWithdrawNumber();
+
         String beforeWithdrawLockNumber = account.getWithdrawLockNumber();
 
-        account.setNumber(String.valueOf(new BigDecimal(account.getNumber()).subtract(new BigDecimal(accountLockWithdrawNumberCmd.getNumber()))));
         account.setWithdrawNumber(String.valueOf(new BigDecimal(account.getWithdrawNumber()).add(new BigDecimal(accountLockWithdrawNumberCmd.getNumber()))));
         account.setWithdrawLockNumber(String.valueOf(new BigDecimal(account.getWithdrawLockNumber()).subtract(new BigDecimal(accountLockWithdrawNumberCmd.getNumber()))));
 
@@ -777,18 +864,6 @@ public class AccountServiceImpl implements AccountService {
             throw new OptimisticLockingFailureException("乐观锁异常");
         }
 
-        AccountTransaction accountTransaction = new AccountTransaction();
-        accountTransaction.setWalletAddress(accountLockWithdrawNumberCmd.getWalletAddress());
-        accountTransaction.setAccountId(account.getId());
-        accountTransaction.setBeforeNumber(beforeNumber);
-        accountTransaction.setTransactionTime(System.currentTimeMillis());
-        accountTransaction.setNumber(accountLockWithdrawNumberCmd.getNumber());
-        accountTransaction.setAfterNumber(account.getNumber());
-        accountTransaction.setAccountType(account.getType());
-        accountTransaction.setStatus(AccountTransactionStatusEnum.SUCCESS.getCode());
-        accountTransaction.setTransactionType(AccountTransactionType.DEDUCT_NUMBER.getCode());
-        accountTransaction.setOrder(accountLockWithdrawNumberCmd.getOrder());
-        accountTransactionMapper.insert(accountTransaction);
 
 
         AccountTransaction accountWithdrawTransaction = new AccountTransaction();
@@ -817,18 +892,6 @@ public class AccountServiceImpl implements AccountService {
         accountLockWithdrawTransaction.setTransactionType(AccountTransactionType.RELEASE_LOCK_WITHDRAW.getCode());
         accountLockWithdrawTransaction.setOrder(accountLockWithdrawNumberCmd.getOrder());
         accountTransactionMapper.insert(accountLockWithdrawTransaction);
-
-        LambdaQueryWrapper<AccountTransaction> lambdaQueryWrapper = new LambdaQueryWrapper<>();
-        lambdaQueryWrapper.eq(AccountTransaction::getWalletAddress, accountLockWithdrawNumberCmd.getWalletAddress());
-        lambdaQueryWrapper.eq(AccountTransaction::getOrder, accountLockWithdrawNumberCmd.getOrder());
-        lambdaQueryWrapper.eq(AccountTransaction::getTransactionType, AccountTransactionType.LOCK_WITHDRAW.getCode());
-        lambdaQueryWrapper.eq(AccountTransaction::getStatus, AccountTransactionStatusEnum.DEALING.getCode());
-
-        AccountTransaction lockWithdrawTransaction = accountTransactionMapper.selectOne(lambdaQueryWrapper);
-        if (Objects.nonNull(lockWithdrawTransaction)) {
-            lockWithdrawTransaction.setStatus(AccountTransactionStatusEnum.SUCCESS.getCode());
-            accountTransactionMapper.updateById(lockWithdrawTransaction);
-        }
 
 
         return SingleResponse.buildSuccess();
@@ -973,6 +1036,10 @@ public class AccountServiceImpl implements AccountService {
         int updateCount = accountMapper.updateById(account);
         if (updateCount == 0) {
             throw new OptimisticLockingFailureException("扣除积分失败");
+        }
+
+        for (AccountTransaction transaction : accountTransactionList){
+            accountTransactionMapper.insert(transaction);
         }
 
         return SingleResponse.buildSuccess();

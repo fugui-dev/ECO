@@ -3,16 +3,12 @@ package com.example.eco.bean.cmd;
 import lombok.Data;
 
 @Data
-public class AccountLockChargeNumberCmd {
+public class WithdrawRecordCreateCmd {
+
     /**
      * 钱包地址
      */
     private String walletAddress;
-
-    /**
-     * 订单
-     */
-    private String order;
 
     /**
      * 账号类型
@@ -25,7 +21,7 @@ public class AccountLockChargeNumberCmd {
     private String number;
 
     /**
-     * 交易哈希
+     * 备注
      */
-    private String hash;
+    private String remark;
 }

@@ -20,6 +20,11 @@ public class AccountChargeNumberCmd {
     private String number;
 
     /**
+     * 订单
+     */
+    private String order;
+
+    /**
      * 交易哈希
      */
     private String hash;

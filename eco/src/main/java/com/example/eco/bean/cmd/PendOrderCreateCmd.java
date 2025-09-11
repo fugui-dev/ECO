@@ -16,6 +16,11 @@ public class PendOrderCreateCmd {
     private String walletAddress;
 
     /**
+     * 联系方式
+     */
+    private String contactWay;
+
+    /**
      * 挂单类型
      */
     private String type;

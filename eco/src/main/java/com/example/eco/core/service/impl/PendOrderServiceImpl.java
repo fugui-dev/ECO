@@ -68,6 +68,7 @@ public class PendOrderServiceImpl implements PendOrderService {
         pendOrder.setPrice(pendOrderCreateCmd.getPrice());
         pendOrder.setTotalPrice(pendOrderCreateCmd.getTotalPrice());
         pendOrder.setStatus(PendOrderStatus.WAIT.getCode());
+        pendOrder.setContactWay(pendOrderCreateCmd.getContactWay());
 
         pendOrderMapper.insert(pendOrder);
         return SingleResponse.buildSuccess();
@@ -187,7 +188,7 @@ public class PendOrderServiceImpl implements PendOrderService {
                 return SingleResponse.buildFailure("挂单状态不允许取消");
             }
 
-            pendOrder.setStatus(PendOrderStatus.CANCEL.getCode());
+            pendOrder.setStatus(PendOrderStatus.WAIT.getCode());
             pendOrder.setCancelTime(System.currentTimeMillis());
             pendOrder.setUpdateTime(System.currentTimeMillis());
             pendOrderMapper.updateById(pendOrder);

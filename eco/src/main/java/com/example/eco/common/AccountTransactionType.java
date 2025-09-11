@@ -32,6 +32,8 @@ public enum AccountTransactionType {
 
     RELEASE_LOCK_CHARGE("RELEASE_LOCK_CHARGE", "释放锁定充值"),
 
+    ROLLBACK_LOCK_CHARGE("ROLLBACK_LOCK_CHARGE", "回滚锁定充值"),
+
     DEDUCT_CHARGE("DEDUCT_CHARGE", "扣除充值"),
 
     WITHDRAW("WITHDRAW", "提现"),
@@ -39,6 +41,8 @@ public enum AccountTransactionType {
     LOCK_WITHDRAW("LOCK_WITHDRAW", "锁定提现"),
 
     RELEASE_LOCK_WITHDRAW("RELEASE_LOCK_WITHDRAW", "释放锁定提现"),
+
+    ROLLBACK_LOCK_WITHDRAW("ROLLBACK_LOCK_WITHDRAW", "回滚锁定提现"),
 
     STATIC_REWARD("STATIC_REWARD", "静态奖励"),
 
