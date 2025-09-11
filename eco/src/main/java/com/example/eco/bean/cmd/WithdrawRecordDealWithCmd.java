@@ -3,10 +3,7 @@ package com.example.eco.bean.cmd;
 import lombok.Data;
 
 @Data
-public class PendOrderDeleteCmd {
+public class WithdrawRecordDealWithCmd {
 
-    private String order;
-
-
-
+    private Integer id;
 }

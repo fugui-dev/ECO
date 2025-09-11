@@ -85,7 +85,7 @@ public interface AccountService {
     /**
      * 释放锁定充值金额
      */
-    SingleResponse<Void> releaseLockWithdrawNumber(AccountLockWithdrawNumberCmd accountLockWithdrawNumberCmd);
+    SingleResponse<Void> releaseLockWithdrawNumber(AccountReleaseLockWithdrawNumberCmd accountReleaseLockWithdrawNumberCmd);
 
     /**
      * 购买矿机项目扣除账户金额 不能使用购买金额
