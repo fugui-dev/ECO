@@ -10,6 +10,10 @@ public class PendOrderCancelCmd {
      */
     private String order;
 
+    /**
+     * 钱包地址
+     */
+    private String walletAddress;
 
 
 }

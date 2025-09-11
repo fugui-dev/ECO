@@ -1,7 +1,9 @@
 package com.example.eco.core.service;
 
+import com.example.eco.bean.MultiResponse;
 import com.example.eco.bean.SingleResponse;
 import com.example.eco.bean.cmd.*;
+import com.example.eco.bean.dto.PendOrderDTO;
 
 public interface PendOrderService {
 
@@ -35,4 +37,10 @@ public interface PendOrderService {
      *
      */
     SingleResponse<Void> completePendOrder(PendOrderCompleteCmd pendOrderCompleteCmd);
+
+
+    /**
+     * 分页查询挂单
+     */
+    MultiResponse<PendOrderDTO> page(PendOrderPageQry pendOrderPageQry);
 }

@@ -38,14 +38,19 @@ public interface AccountService {
     SingleResponse<Void> releaseLockBuyNumber(AccountReleaseLockBuyNumberCmd accountReleaseLockBuyNumberCmd);
 
     /**
+     * 回滚锁定购买金额
+     */
+    SingleResponse<Void> rollbackLockBuyNumber(RollbackLockBuyNumberCmd rollbackLockBuyNumberCmd);
+
+    /**
      * 添加销售金额
      */
     SingleResponse<Void> sellNumber(AccountSellNumberCmd accountSellNumberCmd);
 
     /**
-     * 添加锁定销售金额
+     * 释放锁定销售金额
      */
-    SingleResponse<Void> releaseLockSellNumber(AccountLockSellNumberCmd accountLockSellNumberCmd);
+    SingleResponse<Void> releaseLockSellNumber(AccountReleaseLockSellNumberCmd accountReleaseLockSellNumberCmd);
 
     /**
      * 回滚锁定销售金额
