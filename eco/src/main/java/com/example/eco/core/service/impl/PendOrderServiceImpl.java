@@ -280,6 +280,24 @@ public class PendOrderServiceImpl implements PendOrderService {
     }
 
     @Override
+    public SingleResponse<Void> uploadVoucher(PendOrderUploadVoucherCmd pendOrderUploadVoucherCmd) {
+
+        PendOrder pendOrder = pendOrderMapper.selectById(pendOrderUploadVoucherCmd.getId());
+        if (pendOrder == null) {
+            return SingleResponse.buildFailure("挂单不存在");
+        }
+
+        if (pendOrder.getStatus().equals(PendOrderStatus.COMPLETE.getCode())) {
+            return SingleResponse.buildFailure("挂单已完成，不能上传凭证");
+        }
+
+        pendOrder.setVoucher(pendOrderUploadVoucherCmd.getVoucher());
+        pendOrderMapper.updateById(pendOrder);
+
+        return SingleResponse.buildSuccess();
+    }
+
+    @Override
     public MultiResponse<PendOrderDTO> page(PendOrderPageQry pendOrderPageQry) {
 
         LambdaQueryWrapper<PendOrder> queryWrapper = new LambdaQueryWrapper<>();

@@ -1,7 +1,5 @@
 package com.example.eco.util;
 
-import com.example.odyssey.bean.dto.NftLevelDTO;
-import com.example.odyssey.common.NftLevelEnum;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.web3j.abi.FunctionEncoder;
@@ -29,68 +27,6 @@ public class Web3jUtil {
     @Resource
     private Web3j web3j;
 
-    /**
-     *
-     * @param tokenId
-     * @param address 合约地址
-     * @return
-     */
-    public NftLevelDTO getNftIdToLevel(Long tokenId, String address) {
-
-        try {
-
-
-            List input = Arrays.asList(new Uint256(tokenId));
-
-            List output = Arrays.asList(
-                    new TypeReference<Uint256>() {
-                    }, new TypeReference<Uint256>() {
-                    }, new TypeReference<Uint256>() {
-                    }
-            );
-
-            Function function = new Function("odsNfts", input, output);
-
-            String data = FunctionEncoder.encode(function);
-
-            Transaction transaction = Transaction.createEthCallTransaction(null, address, data);
-
-            EthCall response = web3j.ethCall(transaction, DefaultBlockParameterName.LATEST).send();
-
-            if (Objects.isNull(response.getValue())) {
-                log.error("odsNfts tokenId :{} ,response is error:{}", tokenId, response.getError().getMessage());
-                return null;
-            }
-
-            List<Type> list = FunctionReturnDecoder.decode(response.getValue(), function.getOutputParameters());
-
-            Long resultTokenId = Long.valueOf(list.get(0).getValue().toString());
-
-            Long resultLevel = Long.valueOf(list.get(1).getValue().toString());
-
-            if (resultLevel == 0){
-                log.error("odsNfts tokenId :{} ,result is null", tokenId);
-                return null;
-            }
-
-            Long resultName = Long.valueOf(list.get(2).getValue().toString());
-
-            NftLevelDTO nftLevelDTO = new NftLevelDTO();
-            nftLevelDTO.setTokenId(resultTokenId);
-            nftLevelDTO.setLevel(NftLevelEnum.of(resultLevel).getName());
-            nftLevelDTO.setName(resultName);
-
-            return nftLevelDTO;
-
-
-
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-
-        return null;
-
-    }
 
     public static void main(String[] args) throws IOException {
 

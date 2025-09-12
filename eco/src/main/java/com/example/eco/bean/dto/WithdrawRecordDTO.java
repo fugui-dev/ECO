@@ -1,21 +1,10 @@
-package com.example.eco.model.entity;
+package com.example.eco.bean.dto;
 
-import com.baomidou.mybatisplus.annotation.IdType;
-import com.baomidou.mybatisplus.annotation.TableId;
-import com.baomidou.mybatisplus.annotation.TableName;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
 import lombok.Data;
-import lombok.NoArgsConstructor;
 
 @Data
-@Builder
-@NoArgsConstructor
-@AllArgsConstructor
-@TableName("withdraw_record")
-public class WithdrawRecord {
+public class WithdrawRecordDTO {
 
-    @TableId(type = IdType.AUTO)
     private Integer id;
 
     /**
@@ -34,6 +23,11 @@ public class WithdrawRecord {
     private String type;
 
     /**
+     * 账号类型名称
+     */
+    private String typeName;
+
+    /**
      * 提现数量
      */
     private String withdrawNumber;
@@ -49,14 +43,14 @@ public class WithdrawRecord {
     private Long reviewTime;
 
     /**
-     * 取消时间
-     */
-    private Long cancelTime;
-
-    /**
      * 提现状态
      */
     private String status;
+
+    /**
+     * 提现状态名称
+     */
+    private String statusName;
 
     /**
      * 审核拒绝原因
@@ -72,5 +66,4 @@ public class WithdrawRecord {
     private Long createTime;
 
     private Long updateTime;
-
 }

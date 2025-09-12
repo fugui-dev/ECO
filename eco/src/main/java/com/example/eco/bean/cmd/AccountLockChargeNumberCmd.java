@@ -15,16 +15,6 @@ public class AccountLockChargeNumberCmd {
     private String order;
 
     /**
-     * 账号类型
-     */
-    private String type;
-
-    /**
-     * 数量
-     */
-    private String number;
-
-    /**
      * 交易哈希
      */
     private String hash;

@@ -1,8 +1,12 @@
 package com.example.eco.core.service;
 
+import com.example.eco.bean.MultiResponse;
 import com.example.eco.bean.SingleResponse;
 import com.example.eco.bean.cmd.WithdrawRecordCreateCmd;
 import com.example.eco.bean.cmd.WithdrawRecordDealWithCmd;
+import com.example.eco.bean.cmd.WithdrawRecordPageQry;
+import com.example.eco.bean.cmd.withdrawRecordCancelCmd;
+import com.example.eco.bean.dto.WithdrawRecordDTO;
 
 public interface WithdrawRecordService {
 
@@ -16,4 +20,16 @@ public interface WithdrawRecordService {
      * 处理提现
      */
     SingleResponse<Void> dealWith(WithdrawRecordDealWithCmd withdrawRecordDealWithCmd);
+
+
+    /**
+     * 取消提现
+     */
+    SingleResponse<Void> cancel(withdrawRecordCancelCmd withdrawRecordCancelCmd);
+
+
+    /**
+     * 分页查询提现记录
+     */
+    MultiResponse<WithdrawRecordDTO> page(WithdrawRecordPageQry withdrawRecordPageQry);
 }

@@ -3,21 +3,17 @@ package com.example.eco.model.entity;
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
-import com.baomidou.mybatisplus.annotation.Version;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-/**
- * 挂单
- */
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@TableName("pend_order")
-public class PendOrder {
+@TableName("charge_order")
+public class ChargeOrder {
 
     @TableId(type = IdType.AUTO)
     private Integer id;
@@ -33,27 +29,22 @@ public class PendOrder {
     private String walletAddress;
 
     /**
-     * 联系方式
-     */
-    private String contactWay;
-
-    /**
-     * 挂单类型
+     * 类型
      */
     private String type;
 
     /**
-     * 挂单数量
+     * 数量
      */
     private String number;
 
     /**
-     * 挂单单价
+     * 单价
      */
     private String price;
 
     /**
-     * 挂单总价
+     * 总价
      */
     private String totalPrice;
 
@@ -63,40 +54,9 @@ public class PendOrder {
     private String status;
 
     /**
-     * 买家钱包地址
+     * 交易哈希
      */
-    private String buyerWalletAddress;
-
-
-    /**
-     * 上传凭证
-     */
-    private String voucher;
-
-
-    /**
-     * 备注
-     */
-    private String remark;
-
-    /**
-     * 下单时间
-     */
-    private String placeOrderTime;
-
-    /**
-     * 确认时间
-     */
-    private Long confirmTime;
-
-    /**
-     * 取消时间
-     */
-    private Long cancelTime;
-
-
-    @Version
-    private Long version;
+    private String hash;
 
     /**
      * 创建时间
@@ -104,7 +64,9 @@ public class PendOrder {
     private Long createTime;
 
     /**
-     * 更新时间
+     * 完成时间
      */
-    private Long updateTime;
+    private Long finishTime;
+
+
 }

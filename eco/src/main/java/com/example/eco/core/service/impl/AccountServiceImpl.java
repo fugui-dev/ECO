@@ -606,6 +606,7 @@ public class AccountServiceImpl implements AccountService {
         LambdaQueryWrapper<AccountTransaction> lambdaQueryWrapper = new LambdaQueryWrapper<>();
         lambdaQueryWrapper.eq(AccountTransaction::getWalletAddress, accountLockChargeNumberCmd.getWalletAddress());
         lambdaQueryWrapper.eq(AccountTransaction::getOrder, accountLockChargeNumberCmd.getOrder());
+        lambdaQueryWrapper.eq(AccountTransaction::getHash, accountLockChargeNumberCmd.getHash());
         lambdaQueryWrapper.eq(AccountTransaction::getTransactionType, AccountTransactionType.LOCK_CHARGE.getCode());
 
         AccountTransaction lockChargeTransaction = accountTransactionMapper.selectOne(lambdaQueryWrapper);
@@ -619,9 +620,9 @@ public class AccountServiceImpl implements AccountService {
         String beforeChargeNumber = account.getChargeNumber();
         String beforeChargeLockNumber = account.getChargeLockNumber();
 
-        account.setNumber(String.valueOf(new BigDecimal(account.getNumber()).add(new BigDecimal(accountLockChargeNumberCmd.getNumber()))));
-        account.setChargeNumber(String.valueOf(new BigDecimal(account.getChargeNumber()).add(new BigDecimal(accountLockChargeNumberCmd.getNumber()))));
-        account.setChargeLockNumber(String.valueOf(new BigDecimal(account.getChargeLockNumber()).subtract(new BigDecimal(accountLockChargeNumberCmd.getNumber()))));
+        account.setNumber(String.valueOf(new BigDecimal(account.getNumber()).add(new BigDecimal(lockChargeTransaction.getNumber()))));
+        account.setChargeNumber(String.valueOf(new BigDecimal(account.getChargeNumber()).add(new BigDecimal(lockChargeTransaction.getNumber()))));
+        account.setChargeLockNumber(String.valueOf(new BigDecimal(account.getChargeLockNumber()).subtract(new BigDecimal(lockChargeTransaction.getNumber()))));
 
         account.setUpdateTime(System.currentTimeMillis());
         int updateCount = accountMapper.updateById(account);
@@ -635,7 +636,7 @@ public class AccountServiceImpl implements AccountService {
         accountTransaction.setAccountId(account.getId());
         accountTransaction.setBeforeNumber(beforeNumber);
         accountTransaction.setTransactionTime(System.currentTimeMillis());
-        accountTransaction.setNumber(accountLockChargeNumberCmd.getNumber());
+        accountTransaction.setNumber(lockChargeTransaction.getNumber());
         accountTransaction.setAfterNumber(account.getNumber());
         accountTransaction.setAccountType(account.getType());
         accountTransaction.setStatus(AccountTransactionStatusEnum.SUCCESS.getCode());
@@ -648,7 +649,7 @@ public class AccountServiceImpl implements AccountService {
         accountChargeTransaction.setAccountId(account.getId());
         accountChargeTransaction.setBeforeNumber(beforeChargeNumber);
         accountChargeTransaction.setTransactionTime(System.currentTimeMillis());
-        accountChargeTransaction.setNumber(accountLockChargeNumberCmd.getNumber());
+        accountChargeTransaction.setNumber(lockChargeTransaction.getNumber());
         accountChargeTransaction.setAfterNumber(account.getChargeNumber());
         accountChargeTransaction.setAccountType(account.getType());
         accountChargeTransaction.setStatus(AccountTransactionStatusEnum.SUCCESS.getCode());
@@ -662,7 +663,7 @@ public class AccountServiceImpl implements AccountService {
         accountReleaseChargeTransaction.setAccountId(account.getId());
         accountReleaseChargeTransaction.setBeforeNumber(beforeChargeLockNumber);
         accountReleaseChargeTransaction.setTransactionTime(System.currentTimeMillis());
-        accountReleaseChargeTransaction.setNumber(accountLockChargeNumberCmd.getNumber());
+        accountReleaseChargeTransaction.setNumber(lockChargeTransaction.getNumber());
         accountReleaseChargeTransaction.setAfterNumber(account.getChargeLockNumber());
         accountReleaseChargeTransaction.setAccountType(account.getType());
         accountReleaseChargeTransaction.setStatus(AccountTransactionStatusEnum.SUCCESS.getCode());
@@ -682,6 +683,7 @@ public class AccountServiceImpl implements AccountService {
         LambdaQueryWrapper<AccountTransaction> lambdaQueryWrapper = new LambdaQueryWrapper<>();
         lambdaQueryWrapper.eq(AccountTransaction::getWalletAddress, rollbackLockChargeNumberCmd.getWalletAddress());
         lambdaQueryWrapper.eq(AccountTransaction::getOrder, rollbackLockChargeNumberCmd.getOrder());
+        lambdaQueryWrapper.eq(AccountTransaction::getHash, rollbackLockChargeNumberCmd.getHash());
         lambdaQueryWrapper.eq(AccountTransaction::getTransactionType, AccountTransactionType.LOCK_CHARGE.getCode());
 
         AccountTransaction lockChargeTransaction = accountTransactionMapper.selectOne(lambdaQueryWrapper);

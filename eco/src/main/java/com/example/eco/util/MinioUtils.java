@@ -2,7 +2,7 @@ package com.example.eco.util;
 
 import cn.hutool.core.util.IdUtil;
 import com.alibaba.excel.util.StringUtils;
-import com.example.odyssey.config.MinioConfig;
+import com.example.eco.config.MinioConfig;
 import io.minio.*;
 import io.minio.http.Method;
 import io.minio.messages.Bucket;

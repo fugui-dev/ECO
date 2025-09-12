@@ -1,6 +1,5 @@
 package com.example.eco.filter;
 
-import com.example.eco.util.JwtTokenUtil;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import org.springframework.web.servlet.HandlerInterceptor;

@@ -1,9 +1,10 @@
 package com.example.eco.bean.cmd;
 
+import com.example.eco.bean.PageQuery;
 import lombok.Data;
 
 @Data
-public class RollbackLockChargeNumberCmd {
+public class WithdrawRecordPageQry extends PageQuery {
 
     /**
      * 钱包地址
@@ -16,7 +17,12 @@ public class RollbackLockChargeNumberCmd {
     private String order;
 
     /**
-     * 交易哈希
+     * 账号类型
      */
-    private String hash;
+    private String type;
+
+    /**
+     * 状态
+     */
+    private String status;
 }

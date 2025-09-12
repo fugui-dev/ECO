@@ -1,0 +1,33 @@
+package com.example.eco.task;
+
+import com.example.eco.core.service.ChargeOrderService;
+import com.example.eco.model.mapper.ChargeOrderMapper;
+import lombok.SneakyThrows;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
+
+import javax.annotation.Resource;
+
+@Slf4j
+@Component
+@Transactional
+public class ChargeOrderScheduled {
+
+
+    @Resource
+    private ChargeOrderService chargeOrderService;
+
+
+    @Scheduled(cron = "0 0/3 * * * ?")
+    @SneakyThrows
+    public void checkChargeOrder() {
+
+        log.info("checkChargeOrder 开始执行");
+
+        chargeOrderService.checkChargeOrder();
+
+        log.info("checkChargeOrder 执行结束");
+    }
+}

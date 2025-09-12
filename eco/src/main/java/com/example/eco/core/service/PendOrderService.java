@@ -38,6 +38,12 @@ public interface PendOrderService {
      */
     SingleResponse<Void> completePendOrder(PendOrderCompleteCmd pendOrderCompleteCmd);
 
+    /**
+     * 上传支付凭证
+     *
+     */
+    SingleResponse<Void> uploadVoucher(PendOrderUploadVoucherCmd pendOrderUploadVoucherCmd);
+
 
     /**
      * 分页查询挂单

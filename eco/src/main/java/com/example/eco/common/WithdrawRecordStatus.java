@@ -7,6 +7,8 @@ public enum WithdrawRecordStatus {
 
     PENDING_REVIEW("PENDING_REVIEW", "待审核"),
 
+    CANCELED("CANCELED", "已取消"),
+
     AGREE("AGREE", "审核通过"),
 
     REJECT("REJECT", "审核拒绝");
