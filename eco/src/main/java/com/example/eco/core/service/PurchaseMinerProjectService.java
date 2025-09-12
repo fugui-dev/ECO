@@ -3,6 +3,7 @@ package com.example.eco.core.service;
 import com.example.eco.bean.MultiResponse;
 import com.example.eco.bean.SingleResponse;
 import com.example.eco.bean.cmd.PurchaseMinerProjectPageQry;
+import com.example.eco.bean.cmd.PurchaseMinerProjectRewardCmd;
 import com.example.eco.bean.cmd.PurchaseMinerProjectsCreateCmd;
 import com.example.eco.bean.dto.PurchaseMinerProjectDTO;
 
@@ -17,5 +18,10 @@ public interface PurchaseMinerProjectService {
      * 分页查询购买矿机项目
      */
     MultiResponse<PurchaseMinerProjectDTO> page(PurchaseMinerProjectPageQry purchaseMinerProjectPageQry);
+
+    /**
+     * 矿机项目奖励发放
+     */
+    SingleResponse<Void> reward(PurchaseMinerProjectRewardCmd purchaseMinerProjectRewardCmd);
 
 }

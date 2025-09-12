@@ -1,7 +1,6 @@
-package com.example.eco.task;
+package com.example.eco.core.task;
 
 import com.example.eco.core.service.ChargeOrderService;
-import com.example.eco.model.mapper.ChargeOrderMapper;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;

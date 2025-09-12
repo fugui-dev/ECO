@@ -10,21 +10,26 @@ import com.example.eco.bean.cmd.MinerProjectDeleteCmd;
 import com.example.eco.bean.cmd.MinerProjectPageQry;
 import com.example.eco.bean.cmd.MinerProjectUpdateCmd;
 import com.example.eco.bean.dto.MinerProjectDTO;
+import com.example.eco.common.SystemConfigEnum;
 import com.example.eco.core.service.MinerProjectService;
 import com.example.eco.model.entity.MinerProject;
+import com.example.eco.model.entity.SystemConfig;
 import com.example.eco.model.mapper.MinerProjectMapper;
+import com.example.eco.model.mapper.SystemConfigMapper;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.Resource;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 @Service
 public class MinerProjectServiceImpl implements MinerProjectService {
 
     @Resource
     private MinerProjectMapper minerProjectMapper;
-
+    @Resource
+    private SystemConfigMapper systemConfigMapper;
     @Override
     public SingleResponse<Void> create(MinerProjectCreateCmd minerProjectCreateCmd) {
 
@@ -75,12 +80,23 @@ public class MinerProjectServiceImpl implements MinerProjectService {
             return MultiResponse.buildSuccess();
         }
 
+        LambdaQueryWrapper<SystemConfig> systemConfigLambdaQueryWrapper = new LambdaQueryWrapper<>();
+        systemConfigLambdaQueryWrapper.eq(SystemConfig::getName, SystemConfigEnum.STATIC_NEW_MINER_RATE.getCode());
+        SystemConfig systemConfig = systemConfigMapper.selectOne(systemConfigLambdaQueryWrapper);
+
+        if (systemConfig == null || systemConfig.getValue() == null) {
+            return MultiResponse.buildFailure("405","新增算力系统配置错误");
+        }
+
         List<MinerProjectDTO> minerProjectDTOList = new ArrayList<>();
         for (MinerProject minerProject : minerProjectPage.getRecords()) {
             MinerProjectDTO minerProjectDTO = new MinerProjectDTO();
             minerProjectDTO.setId(minerProject.getId());
-            minerProjectDTO.setComputingPower(minerProject.getComputingPower());
             minerProjectDTO.setPrice(minerProject.getPrice());
+
+            Long days = TimeUnit.MILLISECONDS.toDays(System.currentTimeMillis() - minerProject.getCreateTime());
+            Double computingPower = Double.parseDouble(minerProject.getComputingPower()) * Math.pow(Double.parseDouble(systemConfig.getValue()), days);
+            minerProjectDTO.setComputingPower(computingPower.toString());
             minerProjectDTOList.add(minerProjectDTO);
         }
 
