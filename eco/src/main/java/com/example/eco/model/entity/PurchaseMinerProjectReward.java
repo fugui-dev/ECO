@@ -34,6 +34,11 @@ public class PurchaseMinerProjectReward {
     private String walletAddress;
 
     /**
+     * 推荐人钱包地址
+     */
+    private String recommendWalletAddress;
+
+    /**
      * 关联钱包地址
      */
     private String relationWalletAddress;
@@ -98,10 +103,6 @@ public class PurchaseMinerProjectReward {
      */
     private String rewardType;
 
-    /**
-     * 状态
-     */
-    private String status;
 
     /**
      * 奖励时间

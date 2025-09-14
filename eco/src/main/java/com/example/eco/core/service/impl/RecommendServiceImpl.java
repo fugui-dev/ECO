@@ -5,26 +5,29 @@ import com.baomidou.mybatisplus.core.toolkit.CollectionUtils;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.example.eco.bean.MultiResponse;
 import com.example.eco.bean.SingleResponse;
-import com.example.eco.bean.cmd.AccountCreateCmd;
-import com.example.eco.bean.cmd.RecommendCreateCmd;
-import com.example.eco.bean.cmd.RecommendPageQry;
-import com.example.eco.bean.cmd.RecommendQry;
+import com.example.eco.bean.cmd.*;
 import com.example.eco.bean.dto.RecommendDTO;
 import com.example.eco.bean.dto.RecommendRecordDTO;
 import com.example.eco.common.AccountType;
+import com.example.eco.common.RecommendStatus;
 import com.example.eco.core.service.AccountService;
 import com.example.eco.core.service.RecommendService;
+import com.example.eco.core.service.RecommendStatisticsLogService;
 import com.example.eco.model.entity.Account;
 import com.example.eco.model.entity.Recommend;
 import com.example.eco.model.entity.RecommendRecord;
+import com.example.eco.model.entity.RecommendStatisticsLog;
 import com.example.eco.model.mapper.AccountMapper;
 import com.example.eco.model.mapper.RecommendMapper;
 import com.example.eco.model.mapper.RecommendRecordMapper;
+import com.example.eco.model.mapper.RecommendStatisticsLogMapper;
 import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import javax.annotation.Resource;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -38,6 +41,10 @@ public class RecommendServiceImpl implements RecommendService {
     private RecommendRecordMapper recommendRecordMapper;
     @Resource
     private AccountService accountService;
+    @Resource
+    private RecommendStatisticsLogService recommendStatisticsLogService;
+    @Resource
+    private RecommendStatisticsLogMapper recommendStatisticsLogMapper;
 
     @Override
     public SingleResponse<RecommendDTO> get(RecommendQry recommendQry) {
@@ -112,6 +119,7 @@ public class RecommendServiceImpl implements RecommendService {
         if (Objects.isNull(recommender.getLeaderWalletAddress())) {
             leaderRecommender = recommender.getWalletAddress();
         }
+        recommended.setLevel(recommender.getLevel() + 1);
         recommended.setLeaderWalletAddress(leaderRecommender);
         recommended.setUpdateTime(System.currentTimeMillis());
         recommendMapper.updateById(recommended);
@@ -123,6 +131,10 @@ public class RecommendServiceImpl implements RecommendService {
 
         recommendRecordMapper.insert(recommendRecord);
 
+        DirectRecommendCountCmd directRecommendCountCmd = new DirectRecommendCountCmd();
+        directRecommendCountCmd.setWalletAddress(recommendCreateCmd.getWalletAddress());
+        directRecommendCountCmd.setRecommendWalletAddress(recommendCreateCmd.getRecommendWalletAddress());
+        recommendStatisticsLogService.statistics(directRecommendCountCmd);
 
         //更新被推荐者的下级leader
         LambdaQueryWrapper<Recommend> leaderLambdaQueryWrapper = new LambdaQueryWrapper<>();
@@ -130,12 +142,13 @@ public class RecommendServiceImpl implements RecommendService {
 
         List<Recommend> recommendList = recommendMapper.selectList(leaderLambdaQueryWrapper);
         for (Recommend recommend : recommendList) {
-
+            recommend.setLevel(recommend.getLevel() + 1);
             recommend.setLeaderWalletAddress(leaderRecommender);
             recommend.setUpdateTime(System.currentTimeMillis());
 
             recommendMapper.updateById(recommend);
         }
+
         return SingleResponse.buildSuccess();
     }
 
@@ -154,7 +167,8 @@ public class RecommendServiceImpl implements RecommendService {
 
         recommend = new Recommend();
         recommend.setWalletAddress(recommendCreateCmd.getWalletAddress());
-
+        recommend.setStatus(RecommendStatus.NORMAL.getCode());
+        recommend.setLevel(0);
         recommend.setCreateTime(System.currentTimeMillis());
         recommendMapper.insert(recommend);
 
@@ -162,7 +176,6 @@ public class RecommendServiceImpl implements RecommendService {
         accountCreateCmd.setWalletAddress(recommendCreateCmd.getWalletAddress());
 
         accountService.createAccount(accountCreateCmd);
-
 
         return recommend;
 

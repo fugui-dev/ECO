@@ -237,7 +237,7 @@ public class PendOrderServiceImpl implements PendOrderService {
                 return SingleResponse.buildFailure("只能确认自己的锁单");
             }
 
-            if (!pendOrder.getStatus().equals(PendOrderStatus.LOCK.getCode())) {
+            if (!pendOrder.getStatus().equals(PendOrderStatus.APPLY.getCode())) {
                 return SingleResponse.buildFailure("挂单状态不允许确认");
             }
 
@@ -287,11 +287,17 @@ public class PendOrderServiceImpl implements PendOrderService {
             return SingleResponse.buildFailure("挂单不存在");
         }
 
+        if (!pendOrder.getStatus().equals(PendOrderStatus.LOCK.getCode())) {
+            return SingleResponse.buildFailure("挂单状态不允许上传凭证");
+        }
+
         if (pendOrder.getStatus().equals(PendOrderStatus.COMPLETE.getCode())) {
             return SingleResponse.buildFailure("挂单已完成，不能上传凭证");
         }
 
+        pendOrder.setStatus(PendOrderStatus.APPLY.getCode());
         pendOrder.setVoucher(pendOrderUploadVoucherCmd.getVoucher());
+        pendOrder.setUpdateTime(System.currentTimeMillis());
         pendOrderMapper.updateById(pendOrder);
 
         return SingleResponse.buildSuccess();

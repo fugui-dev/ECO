@@ -4,14 +4,12 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.example.eco.bean.MultiResponse;
 import com.example.eco.bean.SingleResponse;
-import com.example.eco.bean.cmd.AccountDeductCmd;
-import com.example.eco.bean.cmd.PurchaseMinerProjectPageQry;
-import com.example.eco.bean.cmd.PurchaseMinerProjectRewardCmd;
-import com.example.eco.bean.cmd.PurchaseMinerProjectsCreateCmd;
+import com.example.eco.bean.cmd.*;
 import com.example.eco.bean.dto.PurchaseMinerProjectDTO;
 import com.example.eco.common.*;
 import com.example.eco.core.service.AccountService;
 import com.example.eco.core.service.PurchaseMinerProjectService;
+import com.example.eco.core.service.RecommendStatisticsLogService;
 import com.example.eco.model.entity.*;
 import com.example.eco.model.mapper.*;
 import lombok.extern.slf4j.Slf4j;
@@ -24,9 +22,10 @@ import org.springframework.util.StringUtils;
 
 import javax.annotation.Resource;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
+
 @Slf4j
 @Service
 public class PurchaseMinerProjectServiceImpl implements PurchaseMinerProjectService {
@@ -41,6 +40,12 @@ public class PurchaseMinerProjectServiceImpl implements PurchaseMinerProjectServ
     private SystemConfigMapper systemConfigMapper;
     @Resource
     private MinerConfigMapper minerConfigMapper;
+    @Resource
+    private RecommendMapper recommendMapper;
+    @Resource
+    private PurchaseMinerProjectRewardMapper purchaseMinerProjectRewardMapper;
+    @Resource
+    private RecommendStatisticsLogService recommendStatisticsLogService;
 
 
     @Override
@@ -121,7 +126,7 @@ public class PurchaseMinerProjectServiceImpl implements PurchaseMinerProjectServ
 
             AccountDeductCmd ecoAccountDeductCmd = new AccountDeductCmd();
             ecoAccountDeductCmd.setAccountType(AccountType.ECO.getCode());
-            ecoAccountDeductCmd.setNumber(new BigDecimal(minerProject.getPrice()).divide(new BigDecimal(2), 4, BigDecimal.ROUND_HALF_UP).toString());
+            ecoAccountDeductCmd.setNumber(new BigDecimal(minerProject.getPrice()).divide(new BigDecimal(2), 4, RoundingMode.HALF_DOWN).toString());
             ecoAccountDeductCmd.setWalletAddress(purchaseMinerProjectsCreateCmd.getWalletAddress());
             ecoAccountDeductCmd.setOrder(order);
             SingleResponse<Void> ecoResponse = accountService.purchaseMinerProjectNumber(ecoAccountDeductCmd);
@@ -135,7 +140,7 @@ public class PurchaseMinerProjectServiceImpl implements PurchaseMinerProjectServ
 
             AccountDeductCmd esgAccountDeductCmd = new AccountDeductCmd();
             esgAccountDeductCmd.setAccountType(AccountType.ECO.getCode());
-            esgAccountDeductCmd.setNumber(new BigDecimal(minerProject.getPrice()).divide(new BigDecimal(2), 4, BigDecimal.ROUND_HALF_UP).toString());
+            esgAccountDeductCmd.setNumber(new BigDecimal(minerProject.getPrice()).divide(new BigDecimal(2), 4, RoundingMode.HALF_DOWN).toString());
             esgAccountDeductCmd.setWalletAddress(purchaseMinerProjectsCreateCmd.getWalletAddress());
             esgAccountDeductCmd.setOrder(order);
             SingleResponse<Void> esgResponse = accountService.purchaseMinerProjectNumber(esgAccountDeductCmd);
@@ -147,6 +152,13 @@ public class PurchaseMinerProjectServiceImpl implements PurchaseMinerProjectServ
                 return esgResponse;
             }
         }
+
+        TotalComputingPowerCmd totalComputingPowerCmd = new TotalComputingPowerCmd();
+        totalComputingPowerCmd.setWalletAddress(purchaseMinerProjectsCreateCmd.getWalletAddress());
+        totalComputingPowerCmd.setComputingPower(minerProject.getComputingPower());
+
+        recommendStatisticsLogService.statistics(totalComputingPowerCmd);
+
         return SingleResponse.buildSuccess();
     }
 
@@ -246,7 +258,7 @@ public class PurchaseMinerProjectServiceImpl implements PurchaseMinerProjectServ
             log.info("新增算力{}未达到新增矿机挖矿数量要求{}，不增加挖矿数量", moreComputingPower, minerAddNumberRequirement);
         }else {
             // 新增挖矿数量的倍数 = 新增算力 / 新增矿机挖矿数量要求 （取余）
-            BigDecimal times = moreComputingPower.divide(minerAddNumberRequirement, 0, BigDecimal.ROUND_DOWN);
+            BigDecimal times = moreComputingPower.divide(minerAddNumberRequirement, 0, RoundingMode.HALF_DOWN);
 
             LambdaQueryWrapper<MinerConfig> minerAddNumberQueryWrapper = new LambdaQueryWrapper<>();
             minerAddNumberQueryWrapper.eq(MinerConfig::getName, MinerConfigEnum.MINER_ADD_NUMBER.getCode());
@@ -281,23 +293,89 @@ public class PurchaseMinerProjectServiceImpl implements PurchaseMinerProjectServ
         }
 
 
+        for (PurchaseMinerProject purchaseMinerProject : purchaseMinerProjectList){
+
+            // 获取每个矿机的静态奖励
+             getStaticReward(purchaseMinerProject,staticRewardRate,totalComputingPower,totalReward,purchaseMinerProjectRewardCmd.getDayTime());
+
+
+
+        }
+
+
 
         return null;
     }
+
 
     /**
      *
      * 获取每个矿机的静态奖励
      */
-    private PurchaseMinerProjectReward getStaticReward(PurchaseMinerProject purchaseMinerProject,BigDecimal staticRewardRate,BigDecimal totalComputingPower){
+    public PurchaseMinerProjectReward getStaticReward(PurchaseMinerProject purchaseMinerProject,BigDecimal staticRewardRate,BigDecimal totalComputingPower,BigDecimal totalReward, String dayTime){
+        // 计算静态奖励 = 每天总奖励数 * 静态奖励比例 * (用户矿机算力 / 总算力)
+
+        LambdaQueryWrapper<Recommend> recommendQueryWrapper = new LambdaQueryWrapper<>();
+        recommendQueryWrapper.eq(Recommend::getWalletAddress, purchaseMinerProject.getWalletAddress());
+
+        Recommend recommend = recommendMapper.selectOne(recommendQueryWrapper);
+        if (recommend == null) {
+            log.info("用户{}未绑定推荐人，无法发放静态奖励", purchaseMinerProject.getWalletAddress());
+            return null;
+        }
+
+        if (recommend.getStatus().equals(RecommendStatus.STOP.getCode())){
+            log.info("用户{}推荐人状态为{}，无法发放静态奖励", purchaseMinerProject.getWalletAddress(), RecommendStatus.STOP.getName());
+            return null;
+        }
 
 
+        String order = "ST" + System.currentTimeMillis();
+
+        BigDecimal staticTotalReward = totalReward.multiply(staticRewardRate);
+
+        BigDecimal  computingPower = new BigDecimal(purchaseMinerProject.getComputingPower());
+
+        BigDecimal staticReward = computingPower.divide(totalComputingPower, 8, RoundingMode.HALF_DOWN).multiply(staticTotalReward);
+
+
+        PurchaseMinerProjectReward purchaseMinerProjectReward = new PurchaseMinerProjectReward();
+        purchaseMinerProjectReward.setOrder(order);
+        purchaseMinerProjectReward.setPurchaseMinerProjectId(purchaseMinerProject.getId());
+        purchaseMinerProjectReward.setReward(staticReward.toString());
+        purchaseMinerProjectReward.setType(PurchaseMinerProjectRewardType.STATIC.getCode());
+        purchaseMinerProjectReward.setWalletAddress(purchaseMinerProject.getWalletAddress());
+        purchaseMinerProjectReward.setLeaderWalletAddress(recommend.getLeaderWalletAddress());
+        purchaseMinerProjectReward.setTotalComputingPower(totalComputingPower.toString());
+        purchaseMinerProjectReward.setDayTime(dayTime);
+
+        int insert = purchaseMinerProjectRewardMapper.insert(purchaseMinerProjectReward);
+
+        if (insert <= 0) {
+            log.info("用户{}发放静态奖励失败", purchaseMinerProject.getWalletAddress());
+            return null;
+        }
+
+        log.info("用户{}发放静态奖励{}成功", purchaseMinerProject.getWalletAddress(),staticReward);
+
+
+        try {
+            AccountStaticNumberCmd accountStaticNumberCmd = new AccountStaticNumberCmd();
+            accountStaticNumberCmd.setWalletAddress(purchaseMinerProject.getWalletAddress());
+            accountStaticNumberCmd.setNumber(staticReward.toString());
+            accountStaticNumberCmd.setType(AccountType.ECO.getCode());
+            accountStaticNumberCmd.setOrder(order);
+
+            SingleResponse<Void> response = accountService.addStaticNumber(accountStaticNumberCmd);
+            if (!response.isSuccess()) {
+                log.info("用户{}发放静态奖励{}失败，调用账户服务失败", purchaseMinerProject.getWalletAddress(),staticReward);
+            }
+
+        } catch (Exception exception) {
+            exception.printStackTrace();
+        }
+
+        return purchaseMinerProjectReward;
     }
 
-    /**
-     * 获取每日总奖励
-     */
-    private BigDecimal getTotalReward(){
-
-    }
 }

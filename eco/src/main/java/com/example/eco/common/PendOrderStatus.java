@@ -11,6 +11,8 @@ public enum PendOrderStatus {
 
     CANCEL("CANCEL", "已取消"),
 
+    APPLY("APPLY", "申请放款"),
+
     DELETE("DELETE", "已删除"),
 
     COMPLETE("COMPLETE", "已完成");

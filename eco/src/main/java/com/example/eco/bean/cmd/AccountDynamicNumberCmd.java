@@ -20,4 +20,7 @@ public class AccountDynamicNumberCmd {
      */
     private String number;
 
+
+    private String order;
+
 }

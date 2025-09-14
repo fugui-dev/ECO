@@ -146,6 +146,7 @@ public class AccountServiceImpl implements AccountService {
         accountTransaction.setAccountType(account.getType());
         accountTransaction.setStatus(AccountTransactionStatusEnum.SUCCESS.getCode());
         accountTransaction.setTransactionType(AccountTransactionType.ADD_NUMBER.getCode());
+        accountTransaction.setOrder(accountStaticNumberCmd.getOrder());
         accountTransactionMapper.insert(accountTransaction);
 
         AccountTransaction accountStaticTransaction = new AccountTransaction();
@@ -158,7 +159,7 @@ public class AccountServiceImpl implements AccountService {
         accountStaticTransaction.setAccountType(account.getType());
         accountStaticTransaction.setStatus(AccountTransactionStatusEnum.SUCCESS.getCode());
         accountStaticTransaction.setTransactionType(AccountTransactionType.STATIC_REWARD.getCode());
-
+        accountStaticTransaction.setOrder(accountStaticNumberCmd.getOrder());
         accountTransactionMapper.insert(accountStaticTransaction);
 
         return SingleResponse.buildSuccess();
@@ -201,7 +202,7 @@ public class AccountServiceImpl implements AccountService {
         accountTransaction.setAccountType(account.getType());
         accountTransaction.setStatus(AccountTransactionStatusEnum.SUCCESS.getCode());
         accountTransaction.setTransactionType(AccountTransactionType.ADD_NUMBER.getCode());
-
+        accountTransaction.setOrder(accountDynamicNumberCmd.getOrder());
         accountTransactionMapper.insert(accountTransaction);
 
         AccountTransaction accountDynamicTransaction = new AccountTransaction();
@@ -214,7 +215,7 @@ public class AccountServiceImpl implements AccountService {
         accountDynamicTransaction.setAccountType(account.getType());
         accountDynamicTransaction.setStatus(AccountTransactionStatusEnum.SUCCESS.getCode());
         accountDynamicTransaction.setTransactionType(AccountTransactionType.DYNAMIC_REWARD.getCode());
-
+        accountDynamicTransaction.setOrder(accountDynamicNumberCmd.getOrder());
         accountTransactionMapper.insert(accountTransaction);
 
         return SingleResponse.buildSuccess();

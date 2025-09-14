@@ -23,7 +23,22 @@ public class RecommendDTO {
     private String leaderWalletAddress;
 
     /**
+     * 等级
+     */
+    private Integer level;
+
+    /**
+     * 状态
+     */
+    private String status;
+
+    /**
      * 创建时间
      */
     private Long createTime;
+
+    /**
+     * 更新时间
+     */
+    private Long updateTime;
 }

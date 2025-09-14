@@ -25,4 +25,6 @@ public interface RecommendService {
      */
     SingleResponse<Void> recommend(RecommendCreateCmd recommendCreateCmd);
 
+
+
 }

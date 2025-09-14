@@ -7,7 +7,5 @@ import java.time.LocalDate;
 @Data
 public class PurchaseMinerProjectRewardCmd {
 
-    private Long startDate;
-
-    private Long endDate;
+    private String dayTime;
 }

@@ -20,4 +20,9 @@ public class AccountStaticNumberCmd {
      */
     private String number;
 
+    /**
+     * 订单号
+     */
+    private String order;
+
 }

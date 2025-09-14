@@ -8,15 +8,12 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-/**
- * 推荐
- */
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@TableName("recommend")
-public class Recommend {
+@TableName("recommend_statistics_log")
+public class RecommendStatisticsLog {
 
     @TableId(type = IdType.AUTO)
     private Integer id;
@@ -27,19 +24,29 @@ public class Recommend {
     private String walletAddress;
 
     /**
-     * 推荐人钱包地址
+     * 直接推荐人数
      */
-    private String recommendWalletAddress;
+    private Integer directRecommendCount;
 
     /**
-     * 领导钱包地址
+     * 总算力
      */
-    private String leaderWalletAddress;
+    private String  totalComputingPower;
 
     /**
-     * 等级
+     * 总直接推荐算力
      */
-    private Integer level;
+    private String totalDirectRecommendComputingPower;
+
+    /**
+     * 总推荐算力
+     */
+    private String totalRecommendComputingPower;
+
+    /**
+     * 统计的日期（yyyy-MM-dd）
+     */
+    private String dayTime;
 
     /**
      * 创建时间
@@ -50,11 +57,4 @@ public class Recommend {
      * 更新时间
      */
     private Long updateTime;
-
-    /**
-     * 状态
-     */
-    private String status;
-
-
 }
