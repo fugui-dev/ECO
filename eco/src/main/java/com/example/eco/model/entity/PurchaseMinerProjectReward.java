@@ -38,10 +38,6 @@ public class PurchaseMinerProjectReward {
      */
     private String recommendWalletAddress;
 
-    /**
-     * 关联钱包地址
-     */
-    private String relationWalletAddress;
 
     /**
      * 团队长钱包地址
@@ -49,29 +45,24 @@ public class PurchaseMinerProjectReward {
     private String leaderWalletAddress;
 
     /**
-     * 算力
+     * 本钱包算力
      */
     private String computingPower;
 
     /**
-     * 小区新增算力
+     * 新增算力
      */
-    private String newAreaComputingPower;
+    private String newComputingPower;
 
     /**
      * 小区算力
      */
-    private String minAreaComputingPower;
+    private String minComputingPower;
 
     /**
-     * 小区钱包地址
+     * 大区算力
      */
-    private String minAreaChildAddress;
-
-    /**
-     * 总算力
-     */
-    private String totalAreaComputingPower;
+    private String maxComputingPower;
 
     /**
      * 全网总算力
@@ -82,16 +73,6 @@ public class PurchaseMinerProjectReward {
      * 奖励
      */
     private String reward;
-
-    /**
-     * 奖励比例
-     */
-    private String rewardRate;
-
-    /**
-     * 等级
-     */
-    private Integer level;
 
     /**
      * 类型
