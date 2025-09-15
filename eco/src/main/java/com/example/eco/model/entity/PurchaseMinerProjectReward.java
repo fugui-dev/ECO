@@ -50,11 +50,6 @@ public class PurchaseMinerProjectReward {
     private String computingPower;
 
     /**
-     * 新增算力
-     */
-    private String newComputingPower;
-
-    /**
      * 小区算力
      */
     private String minComputingPower;
