@@ -640,4 +640,25 @@ public class RewardConstructor {
 
         return SingleResponse.buildSuccess();
     }
+
+
+    /**
+     * 获取动态奖励新增奖励比例
+     */
+    private SingleResponse<BigDecimal> getDynamicRewardNewRate() {
+        // 获取矿机算力要求
+        LambdaQueryWrapper<SystemConfig> dynamicRewardNewRateQueryWrapper = new LambdaQueryWrapper<>();
+        dynamicRewardNewRateQueryWrapper.eq(SystemConfig::getName, SystemConfigEnum.DYNAMIC_REWARD_NEW_RATE.getCode());
+
+        SystemConfig dynamicRewardNewRateSystemConfig = systemConfigMapper.selectOne(dynamicRewardNewRateQueryWrapper);
+        if (dynamicRewardNewRateSystemConfig == null || dynamicRewardNewRateSystemConfig.getValue() == null) {
+            return SingleResponse.buildFailure("动态奖励新增奖比例系统配置错误");
+        }
+
+        BigDecimal dynamicRewardNewRate = new BigDecimal(dynamicRewardNewRateSystemConfig.getValue());
+        if (dynamicRewardNewRate.compareTo(BigDecimal.ZERO) < 0 || dynamicRewardNewRate.compareTo(BigDecimal.ONE) > 0) {
+            return SingleResponse.buildFailure("动态奖励新增奖比例系统配置错误");
+        }
+        return SingleResponse.of(dynamicRewardNewRate);
+    }
 }
