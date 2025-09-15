@@ -19,9 +19,5 @@ public interface PurchaseMinerProjectService {
      */
     MultiResponse<PurchaseMinerProjectDTO> page(PurchaseMinerProjectPageQry purchaseMinerProjectPageQry);
 
-    /**
-     * 矿机项目奖励发放
-     */
-    SingleResponse<Void> reward(PurchaseMinerProjectRewardCmd purchaseMinerProjectRewardCmd);
 
 }

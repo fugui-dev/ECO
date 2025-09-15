@@ -209,8 +209,72 @@ public class RecommendStatisticsLogServiceImpl implements RecommendStatisticsLog
         recommendStatisticsLogDTO.setTotalDirectRecommendComputingPower(totalDirectRecommendComputingPower.toString());
         recommendStatisticsLogDTO.setTotalRecommendComputingPower(totalRecommendComputingPower.toString());
 
+
+        LambdaQueryWrapper<Recommend> recommendQueryWrapper = new LambdaQueryWrapper<>();
+        recommendQueryWrapper.eq(Recommend::getWalletAddress, recommendStatisticsLogQry.getWalletAddress());
+
+        Recommend recommend = recommendMapper.selectOne(recommendQueryWrapper);
+        if (Objects.nonNull(recommend)) {
+            recommendStatisticsLogDTO.setMaxComputingPower("0");
+            recommendStatisticsLogDTO.setMinComputingPower("0");
+            recommendStatisticsLogDTO.setMaxComputingPower("0");
+
+            return SingleResponse.of(recommendStatisticsLogDTO);
+        }
+
+        LambdaQueryWrapper<Recommend> directQueryWrapper = new LambdaQueryWrapper<>();
+        directQueryWrapper.eq(Recommend::getRecommendWalletAddress, recommendStatisticsLogQry.getWalletAddress());
+
+        List<Recommend> directRecommendList = recommendMapper.selectList(directQueryWrapper);
+        if (CollectionUtils.isEmpty(directRecommendList)) {
+            recommendStatisticsLogDTO.setMaxComputingPower("0");
+            recommendStatisticsLogDTO.setMinComputingPower("0");
+            recommendStatisticsLogDTO.setMaxComputingPower("0");
+
+            return SingleResponse.of(recommendStatisticsLogDTO);
+        }
+
+        List<String> directWalletAddressList = directRecommendList.stream()
+                .map(Recommend::getWalletAddress)
+                .collect(Collectors.toList());
+
+        LambdaQueryWrapper<RecommendStatisticsLog> directRecommendStatisticsLogQueryWrapper = new LambdaQueryWrapper<>();
+        directRecommendStatisticsLogQueryWrapper.in(RecommendStatisticsLog::getWalletAddress, directWalletAddressList);
+
+        List<RecommendStatisticsLog> directRecommendStatisticsLogList = recommendStatisticsLogMapper.selectList(directRecommendStatisticsLogQueryWrapper);
+
+        if (CollectionUtils.isEmpty(directRecommendStatisticsLogList)) {
+            recommendStatisticsLogDTO.setMaxComputingPower("0");
+            recommendStatisticsLogDTO.setMinComputingPower("0");
+            recommendStatisticsLogDTO.setMaxComputingPower("0");
+
+            return SingleResponse.of(recommendStatisticsLogDTO);
+        }
+
+        Map<String, List<RecommendStatisticsLog>> directRecommendStatisticsLogMap = directRecommendStatisticsLogList.stream().collect(Collectors.groupingBy(RecommendStatisticsLog::getWalletAddress));
+
+        Map<String, BigDecimal> totalRecommendComputingPowerMap = new HashMap<>();
+
+        for (Map.Entry<String, List<RecommendStatisticsLog>> entry : directRecommendStatisticsLogMap.entrySet()) {
+            String walletAddress = entry.getKey();
+            List<RecommendStatisticsLog> logs = entry.getValue();
+
+            BigDecimal totalPower = logs.stream()
+                    .map(RecommendStatisticsLog::getTotalRecommendComputingPower)
+                    .map(BigDecimal::new)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+            totalRecommendComputingPowerMap.put(walletAddress, totalPower);
+        }
+
         //添加最小算力和最大算力
-        computingPower(recommendStatisticsLogDTO, levelRateMap(), new HashMap<>());
+        computingPower(recommendStatisticsLogDTO,
+                levelRateMap(), 
+                new HashMap<>(),
+                totalRecommendComputingPowerMap,
+                recommendStatisticsLogQry.getIsLevel(),
+                recommendStatisticsLogQry.getDayTime()
+        );
 
         return SingleResponse.of(recommendStatisticsLogDTO);
 
@@ -233,6 +297,8 @@ public class RecommendStatisticsLogServiceImpl implements RecommendStatisticsLog
         Map<Integer, BigDecimal> levelRateMap = levelRateMap();
 
         Map<String, BigDecimal> computedPowerMap = new HashMap<>();
+
+        Map<String, BigDecimal> totalRecommendComputingPowerMap = new HashMap<>();
 
         for (Map.Entry<String, List<RecommendStatisticsLog>> entry : recommendStatisticsLogMap.entrySet()) {
 
@@ -262,6 +328,8 @@ public class RecommendStatisticsLogServiceImpl implements RecommendStatisticsLog
 
             computedPowerMap.put(walletAddress, totalComputingPower);
 
+            totalRecommendComputingPowerMap.put(walletAddress, totalRecommendComputingPower);
+
             RecommendStatisticsLogDTO recommendStatisticsLogDTO = new RecommendStatisticsLogDTO();
             recommendStatisticsLogDTO.setWalletAddress(walletAddress);
             recommendStatisticsLogDTO.setDirectRecommendCount(directRecommendCount);
@@ -274,7 +342,12 @@ public class RecommendStatisticsLogServiceImpl implements RecommendStatisticsLog
         }
 
         for (RecommendStatisticsLogDTO recommendStatisticsLogDTO : recommendStatisticsLogDTOS) {
-            computingPower(recommendStatisticsLogDTO, levelRateMap, computedPowerMap);
+            computingPower(recommendStatisticsLogDTO, 
+                    levelRateMap, 
+                    computedPowerMap,
+                    totalRecommendComputingPowerMap,
+                    recommendStatisticsLogListQry.getIsLevel(),
+                    recommendStatisticsLogListQry.getDayTime());
         }
 
 
@@ -313,13 +386,16 @@ public class RecommendStatisticsLogServiceImpl implements RecommendStatisticsLog
      */
     public void computingPower(RecommendStatisticsLogDTO recommendStatisticsLog,
                                Map<Integer, BigDecimal> levelRateMap,
-                               Map<String, BigDecimal> computedPowerMap) {
+                               Map<String, BigDecimal> computedPowerMap,
+                               Map<String, BigDecimal> totalRecommendComputingPowerMap,
+                               Boolean isLevel,
+                               String dayTime) {
 
         LambdaQueryWrapper<Recommend> queryWrapper = new LambdaQueryWrapper<>();
         queryWrapper.eq(Recommend::getWalletAddress, recommendStatisticsLog.getWalletAddress());
 
         Recommend recommend = recommendMapper.selectOne(queryWrapper);
-        if (Objects.isNull(recommend) || Objects.isNull(recommend.getRecommendWalletAddress())) {
+        if (Objects.isNull(recommend)) {
             return;
         }
 
@@ -334,30 +410,66 @@ public class RecommendStatisticsLogServiceImpl implements RecommendStatisticsLog
         if (directRecommends.size() < 2) {
             recommendStatisticsLog.setMinComputingPower("0");
             recommendStatisticsLog.setMaxComputingPower("0");
+            recommendStatisticsLog.setNewComputingPower("0");
             return;
         }
 
+        String maxWalletAddress = totalRecommendComputingPowerMap.entrySet().stream()
+                .max(Map.Entry.comparingByValue())
+                .map(Map.Entry::getKey)
+                .orElse(null);
+
+        String maxComputedPower = totalRecommendComputingPowerMap.getOrDefault(maxWalletAddress, BigDecimal.ZERO).toString();
+
         List<BigDecimal> computedPowerList = new ArrayList<>();
+
+        List<BigDecimal> newComputedPowerList = new ArrayList<>();
 
         for (Recommend directRecommend : directRecommends) {
 
-            BigDecimal computedPower = calculateSubordinates(recommend.getLevel(), directRecommend.getWalletAddress(), levelRateMap, computedPowerMap);
+            if (directRecommend.getWalletAddress().equals(maxWalletAddress)) {
+                continue; // 跳过最大算力的直推用户
+            }
+
+            BigDecimal computedPower = calculateSubordinates(recommend.getLevel(),
+                    directRecommend.getWalletAddress(),
+                    levelRateMap,
+                    computedPowerMap,
+                    null,
+                    isLevel);
+
+            BigDecimal newComputedPower = calculateSubordinates(recommend.getLevel(),
+                    directRecommend.getWalletAddress(),
+                    levelRateMap,
+                    new HashMap<>(),
+                    dayTime,
+                    isLevel);
+
+            newComputedPowerList.add(newComputedPower);
 
             computedPowerList.add(computedPower);
         }
 
+        computedPowerList.sort(Comparator.reverseOrder());
+
+
         if (CollectionUtils.isEmpty(computedPowerList)) {
             recommendStatisticsLog.setMinComputingPower("0");
             recommendStatisticsLog.setMaxComputingPower("0");
+            recommendStatisticsLog.setNewComputingPower("0");
         } else {
-            computedPowerList.sort(Comparator.reverseOrder());
-            recommendStatisticsLog.setMaxComputingPower(computedPowerList.get(0).toString());
 
             BigDecimal minComputingPower = computedPowerList
-                    .subList(1, computedPowerList.size())
                     .stream().reduce(BigDecimal::add)
                     .orElse(BigDecimal.ZERO);
+
+            BigDecimal newComputingPower = newComputedPowerList.stream()
+                    .reduce(BigDecimal::add)
+                    .orElse(BigDecimal.ZERO);
+
             recommendStatisticsLog.setMinComputingPower(minComputingPower.toString());
+            recommendStatisticsLog.setMaxComputingPower(maxComputedPower);
+            recommendStatisticsLog.setNewComputingPower(newComputingPower.toString());
         }
 
     }
@@ -387,7 +499,9 @@ public class RecommendStatisticsLogServiceImpl implements RecommendStatisticsLog
     public BigDecimal calculateSubordinates(Integer parentLevel,
                                             String walletAddress,
                                             Map<Integer, BigDecimal> levelRateMap,
-                                            Map<String, BigDecimal> computedPowerMap) {
+                                            Map<String, BigDecimal> computedPowerMap,
+                                            String dayTime,
+                                            Boolean isLevel) {
         // 1. 查询直接下级
         BigDecimal currentPower = computedPowerMap.get(walletAddress);
 
@@ -396,11 +510,14 @@ public class RecommendStatisticsLogServiceImpl implements RecommendStatisticsLog
             // 2. 获取当前地址的算力
             currentPower = BigDecimal.ZERO;
 
-            List<RecommendStatisticsLog> recommendStatisticsLogList = recommendStatisticsLogMapper.selectList(
-                    new LambdaQueryWrapper<RecommendStatisticsLog>()
-                            .eq(RecommendStatisticsLog::getWalletAddress, walletAddress)
+            LambdaQueryWrapper<RecommendStatisticsLog> recommendStatisticsLogLambdaQueryWrapper = new LambdaQueryWrapper<>();
+            recommendStatisticsLogLambdaQueryWrapper.eq(RecommendStatisticsLog::getWalletAddress, walletAddress);
+            
+            if (StringUtils.hasLength(dayTime)){
+                recommendStatisticsLogLambdaQueryWrapper.eq(RecommendStatisticsLog::getDayTime, dayTime);
+            }
 
-            );
+            List<RecommendStatisticsLog> recommendStatisticsLogList = recommendStatisticsLogMapper.selectList(recommendStatisticsLogLambdaQueryWrapper);
 
             if (!CollectionUtils.isEmpty(recommendStatisticsLogList)) {
                 currentPower = recommendStatisticsLogList.stream()
@@ -426,21 +543,33 @@ public class RecommendStatisticsLogServiceImpl implements RecommendStatisticsLog
 
             Integer level = subordinate.getLevel();
 
+            BigDecimal levelRate = BigDecimal.ZERO;
+            //是否按层级计算
+            if (isLevel){
+
+                // 计算当前下级相对于父级的层级差
+                Integer relativeLevel = parentLevel - level;
+
+                levelRate = levelRateMap.get(relativeLevel);
+
+                if (Objects.isNull(levelRate)) {
+                    continue;
+                }
+            }
+
             // 4. 递归查询当前下级的子级算力
-            BigDecimal grandchildrenPower = calculateSubordinates(level, subordinateAddress, levelRateMap, computedPowerMap);
+            BigDecimal grandchildrenPower = calculateSubordinates(level, subordinateAddress, levelRateMap, computedPowerMap, dayTime, isLevel);
 
             // 5. 计算当前层级的加权算力
-
-            // 计算当前下级相对于父级的层级差
-            Integer relativeLevel = parentLevel - level;
-
-            BigDecimal levelRate = levelRateMap.getOrDefault(relativeLevel, BigDecimal.ZERO);
 
             BigDecimal weightedPower = grandchildrenPower;
 
             if (levelRate.compareTo(BigDecimal.ZERO) < 0) {
 
                 weightedPower = grandchildrenPower.multiply(levelRate);
+
+                computedPowerMap.put(subordinateAddress, weightedPower);
+                
             }
 
             // 6. 累加到总算力

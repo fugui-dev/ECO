@@ -43,5 +43,10 @@ public class RecommendStatisticsLogDTO {
      */
     private String maxComputingPower;
 
+    /**
+     * 新增算力
+     */
+    private String newComputingPower;
+
 
 }

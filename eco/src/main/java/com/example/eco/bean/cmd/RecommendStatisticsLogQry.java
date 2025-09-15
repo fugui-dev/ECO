@@ -14,4 +14,9 @@ public class RecommendStatisticsLogQry {
      * 日期
      */
     private String dayTime;
+
+    /**
+     * 是否查询全部
+     */
+    private Boolean isLevel;
 }

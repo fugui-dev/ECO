@@ -14,10 +14,10 @@ public class RecommendStatisticsLogListQry {
     /**
      * 开始时间
      */
-    private String startTime;
+    private String dayTime;
 
     /**
-     * 结束时间
+     * 是否按层级查询
      */
-    private String endTime;
+    private Boolean isLevel;
 }
