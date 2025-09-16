@@ -61,9 +61,11 @@ public class PurchaseMinerProjectServiceImpl implements PurchaseMinerProjectServ
 
         String dayTime = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
 
-        Boolean checkQuota = checkQuota(minerProject, dayTime);
-        if (!checkQuota) {
-            return SingleResponse.buildFailure("该矿机ESG已达限额,请使用ECO支付");
+        if (!purchaseMinerProjectsCreateCmd.getType().equals(PurchaseMinerType.ECO.getCode())){
+            Boolean checkQuota = checkQuota(minerProject, dayTime);
+            if (!checkQuota) {
+                return SingleResponse.buildFailure("该矿机ESG已达限额,请使用ECO支付");
+            }
         }
 
         // todo U -> 转ESG ECO

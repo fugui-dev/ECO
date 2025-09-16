@@ -2,10 +2,8 @@ package com.example.eco.api.admin;
 
 import com.example.eco.bean.MultiResponse;
 import com.example.eco.bean.SingleResponse;
-import com.example.eco.bean.cmd.WithdrawRecordCreateCmd;
 import com.example.eco.bean.cmd.WithdrawRecordDealWithCmd;
 import com.example.eco.bean.cmd.WithdrawRecordPageQry;
-import com.example.eco.bean.cmd.withdrawRecordCancelCmd;
 import com.example.eco.bean.dto.WithdrawRecordDTO;
 import com.example.eco.core.service.WithdrawRecordService;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -16,8 +14,8 @@ import org.springframework.web.bind.annotation.RestController;
 import javax.annotation.Resource;
 
 @RestController
-@RequestMapping("/v1/user/withdraw/record")
-public class WithdrawRecordController {
+@RequestMapping("/v1/admin/withdraw/record")
+public class AdminWithdrawRecordController {
 
     @Resource
     private WithdrawRecordService withdrawRecordService;

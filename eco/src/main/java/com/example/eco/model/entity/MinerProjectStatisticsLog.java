@@ -39,11 +39,6 @@ public class MinerProjectStatisticsLog {
     private String quota;
 
     /**
-     * 是否达到ESG限额
-     */
-    private Boolean disable;
-
-    /**
      * 日期
      */
     private String dayTime;

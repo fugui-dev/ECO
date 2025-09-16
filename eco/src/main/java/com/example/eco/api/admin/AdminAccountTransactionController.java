@@ -13,7 +13,7 @@ import javax.annotation.Resource;
 
 @RestController
 @RequestMapping("/v1/admin/account/transaction")
-public class AccountTransactionController {
+public class AdminAccountTransactionController {
 
     @Resource
     private AccountTransactionService accountTransactionService;

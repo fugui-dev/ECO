@@ -14,7 +14,7 @@ import javax.annotation.Resource;
 
 @RestController
 @RequestMapping("/v1/admin/system/config")
-public class SystemConfigController {
+public class AdminSystemConfigController {
 
     @Resource
     private SystemConfigService systemConfigService;

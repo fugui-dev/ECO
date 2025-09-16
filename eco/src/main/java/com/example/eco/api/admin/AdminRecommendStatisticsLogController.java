@@ -17,7 +17,7 @@ import java.time.format.DateTimeFormatter;
 
 @RestController
 @RequestMapping("/v1/admin/recommend/statistics/log")
-public class RecommendStatisticsLogController {
+public class AdminRecommendStatisticsLogController {
 
     @Resource
     private RecommendStatisticsLogService recommendStatisticsLogService;

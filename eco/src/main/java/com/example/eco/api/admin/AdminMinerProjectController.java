@@ -17,7 +17,7 @@ import javax.annotation.Resource;
 
 @RestController
 @RequestMapping("/v1/admin/miner/project")
-public class MinerProjectController {
+public class AdminMinerProjectController {
 
     @Resource
     private MinerProjectService minerProjectService;

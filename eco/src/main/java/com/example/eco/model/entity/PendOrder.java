@@ -33,9 +33,24 @@ public class PendOrder {
     private String walletAddress;
 
     /**
-     * 联系方式
+     * 电报
      */
-    private String contactWay;
+    private String telegram;
+
+    /**
+     * 微信
+     */
+    private String wechat;
+
+    /**
+     * 邮箱
+     */
+    private String email;
+
+    /**
+     * 手机号
+     */
+    private String phone;
 
     /**
      * 挂单类型
@@ -82,7 +97,7 @@ public class PendOrder {
     /**
      * 下单时间
      */
-    private String placeOrderTime;
+    private Long placeOrderTime;
 
     /**
      * 确认时间

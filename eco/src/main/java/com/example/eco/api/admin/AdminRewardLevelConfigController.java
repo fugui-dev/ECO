@@ -17,7 +17,7 @@ import javax.annotation.Resource;
 
 @RestController
 @RequestMapping("/v1/admin/reward/level/config")
-public class RewardLevelConfigController {
+public class AdminRewardLevelConfigController {
 
     @Resource
     private RewardLevelConfigService rewardLevelConfigService;

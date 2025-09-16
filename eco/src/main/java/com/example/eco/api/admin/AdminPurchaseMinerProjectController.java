@@ -13,7 +13,7 @@ import javax.annotation.Resource;
 
 @RestController
 @RequestMapping("/v1/purchase/miner/project")
-public class PurchaseMinerProjectController {
+public class AdminPurchaseMinerProjectController {
 
     @Resource
     private PurchaseMinerProjectService purchaseMinerProjectService;

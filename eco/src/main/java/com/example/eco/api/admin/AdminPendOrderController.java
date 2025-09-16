@@ -13,7 +13,7 @@ import javax.annotation.Resource;
 
 @RestController
 @RequestMapping("/v1/admin/pend/order")
-public class PendOrderController {
+public class AdminPendOrderController {
 
     @Resource
     private PendOrderService pendOrderService;
