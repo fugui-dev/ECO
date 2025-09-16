@@ -342,6 +342,7 @@ public class RecommendStatisticsLogServiceImpl implements RecommendStatisticsLog
         }
 
         for (RecommendStatisticsLogDTO recommendStatisticsLogDTO : recommendStatisticsLogDTOS) {
+
             computingPower(recommendStatisticsLogDTO, 
                     levelRateMap, 
                     computedPowerMap,
@@ -456,19 +457,25 @@ public class RecommendStatisticsLogServiceImpl implements RecommendStatisticsLog
         if (CollectionUtils.isEmpty(computedPowerList)) {
             recommendStatisticsLog.setMinComputingPower("0");
             recommendStatisticsLog.setMaxComputingPower("0");
-            recommendStatisticsLog.setNewComputingPower("0");
         } else {
 
             BigDecimal minComputingPower = computedPowerList
                     .stream().reduce(BigDecimal::add)
                     .orElse(BigDecimal.ZERO);
 
+
+            recommendStatisticsLog.setMinComputingPower(minComputingPower.toString());
+            recommendStatisticsLog.setMaxComputingPower(maxComputedPower);
+        }
+
+        if (CollectionUtils.isEmpty(newComputedPowerList)){
+            recommendStatisticsLog.setNewComputingPower("0");
+        }else {
+
             BigDecimal newComputingPower = newComputedPowerList.stream()
                     .reduce(BigDecimal::add)
                     .orElse(BigDecimal.ZERO);
 
-            recommendStatisticsLog.setMinComputingPower(minComputingPower.toString());
-            recommendStatisticsLog.setMaxComputingPower(maxComputedPower);
             recommendStatisticsLog.setNewComputingPower(newComputingPower.toString());
         }
 

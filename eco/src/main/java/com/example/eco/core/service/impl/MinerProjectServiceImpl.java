@@ -80,23 +80,24 @@ public class MinerProjectServiceImpl implements MinerProjectService {
             return MultiResponse.buildSuccess();
         }
 
-        LambdaQueryWrapper<SystemConfig> systemConfigLambdaQueryWrapper = new LambdaQueryWrapper<>();
-        systemConfigLambdaQueryWrapper.eq(SystemConfig::getName, SystemConfigEnum.STATIC_NEW_MINER_RATE.getCode());
-        SystemConfig systemConfig = systemConfigMapper.selectOne(systemConfigLambdaQueryWrapper);
-
-        if (systemConfig == null || systemConfig.getValue() == null) {
-            return MultiResponse.buildFailure("405","新增算力系统配置错误");
-        }
+//        LambdaQueryWrapper<SystemConfig> systemConfigLambdaQueryWrapper = new LambdaQueryWrapper<>();
+//        systemConfigLambdaQueryWrapper.eq(SystemConfig::getName, SystemConfigEnum.STATIC_NEW_MINER_RATE.getCode());
+//        SystemConfig systemConfig = systemConfigMapper.selectOne(systemConfigLambdaQueryWrapper);
+//
+//        if (systemConfig == null || systemConfig.getValue() == null) {
+//            return MultiResponse.buildFailure("405","新增算力系统配置错误");
+//        }
 
         List<MinerProjectDTO> minerProjectDTOList = new ArrayList<>();
         for (MinerProject minerProject : minerProjectPage.getRecords()) {
+
             MinerProjectDTO minerProjectDTO = new MinerProjectDTO();
             minerProjectDTO.setId(minerProject.getId());
             minerProjectDTO.setPrice(minerProject.getPrice());
 
-            Long days = TimeUnit.MILLISECONDS.toDays(System.currentTimeMillis() - minerProject.getCreateTime());
-            Double computingPower = Double.parseDouble(minerProject.getComputingPower()) * Math.pow(Double.parseDouble(systemConfig.getValue()), days);
-            minerProjectDTO.setComputingPower(computingPower.toString());
+//            Long days = TimeUnit.MILLISECONDS.toDays(System.currentTimeMillis() - minerProject.getCreateTime());
+//            Double computingPower = Double.parseDouble(minerProject.getComputingPower()) * Math.pow(Double.parseDouble(systemConfig.getValue()), days);
+            minerProjectDTO.setComputingPower(minerProject.getComputingPower());
             minerProjectDTOList.add(minerProjectDTO);
         }
 

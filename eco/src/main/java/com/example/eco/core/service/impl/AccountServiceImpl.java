@@ -1,6 +1,8 @@
 package com.example.eco.core.service.impl;
 
+import com.alibaba.excel.util.StringUtils;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.example.eco.bean.MultiResponse;
 import com.example.eco.bean.SingleResponse;
 import com.example.eco.bean.cmd.*;
@@ -20,6 +22,7 @@ import org.springframework.retry.annotation.Retryable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.CollectionUtils;
 
 import javax.annotation.Resource;
 import java.math.BigDecimal;
@@ -92,20 +95,28 @@ public class AccountServiceImpl implements AccountService {
     }
 
     @Override
-    public MultiResponse<AccountDTO> list(AccountQry accountQry) {
+    public MultiResponse<AccountDTO> list(AccountPageQry accountPageQry) {
 
         LambdaQueryWrapper<Account> queryWrapper = new LambdaQueryWrapper<>();
-        queryWrapper.eq(Account::getWalletAddress, accountQry.getWalletAddress());
+        queryWrapper.eq(StringUtils.isNotBlank(accountPageQry.getWalletAddress()), Account::getWalletAddress, accountPageQry.getWalletAddress());
+        queryWrapper.eq(StringUtils.isNotBlank(accountPageQry.getType()), Account::getType, accountPageQry.getType());
 
-        List<Account> accountList = accountMapper.selectList(queryWrapper);
+        Page<Account> accountPage = accountMapper.selectPage(Page.of(accountPageQry.getPageNum(), accountPageQry.getPageSize()), queryWrapper);
+
+        if (CollectionUtils.isEmpty(accountPage.getRecords())) {
+            return MultiResponse.buildSuccess();
+        }
 
         List<AccountDTO> accountDTOList = new ArrayList<>();
-        for (Account account : accountList) {
+
+        for (Account account : accountPage.getRecords()) {
             AccountDTO accountDTO = new AccountDTO();
             BeanUtils.copyProperties(account, accountDTO);
+
+            accountDTO.setTypeName(AccountType.of(account.getType()).getName());
             accountDTOList.add(accountDTO);
         }
-        return MultiResponse.of(accountDTOList);
+        return MultiResponse.of(accountDTOList, (int) accountPage.getTotal());
     }
 
     @Override
@@ -785,7 +796,7 @@ public class AccountServiceImpl implements AccountService {
     @Override
     @Retryable(value = OptimisticLockingFailureException.class, maxAttempts = 3, backoff = @Backoff(delay = 100))
     @Transactional(isolation = Isolation.REPEATABLE_READ, rollbackFor = Exception.class)
-    public SingleResponse<Void> rollbackLockWithdrawNumber(RollbackLockWithdrawNumberCmd rollbackLockWithdrawNumberCmd){
+    public SingleResponse<Void> rollbackLockWithdrawNumber(RollbackLockWithdrawNumberCmd rollbackLockWithdrawNumberCmd) {
         LambdaQueryWrapper<AccountTransaction> lambdaQueryWrapper = new LambdaQueryWrapper<>();
         lambdaQueryWrapper.eq(AccountTransaction::getWalletAddress, rollbackLockWithdrawNumberCmd.getWalletAddress());
         lambdaQueryWrapper.eq(AccountTransaction::getOrder, rollbackLockWithdrawNumberCmd.getOrder());
@@ -839,7 +850,7 @@ public class AccountServiceImpl implements AccountService {
     @Override
     @Retryable(value = OptimisticLockingFailureException.class, maxAttempts = 3, backoff = @Backoff(delay = 100))
     @Transactional(isolation = Isolation.REPEATABLE_READ, rollbackFor = Exception.class)
-    public SingleResponse<Void> releaseLockWithdrawNumber(AccountReleaseLockWithdrawNumberCmd accountReleaseLockWithdrawNumberCmd){
+    public SingleResponse<Void> releaseLockWithdrawNumber(AccountReleaseLockWithdrawNumberCmd accountReleaseLockWithdrawNumberCmd) {
 
         LambdaQueryWrapper<AccountTransaction> lambdaQueryWrapper = new LambdaQueryWrapper<>();
         lambdaQueryWrapper.eq(AccountTransaction::getWalletAddress, accountReleaseLockWithdrawNumberCmd.getWalletAddress());
@@ -866,7 +877,6 @@ public class AccountServiceImpl implements AccountService {
         if (updateCount == 0) {
             throw new OptimisticLockingFailureException("乐观锁异常");
         }
-
 
 
         AccountTransaction accountWithdrawTransaction = new AccountTransaction();
@@ -1041,7 +1051,7 @@ public class AccountServiceImpl implements AccountService {
             throw new OptimisticLockingFailureException("扣除积分失败");
         }
 
-        for (AccountTransaction transaction : accountTransactionList){
+        for (AccountTransaction transaction : accountTransactionList) {
             accountTransactionMapper.insert(transaction);
         }
 

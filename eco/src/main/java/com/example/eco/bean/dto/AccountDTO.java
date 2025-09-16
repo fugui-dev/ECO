@@ -19,6 +19,11 @@ public class AccountDTO {
     private String type;
 
     /**
+     * 账号类型名称
+     */
+    private String typeName;
+
+    /**
      * 账号可以积分
      */
     private String number;
@@ -73,8 +78,6 @@ public class AccountDTO {
      */
     private String dynamicReward;
 
-    @Version
-    private Long version;
 
     private Long createTime;
 

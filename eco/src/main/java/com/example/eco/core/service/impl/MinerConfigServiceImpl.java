@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.toolkit.CollectionUtils;
 import com.example.eco.bean.MultiResponse;
 import com.example.eco.bean.SingleResponse;
+import com.example.eco.bean.cmd.MinerConfigCreateCmd;
 import com.example.eco.bean.cmd.MinerConfigUpdateCmd;
 import com.example.eco.bean.dto.MinerConfigDTO;
 import com.example.eco.core.service.MinerConfigService;
@@ -21,6 +22,7 @@ public class MinerConfigServiceImpl implements MinerConfigService {
 
     @Resource
     private MinerConfigMapper minerConfigMapper;
+
 
     @Override
     public SingleResponse<Void> update(MinerConfigUpdateCmd minerConfigUpdateCmd) {

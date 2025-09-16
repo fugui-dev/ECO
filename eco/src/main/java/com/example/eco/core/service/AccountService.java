@@ -15,7 +15,7 @@ public interface AccountService {
     /**
      * 获取账户信息
      */
-    MultiResponse<AccountDTO> list(AccountQry accountQry);
+    MultiResponse<AccountDTO> list(AccountPageQry accountPageQry);
 
     /**
      * 增加账户静态奖励
