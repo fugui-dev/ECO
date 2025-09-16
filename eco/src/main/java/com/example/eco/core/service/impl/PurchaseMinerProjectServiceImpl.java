@@ -13,6 +13,7 @@ import com.example.eco.core.service.PurchaseMinerProjectService;
 import com.example.eco.core.service.RecommendStatisticsLogService;
 import com.example.eco.model.entity.*;
 import com.example.eco.model.mapper.*;
+import com.example.eco.util.ESGUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
@@ -48,6 +49,8 @@ public class PurchaseMinerProjectServiceImpl implements PurchaseMinerProjectServ
     private MinerProjectStatisticsLogMapper minerProjectStatisticsLogMapper;
     @Resource
     private SystemConfigMapper systemConfigMapper;
+    @Resource
+    private ESGUtils esgUtils;
 
 
     @Override
@@ -88,9 +91,19 @@ public class PurchaseMinerProjectServiceImpl implements PurchaseMinerProjectServ
 
         if (purchaseMinerProjectsCreateCmd.getType().equals(PurchaseMinerType.ESG.getCode())) {
 
+            BigDecimal esgPrice = esgUtils.getEsgPrice();
+
+            if (esgPrice.compareTo(BigDecimal.ZERO) <= 0) {
+                return SingleResponse.buildFailure("获取ESG价格失败");
+            }
+
+            BigDecimal esgNumber = new BigDecimal(minerProject.getPrice()).divide(esgPrice, 4, RoundingMode.HALF_DOWN);
+            purchaseMinerProject.setEsgNumber(esgNumber.toString());
+
+
             AccountDeductCmd accountDeductCmd = new AccountDeductCmd();
             accountDeductCmd.setAccountType(AccountType.ESG.getCode());
-            accountDeductCmd.setNumber(purchaseMinerProjectsCreateCmd.getEsgNumber());
+            accountDeductCmd.setNumber(esgNumber.toString());
             accountDeductCmd.setWalletAddress(purchaseMinerProjectsCreateCmd.getWalletAddress());
             accountDeductCmd.setOrder(order);
             SingleResponse<Void> response = accountService.purchaseMinerProjectNumber(accountDeductCmd);
@@ -148,7 +161,11 @@ public class PurchaseMinerProjectServiceImpl implements PurchaseMinerProjectServ
 
         if (purchaseMinerProjectsCreateCmd.getType().equals(PurchaseMinerType.ECO_ESG.getCode())) {
 
-            BigDecimal halfPrice = new BigDecimal(minerProject.getPrice()).divide(new BigDecimal(2), 4, RoundingMode.HALF_DOWN);
+            BigDecimal esgPrice = esgUtils.getEsgPrice();
+
+            if (esgPrice.compareTo(BigDecimal.ZERO) <= 0) {
+                return SingleResponse.buildFailure("获取ESG价格失败");
+            }
 
             LambdaQueryWrapper<SystemConfig> systemConfigLambdaQueryWrapper = new LambdaQueryWrapper<>();
             systemConfigLambdaQueryWrapper.eq(SystemConfig::getName, SystemConfigEnum.ECO_PRICE.getCode());
@@ -157,8 +174,13 @@ public class PurchaseMinerProjectServiceImpl implements PurchaseMinerProjectServ
                 return SingleResponse.buildFailure("未设置ECO价格");
             }
 
-            BigDecimal ecoNumber = new BigDecimal(systemConfig.getValue()).multiply(halfPrice);
+            BigDecimal halfPrice = new BigDecimal(minerProject.getPrice()).divide(new BigDecimal(2), 4, RoundingMode.HALF_DOWN);
 
+
+            BigDecimal ecoNumber = halfPrice.divide(new BigDecimal(systemConfig.getValue()), 4, RoundingMode.HALF_DOWN);
+            BigDecimal esgNumber = halfPrice.divide(esgPrice, 4, RoundingMode.HALF_DOWN);
+
+            purchaseMinerProject.setEsgNumber(esgNumber.toString());
             purchaseMinerProject.setEcoNumber(ecoNumber.toString());
 
             AccountDeductCmd ecoAccountDeductCmd = new AccountDeductCmd();
@@ -177,7 +199,7 @@ public class PurchaseMinerProjectServiceImpl implements PurchaseMinerProjectServ
 
             AccountDeductCmd esgAccountDeductCmd = new AccountDeductCmd();
             esgAccountDeductCmd.setAccountType(AccountType.ESG.getCode());
-            esgAccountDeductCmd.setNumber(purchaseMinerProjectsCreateCmd.getEcoNumber());
+            esgAccountDeductCmd.setNumber(esgNumber.toString());
             esgAccountDeductCmd.setWalletAddress(purchaseMinerProjectsCreateCmd.getWalletAddress());
             esgAccountDeductCmd.setOrder(order);
             SingleResponse<Void> esgResponse = accountService.purchaseMinerProjectNumber(esgAccountDeductCmd);
