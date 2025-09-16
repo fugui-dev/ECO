@@ -402,8 +402,8 @@ public class AccountServiceImpl implements AccountService {
             return SingleResponse.buildFailure("账户不存在");
         }
 
-        String number = account.getNumber();
-        if (new BigDecimal(number).compareTo(new BigDecimal(accountSellNumberCmd.getNumber())) < 0) {
+        BigDecimal balance = new BigDecimal(account.getNumber()).subtract(new BigDecimal(account.getBuyNumber()));
+        if (balance.compareTo(new BigDecimal(accountSellNumberCmd.getNumber())) < 0) {
             return SingleResponse.buildFailure("账户余额不足");
         }
 
@@ -924,7 +924,7 @@ public class AccountServiceImpl implements AccountService {
             return SingleResponse.buildFailure(account.getType() + "账户不存在");
         }
 
-        BigDecimal balance = new BigDecimal(account.getNumber()).subtract(new BigDecimal(account.getBuyNumber()));
+        BigDecimal balance = new BigDecimal(account.getNumber());
 
         BigDecimal deductNumber = new BigDecimal(accountDeductCmd.getNumber());
 

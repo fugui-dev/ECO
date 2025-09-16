@@ -58,6 +58,17 @@ public class PurchaseMinerProject {
      */
     private String status;
 
+
+    /**
+     * ESG数量
+     */
+    private String esgNumber;
+
+    /**
+     * ECO数量
+     */
+    private String ecoNumber;
+
     /**
      * 失败原因
      */

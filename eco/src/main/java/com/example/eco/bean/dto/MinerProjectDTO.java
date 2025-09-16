@@ -24,6 +24,17 @@ public class MinerProjectDTO {
     private String quota;
 
 
+    /**
+     * 已使用ESG数量
+     */
+    private String amount;
+
+    /**
+     * 是否达到ESG限额
+     */
+    private Boolean disable;
+
+
     private Long createTime;
 
 

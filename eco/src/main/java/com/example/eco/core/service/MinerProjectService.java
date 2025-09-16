@@ -2,10 +2,7 @@ package com.example.eco.core.service;
 
 import com.example.eco.bean.MultiResponse;
 import com.example.eco.bean.SingleResponse;
-import com.example.eco.bean.cmd.MinerProjectCreateCmd;
-import com.example.eco.bean.cmd.MinerProjectDeleteCmd;
-import com.example.eco.bean.cmd.MinerProjectPageQry;
-import com.example.eco.bean.cmd.MinerProjectUpdateCmd;
+import com.example.eco.bean.cmd.*;
 import com.example.eco.bean.dto.MinerProjectDTO;
 
 public interface MinerProjectService {
@@ -30,4 +27,9 @@ public interface MinerProjectService {
      * 分页查询矿机项目
      */
     MultiResponse<MinerProjectDTO> page(MinerProjectPageQry minerProjectPageQry);
+
+    /**
+     * 统计
+     */
+    SingleResponse<Void> statistics(MinerProjectStatisticsLogCmd minerProjectStatisticsLogCmd);
 }

@@ -8,6 +8,7 @@ import com.example.eco.bean.cmd.*;
 import com.example.eco.bean.dto.PurchaseMinerProjectDTO;
 import com.example.eco.common.*;
 import com.example.eco.core.service.AccountService;
+import com.example.eco.core.service.MinerProjectService;
 import com.example.eco.core.service.PurchaseMinerProjectService;
 import com.example.eco.core.service.RecommendStatisticsLogService;
 import com.example.eco.model.entity.*;
@@ -23,8 +24,11 @@ import org.springframework.util.StringUtils;
 import javax.annotation.Resource;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 @Slf4j
 @Service
@@ -37,15 +41,13 @@ public class PurchaseMinerProjectServiceImpl implements PurchaseMinerProjectServ
     @Resource
     private AccountService accountService;
     @Resource
-    private SystemConfigMapper systemConfigMapper;
-    @Resource
-    private MinerConfigMapper minerConfigMapper;
-    @Resource
-    private RecommendMapper recommendMapper;
-    @Resource
-    private PurchaseMinerProjectRewardMapper purchaseMinerProjectRewardMapper;
-    @Resource
     private RecommendStatisticsLogService recommendStatisticsLogService;
+    @Resource
+    private MinerProjectService minerProjectService;
+    @Resource
+    private MinerProjectStatisticsLogMapper minerProjectStatisticsLogMapper;
+    @Resource
+    private SystemConfigMapper systemConfigMapper;
 
 
     @Override
@@ -56,6 +58,15 @@ public class PurchaseMinerProjectServiceImpl implements PurchaseMinerProjectServ
         if (minerProject == null) {
             return SingleResponse.buildFailure("矿机不存在");
         }
+
+        String dayTime = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+
+        Boolean checkQuota = checkQuota(minerProject, dayTime);
+        if (!checkQuota) {
+            return SingleResponse.buildFailure("该矿机ESG已达限额,请使用ECO支付");
+        }
+
+        // todo U -> 转ESG ECO
 
         String order = "PMP" + System.currentTimeMillis();
 
@@ -71,11 +82,13 @@ public class PurchaseMinerProjectServiceImpl implements PurchaseMinerProjectServ
 
         purchaseMinerProjectMapper.insert(purchaseMinerProject);
 
+        BigDecimal amount = BigDecimal.ZERO;
+
         if (purchaseMinerProjectsCreateCmd.getType().equals(PurchaseMinerType.ESG.getCode())) {
 
             AccountDeductCmd accountDeductCmd = new AccountDeductCmd();
             accountDeductCmd.setAccountType(AccountType.ESG.getCode());
-            accountDeductCmd.setNumber(minerProject.getPrice());
+            accountDeductCmd.setNumber(purchaseMinerProjectsCreateCmd.getEsgNumber());
             accountDeductCmd.setWalletAddress(purchaseMinerProjectsCreateCmd.getWalletAddress());
             accountDeductCmd.setOrder(order);
             SingleResponse<Void> response = accountService.purchaseMinerProjectNumber(accountDeductCmd);
@@ -91,18 +104,29 @@ public class PurchaseMinerProjectServiceImpl implements PurchaseMinerProjectServ
                 purchaseMinerProject.setStatus(PurchaseMinerProjectStatus.SUCCESS.getCode());
                 purchaseMinerProject.setFinishTime(System.currentTimeMillis());
                 purchaseMinerProjectMapper.updateById(purchaseMinerProject);
-                return SingleResponse.buildSuccess();
+
+                amount = amount.add(new BigDecimal(minerProject.getPrice()));
+
             }
-
         }
-
-
 
         if (purchaseMinerProjectsCreateCmd.getType().equals(PurchaseMinerType.ECO.getCode())) {
 
+            LambdaQueryWrapper<SystemConfig> systemConfigLambdaQueryWrapper = new LambdaQueryWrapper<>();
+            systemConfigLambdaQueryWrapper.eq(SystemConfig::getName, SystemConfigEnum.ECO_PRICE.getCode());
+
+            SystemConfig systemConfig = systemConfigMapper.selectOne(systemConfigLambdaQueryWrapper);
+            if (Objects.isNull(systemConfig)) {
+                return SingleResponse.buildFailure("未设置ECO价格");
+            }
+
+            BigDecimal ecoNumber = new BigDecimal(systemConfig.getValue()).multiply(new BigDecimal(minerProject.getPrice()));
+
+            purchaseMinerProject.setEcoNumber(ecoNumber.toString());
+
             AccountDeductCmd accountDeductCmd = new AccountDeductCmd();
             accountDeductCmd.setAccountType(AccountType.ECO.getCode());
-            accountDeductCmd.setNumber(minerProject.getPrice());
+            accountDeductCmd.setNumber(ecoNumber.toString());
             accountDeductCmd.setWalletAddress(purchaseMinerProjectsCreateCmd.getWalletAddress());
             accountDeductCmd.setOrder(order);
             SingleResponse<Void> response = accountService.purchaseMinerProjectNumber(accountDeductCmd);
@@ -115,18 +139,30 @@ public class PurchaseMinerProjectServiceImpl implements PurchaseMinerProjectServ
             } else {
                 // 购买成功，记录购买信息
                 purchaseMinerProject.setStatus(PurchaseMinerProjectStatus.SUCCESS.getCode());
+
                 purchaseMinerProjectMapper.updateById(purchaseMinerProject);
-                return SingleResponse.buildSuccess();
+
             }
-
         }
-
 
         if (purchaseMinerProjectsCreateCmd.getType().equals(PurchaseMinerType.ECO_ESG.getCode())) {
 
+            BigDecimal halfPrice = new BigDecimal(minerProject.getPrice()).divide(new BigDecimal(2), 4, RoundingMode.HALF_DOWN);
+
+            LambdaQueryWrapper<SystemConfig> systemConfigLambdaQueryWrapper = new LambdaQueryWrapper<>();
+            systemConfigLambdaQueryWrapper.eq(SystemConfig::getName, SystemConfigEnum.ECO_PRICE.getCode());
+            SystemConfig systemConfig = systemConfigMapper.selectOne(systemConfigLambdaQueryWrapper);
+            if (Objects.isNull(systemConfig)) {
+                return SingleResponse.buildFailure("未设置ECO价格");
+            }
+
+            BigDecimal ecoNumber = new BigDecimal(systemConfig.getValue()).multiply(halfPrice);
+
+            purchaseMinerProject.setEcoNumber(ecoNumber.toString());
+
             AccountDeductCmd ecoAccountDeductCmd = new AccountDeductCmd();
             ecoAccountDeductCmd.setAccountType(AccountType.ECO.getCode());
-            ecoAccountDeductCmd.setNumber(new BigDecimal(minerProject.getPrice()).divide(new BigDecimal(2), 4, RoundingMode.HALF_DOWN).toString());
+            ecoAccountDeductCmd.setNumber(ecoNumber.toString());
             ecoAccountDeductCmd.setWalletAddress(purchaseMinerProjectsCreateCmd.getWalletAddress());
             ecoAccountDeductCmd.setOrder(order);
             SingleResponse<Void> ecoResponse = accountService.purchaseMinerProjectNumber(ecoAccountDeductCmd);
@@ -139,8 +175,8 @@ public class PurchaseMinerProjectServiceImpl implements PurchaseMinerProjectServ
             }
 
             AccountDeductCmd esgAccountDeductCmd = new AccountDeductCmd();
-            esgAccountDeductCmd.setAccountType(AccountType.ECO.getCode());
-            esgAccountDeductCmd.setNumber(new BigDecimal(minerProject.getPrice()).divide(new BigDecimal(2), 4, RoundingMode.HALF_DOWN).toString());
+            esgAccountDeductCmd.setAccountType(AccountType.ESG.getCode());
+            esgAccountDeductCmd.setNumber(purchaseMinerProjectsCreateCmd.getEcoNumber());
             esgAccountDeductCmd.setWalletAddress(purchaseMinerProjectsCreateCmd.getWalletAddress());
             esgAccountDeductCmd.setOrder(order);
             SingleResponse<Void> esgResponse = accountService.purchaseMinerProjectNumber(esgAccountDeductCmd);
@@ -151,6 +187,8 @@ public class PurchaseMinerProjectServiceImpl implements PurchaseMinerProjectServ
                 purchaseMinerProjectMapper.updateById(purchaseMinerProject);
                 return esgResponse;
             }
+
+            amount = amount.add(halfPrice);
         }
 
         TotalComputingPowerCmd totalComputingPowerCmd = new TotalComputingPowerCmd();
@@ -159,7 +197,49 @@ public class PurchaseMinerProjectServiceImpl implements PurchaseMinerProjectServ
 
         recommendStatisticsLogService.statistics(totalComputingPowerCmd);
 
+
+        if (amount.compareTo(BigDecimal.ZERO) == 0) {
+
+            MinerProjectStatisticsLogCmd minerProjectStatisticsLogCmd = new MinerProjectStatisticsLogCmd();
+            minerProjectStatisticsLogCmd.setAmount(amount);
+            minerProjectStatisticsLogCmd.setMinerProjectId(minerProject.getId());
+            minerProjectStatisticsLogCmd.setDayTime(dayTime);
+            minerProjectStatisticsLogCmd.setEsgNumber(new BigDecimal(purchaseMinerProjectsCreateCmd.getEsgNumber()));
+
+            minerProjectService.statistics(minerProjectStatisticsLogCmd);
+        }
+
         return SingleResponse.buildSuccess();
+    }
+
+
+    /**
+     * 检查限额
+     */
+    public Boolean checkQuota(MinerProject minerProject, String dayTime) {
+
+        LambdaQueryWrapper<MinerProjectStatisticsLog> queryWrapper = new LambdaQueryWrapper<>();
+        queryWrapper.eq(MinerProjectStatisticsLog::getDayTime, dayTime);
+        queryWrapper.eq(MinerProjectStatisticsLog::getMinerProjectId, minerProject.getId());
+
+        MinerProjectStatisticsLog minerProjectStatisticsLog = minerProjectStatisticsLogMapper.selectOne(queryWrapper);
+
+        if (Objects.isNull(minerProjectStatisticsLog)) {
+            return Boolean.TRUE;
+        }
+
+        BigDecimal price = new BigDecimal(minerProject.getPrice());
+
+        BigDecimal halfPrice = price.divide(new BigDecimal(minerProject.getPrice()).divide(new BigDecimal(2), 4, RoundingMode.HALF_DOWN));
+
+        BigDecimal remaining = new BigDecimal(minerProject.getQuota()).subtract(new BigDecimal(minerProjectStatisticsLog.getAmount()));
+
+
+        if (remaining.compareTo(price) < 0 || remaining.compareTo(halfPrice) < 0) {
+            return Boolean.FALSE;
+        } else {
+            return Boolean.TRUE;
+        }
     }
 
     @Override

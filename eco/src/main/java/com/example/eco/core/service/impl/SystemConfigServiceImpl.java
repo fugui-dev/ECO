@@ -8,6 +8,8 @@ import com.example.eco.bean.cmd.SystemConfigUpdateCmd;
 import com.example.eco.bean.dto.SystemConfigDTO;
 import com.example.eco.core.service.SystemConfigService;
 import com.example.eco.model.entity.SystemConfig;
+import com.example.eco.model.entity.SystemConfigLog;
+import com.example.eco.model.mapper.SystemConfigLogMapper;
 import com.example.eco.model.mapper.SystemConfigMapper;
 import org.springframework.stereotype.Service;
 
@@ -20,6 +22,9 @@ public class SystemConfigServiceImpl implements SystemConfigService {
 
     @Resource
     private SystemConfigMapper systemConfigMapper;
+
+    @Resource
+    private SystemConfigLogMapper systemConfigLogMapper;
 
     @Override
     public SingleResponse<Void> update(SystemConfigUpdateCmd systemConfigUpdateCmd) {
@@ -39,6 +44,12 @@ public class SystemConfigServiceImpl implements SystemConfigService {
             systemConfigMapper.insert(systemConfig);
         }
 
+        SystemConfigLog systemConfigLog = new SystemConfigLog();
+        systemConfigLog.setName(systemConfig.getName());
+        systemConfigLog.setValue(systemConfig.getValue());
+
+        systemConfigLogMapper.insert(systemConfigLog);
+
         return SingleResponse.buildSuccess();
     }
 
@@ -54,7 +65,7 @@ public class SystemConfigServiceImpl implements SystemConfigService {
         }
 
         List<SystemConfigDTO> systemConfigDTOList = new ArrayList<>();
-        for (SystemConfig systemConfig : systemConfigList){
+        for (SystemConfig systemConfig : systemConfigList) {
             SystemConfigDTO systemConfigDTO = new SystemConfigDTO();
             systemConfigDTO.setName(systemConfig.getName());
             systemConfigDTO.setValue(systemConfig.getValue());
