@@ -15,7 +15,7 @@ import lombok.NoArgsConstructor;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@TableName("recommend")
+@TableName("recommend_record")
 public class RecommendRecord {
 
     @TableId(type = IdType.AUTO)
