@@ -120,8 +120,7 @@ public class PurchaseMinerProjectServiceImpl implements PurchaseMinerProjectServ
                 return SingleResponse.buildFailure("未设置ECO价格");
             }
 
-            BigDecimal ecoNumber = new BigDecimal(systemConfig.getValue()).multiply(new BigDecimal(minerProject.getPrice()));
-
+            BigDecimal ecoNumber = new BigDecimal(minerProject.getPrice()).divide(new BigDecimal(systemConfig.getValue()), 4, RoundingMode.HALF_DOWN);
             purchaseMinerProject.setEcoNumber(ecoNumber.toString());
 
             AccountDeductCmd accountDeductCmd = new AccountDeductCmd();
