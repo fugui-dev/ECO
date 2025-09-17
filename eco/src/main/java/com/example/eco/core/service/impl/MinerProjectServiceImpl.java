@@ -52,6 +52,8 @@ public class MinerProjectServiceImpl implements MinerProjectService {
         existingProject = new MinerProject();
         existingProject.setComputingPower(minerProjectCreateCmd.getComputingPower());
         existingProject.setPrice(minerProjectCreateCmd.getPrice());
+        existingProject.setQuota(minerProjectCreateCmd.getQuota());
+        existingProject.setCreateTime(System.currentTimeMillis());
         minerProjectMapper.insert(existingProject);
         return SingleResponse.buildSuccess();
     }
@@ -66,7 +68,8 @@ public class MinerProjectServiceImpl implements MinerProjectService {
 
         minerProject.setComputingPower(minerProjectUpdateCmd.getComputingPower());
         minerProject.setPrice(minerProjectUpdateCmd.getPrice());
-
+        minerProject.setQuota(minerProjectUpdateCmd.getQuota());
+        minerProject.setUpdateTime(System.currentTimeMillis());
         minerProjectMapper.updateById(minerProject);
         return SingleResponse.buildSuccess();
     }
@@ -103,7 +106,7 @@ public class MinerProjectServiceImpl implements MinerProjectService {
             MinerProjectDTO minerProjectDTO = new MinerProjectDTO();
             minerProjectDTO.setId(minerProject.getId());
             minerProjectDTO.setPrice(minerProject.getPrice());
-
+            minerProjectDTO.setQuota(minerProject.getQuota());
 //            Long days = TimeUnit.MILLISECONDS.toDays(System.currentTimeMillis() - minerProject.getCreateTime());
 //            Double computingPower = Double.parseDouble(minerProject.getComputingPower()) * Math.pow(Double.parseDouble(systemConfig.getValue()), days);
 

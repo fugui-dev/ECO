@@ -5,10 +5,7 @@ import com.example.eco.bean.SingleResponse;
 import com.example.eco.bean.cmd.SystemConfigUpdateCmd;
 import com.example.eco.bean.dto.SystemConfigDTO;
 import com.example.eco.core.service.SystemConfigService;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.Resource;
 
@@ -31,7 +28,7 @@ public class AdminSystemConfigController {
     /**
      * 获取系统配置
      */
-    @PostMapping("/list")
+    @GetMapping("/list")
     MultiResponse<SystemConfigDTO> list(){
         return systemConfigService.list();
     }

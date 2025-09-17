@@ -16,11 +16,6 @@ public class PendOrderCreateCmd {
     private String walletAddress;
 
     /**
-     * 联系方式
-     */
-    private String contactWay;
-
-    /**
      * 挂单类型
      */
     private String type;
@@ -39,5 +34,26 @@ public class PendOrderCreateCmd {
      * 挂单总价
      */
     private String totalPrice;
+
+    /**
+     * 电报
+     */
+    private String telegram;
+
+    /**
+     * 微信
+     */
+    private String wechat;
+
+    /**
+     * 邮箱
+     */
+    private String email;
+
+    /**
+     * 手机号
+     */
+    private String phone;
+
 
 }

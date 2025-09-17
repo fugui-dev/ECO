@@ -112,7 +112,10 @@ public class RecommendServiceImpl implements RecommendService {
         //查询推荐人信息 推荐人必须存在
         Recommend recommender = recommendMapper.selectOne(recommendLambdaQueryWrapper);
         if (Objects.isNull(recommender)) {
-            return SingleResponse.buildFailure("推荐人钱包地址不存在");
+            //不存在就创建
+            RecommendCreateCmd recommendedCreateCmd = new RecommendCreateCmd();
+            recommendedCreateCmd.setWalletAddress(recommendCreateCmd.getWalletAddress());
+            recommender = create(recommendedCreateCmd);
         }
 
         String leaderRecommender = recommender.getLeaderWalletAddress();
@@ -120,6 +123,7 @@ public class RecommendServiceImpl implements RecommendService {
             leaderRecommender = recommender.getWalletAddress();
         }
         recommended.setLevel(recommender.getLevel() + 1);
+        recommended.setRecommendWalletAddress(recommendCreateCmd.getRecommendWalletAddress());
         recommended.setLeaderWalletAddress(leaderRecommender);
         recommended.setUpdateTime(System.currentTimeMillis());
         recommendMapper.updateById(recommended);

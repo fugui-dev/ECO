@@ -68,7 +68,10 @@ public class PendOrderServiceImpl implements PendOrderService {
         pendOrder.setPrice(pendOrderCreateCmd.getPrice());
         pendOrder.setTotalPrice(pendOrderCreateCmd.getTotalPrice());
         pendOrder.setStatus(PendOrderStatus.WAIT.getCode());
-        pendOrder.setContactWay(pendOrderCreateCmd.getContactWay());
+        pendOrder.setEmail(pendOrderCreateCmd.getEmail());
+        pendOrder.setPhone(pendOrderCreateCmd.getPhone());
+        pendOrder.setTelegram(pendOrderCreateCmd.getTelegram());
+        pendOrder.setWechat(pendOrderCreateCmd.getWechat());
 
         pendOrderMapper.insert(pendOrder);
         return SingleResponse.buildSuccess();

@@ -60,6 +60,7 @@ public class AccountServiceImpl implements AccountService {
             existingEcoAccount.setBuyLockNumber("0");
             existingEcoAccount.setDynamicReward("0");
             existingEcoAccount.setStaticReward("0");
+            existingEcoAccount.setNumber("0");
             existingEcoAccount.setType(AccountType.ECO.getCode());
             existingEcoAccount.setCreateTime(System.currentTimeMillis());
             existingEcoAccount.setUpdateTime(System.currentTimeMillis());
@@ -70,7 +71,7 @@ public class AccountServiceImpl implements AccountService {
         LambdaQueryWrapper<Account> esgQueryWrapper = new LambdaQueryWrapper<>();
         esgQueryWrapper.eq(Account::getWalletAddress, accountCreateCmd.getWalletAddress());
         esgQueryWrapper.eq(Account::getType, AccountType.ESG.getCode());
-        Account existingEsgAccount = accountMapper.selectOne(ecoQueryWrapper);
+        Account existingEsgAccount = accountMapper.selectOne(esgQueryWrapper);
         if (Objects.isNull(existingEsgAccount)) {
             existingEsgAccount = new Account();
             existingEsgAccount.setWalletAddress(accountCreateCmd.getWalletAddress());
@@ -84,6 +85,7 @@ public class AccountServiceImpl implements AccountService {
             existingEsgAccount.setBuyLockNumber("0");
             existingEsgAccount.setDynamicReward("0");
             existingEsgAccount.setStaticReward("0");
+            existingEsgAccount.setNumber("0");
             existingEsgAccount.setType(AccountType.ESG.getCode());
             existingEsgAccount.setCreateTime(System.currentTimeMillis());
             existingEsgAccount.setUpdateTime(System.currentTimeMillis());

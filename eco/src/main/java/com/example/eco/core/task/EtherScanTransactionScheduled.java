@@ -48,7 +48,7 @@ public class EtherScanTransactionScheduled {
         log.info("transactionAccountRecord 开始执行");
 
         QueryWrapper<SystemConfig> apikey = new QueryWrapper<>();
-        apikey.eq("`key`", "apikey");
+        apikey.eq("`name`", "apikey");
 
         SystemConfig apikeyConfig = systemConfigMapper.selectOne(apikey);
         if (Objects.isNull(apikeyConfig)) {
@@ -57,7 +57,7 @@ public class EtherScanTransactionScheduled {
 
 
         QueryWrapper<SystemConfig> contractAddress = new QueryWrapper<>();
-        contractAddress.eq("`key`", "contractAddress");
+        contractAddress.eq("`name`", "contractAddress");
 
         SystemConfig contractAddressConfig = systemConfigMapper.selectOne(contractAddress);
         if (Objects.isNull(contractAddressConfig)) {

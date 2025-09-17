@@ -42,7 +42,7 @@ public class AdminRecommendController {
     /**
      * 创建推荐关系
      */
-    @PostMapping("/recommend")
+    @PostMapping("/create")
     SingleResponse<Void> recommend(@RequestBody RecommendCreateCmd recommendCreateCmd) {
         return recommendService.recommend(recommendCreateCmd);
     }

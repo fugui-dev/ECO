@@ -14,8 +14,5 @@ public class WithdrawRecordDealWithCmd {
     /**
      * 审核拒绝原因
      */
-    /**
-     * 审核拒绝原因
-     */
     private String reason;
 }

@@ -214,10 +214,10 @@ public class RecommendStatisticsLogServiceImpl implements RecommendStatisticsLog
         recommendQueryWrapper.eq(Recommend::getWalletAddress, recommendStatisticsLogQry.getWalletAddress());
 
         Recommend recommend = recommendMapper.selectOne(recommendQueryWrapper);
-        if (Objects.nonNull(recommend)) {
+        if (Objects.isNull(recommend)) {
             recommendStatisticsLogDTO.setMaxComputingPower("0");
             recommendStatisticsLogDTO.setMinComputingPower("0");
-            recommendStatisticsLogDTO.setMaxComputingPower("0");
+            recommendStatisticsLogDTO.setNewComputingPower("0");
 
             return SingleResponse.of(recommendStatisticsLogDTO);
         }
@@ -229,7 +229,7 @@ public class RecommendStatisticsLogServiceImpl implements RecommendStatisticsLog
         if (CollectionUtils.isEmpty(directRecommendList)) {
             recommendStatisticsLogDTO.setMaxComputingPower("0");
             recommendStatisticsLogDTO.setMinComputingPower("0");
-            recommendStatisticsLogDTO.setMaxComputingPower("0");
+            recommendStatisticsLogDTO.setNewComputingPower("0");
 
             return SingleResponse.of(recommendStatisticsLogDTO);
         }
@@ -246,7 +246,7 @@ public class RecommendStatisticsLogServiceImpl implements RecommendStatisticsLog
         if (CollectionUtils.isEmpty(directRecommendStatisticsLogList)) {
             recommendStatisticsLogDTO.setMaxComputingPower("0");
             recommendStatisticsLogDTO.setMinComputingPower("0");
-            recommendStatisticsLogDTO.setMaxComputingPower("0");
+            recommendStatisticsLogDTO.setNewComputingPower("0");
 
             return SingleResponse.of(recommendStatisticsLogDTO);
         }
