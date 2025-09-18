@@ -9,6 +9,10 @@ public enum SystemConfigEnum {
 
     DAILY_TOTAL_REWARD("DAILY_TOTAL_REWARD", "每天挖矿总数数量"),
 
+    DAILY_TOTAL_REWARD_LIMIT("DAILY_TOTAL_REWARD_LIMIT", "每天挖矿总数数量上限"),
+
+    DAILY_TOTAL_REWARD_REDUCE_RATE("DAILY_TOTAL_REWARD_REDUCE_RATE", "每天挖矿总数数量降低到比例"),
+
     STATIC_REWARD_RATE("STATIC_REWARD_RATE", "静态奖励占比"),
 
     STATIC_NEW_MINER_RATE("STATIC_NEW_MINER_RATE", "新增算力静态奖励增加倍数"),

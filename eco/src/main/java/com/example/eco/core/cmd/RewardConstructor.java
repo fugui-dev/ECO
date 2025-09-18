@@ -20,10 +20,9 @@ import org.springframework.stereotype.Component;
 import javax.annotation.Resource;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Map;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -34,7 +33,7 @@ public class RewardConstructor {
     @Resource
     private PurchaseMinerProjectMapper purchaseMinerProjectMapper;
     @Resource
-    private MinerProjectMapper minerProjectMapper;
+    private RewardStatisticsLogMapper rewardStatisticsLogMapper;
     @Resource
     private AccountService accountService;
     @Resource
@@ -52,7 +51,7 @@ public class RewardConstructor {
     /**
      * 发放算力奖励
      */
-    public SingleResponse<Void> reward(PurchaseMinerProjectRewardCmd purchaseMinerProjectRewardCmd) {
+    public SingleResponse<PurchaseMinerProjectReward> reward(PurchaseMinerProjectRewardCmd purchaseMinerProjectRewardCmd) {
 
         // 获取推荐统计信息
         RecommendStatisticsLogListQry recommendStatisticsLogListQry = new RecommendStatisticsLogListQry();
@@ -98,11 +97,17 @@ public class RewardConstructor {
             return SingleResponse.buildSuccess();
         }
 
+
+        List<PurchaseMinerProjectReward> rewardList = new ArrayList<>();
+
         // 计算静态奖励
-        staticReward(totalComputingPower, totalReward, purchaseMinerProjectRewardCmd.getDayTime());
+        staticReward(totalComputingPower, totalReward, purchaseMinerProjectRewardCmd.getDayTime(), rewardList);
 
         // 计算动态奖励
-        dynamicReward(purchaseMinerProjectRewardCmd.getDayTime(), totalReward, response.getData());
+        dynamicReward(purchaseMinerProjectRewardCmd.getDayTime(), totalReward, response.getData(), rewardList);
+
+        // 添加统计数据
+        addRewardStatisticsLog(purchaseMinerProjectRewardCmd.getDayTime(), rewardList);
 
         return SingleResponse.buildSuccess();
     }
@@ -174,6 +179,49 @@ public class RewardConstructor {
             return SingleResponse.buildFailure("每天挖矿总数系统配置错误");
         }
 
+        // 获取每天总奖励数
+        LambdaQueryWrapper<SystemConfig> totalRewardLimitQueryWrapper = new LambdaQueryWrapper<>();
+        totalRewardLimitQueryWrapper.eq(SystemConfig::getName, SystemConfigEnum.DAILY_TOTAL_REWARD_LIMIT.getCode());
+
+        SystemConfig totalRewardLimitSystemConfig = systemConfigMapper.selectOne(totalRewardLimitQueryWrapper);
+        if (totalRewardLimitSystemConfig == null || totalRewardLimitSystemConfig.getValue() == null) {
+            return SingleResponse.buildFailure("每天挖矿总数数量上限配置错误");
+        }
+
+        BigDecimal totalLimitReward = new BigDecimal(totalRewardLimitSystemConfig.getValue());
+        if (totalLimitReward.compareTo(BigDecimal.ZERO) <= 0) {
+            return SingleResponse.buildFailure("每天挖矿总数数量上限配置错误");
+        }
+
+        String dayTime = LocalDate.now().minusDays(2).format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+
+        LambdaQueryWrapper<RewardStatisticsLog> rewardStatisticsLogLambdaQueryWrapper = new LambdaQueryWrapper<>();
+        rewardStatisticsLogLambdaQueryWrapper.eq(RewardStatisticsLog::getDayTime, dayTime);
+
+        RewardStatisticsLog rewardStatisticsLog = rewardStatisticsLogMapper.selectOne(rewardStatisticsLogLambdaQueryWrapper);
+
+        if (Objects.nonNull(rewardStatisticsLog)) {
+
+            BigDecimal beforeTotalReward = new BigDecimal(rewardStatisticsLog.getTotalReward());
+
+            if (beforeTotalReward.compareTo(totalLimitReward) >= 0) {
+
+                // 获取每天总奖励数
+                LambdaQueryWrapper<SystemConfig> rewardReduceRateQueryWrapper = new LambdaQueryWrapper<>();
+                rewardReduceRateQueryWrapper.eq(SystemConfig::getName, SystemConfigEnum.DAILY_TOTAL_REWARD_REDUCE_RATE.getCode());
+
+                SystemConfig rewardReduceRateSystemConfig = systemConfigMapper.selectOne(rewardReduceRateQueryWrapper);
+                if (rewardReduceRateSystemConfig == null || rewardReduceRateSystemConfig.getValue() == null) {
+                    return SingleResponse.buildFailure("每天挖矿总数数量降低到比例");
+                }
+
+                BigDecimal rewardReduceRate = new BigDecimal(rewardReduceRateSystemConfig.getValue());
+
+                totalReward = totalReward.multiply(rewardReduceRate);
+
+            }
+        }
+
         LambdaQueryWrapper<MinerConfig> minerAddNumberRequirementQueryWrapper = new LambdaQueryWrapper<>();
         minerAddNumberRequirementQueryWrapper.eq(MinerConfig::getName, MinerConfigEnum.MINER_ADD_NUMBER_REQUIREMENT.getCode());
 
@@ -213,6 +261,11 @@ public class RewardConstructor {
             totalReward = totalReward.add(totalAddNumber);
         }
 
+        if (totalReward.compareTo(totalLimitReward) >= 0) {
+
+            totalReward = totalLimitReward;
+        }
+
         return SingleResponse.of(totalReward);
 
     }
@@ -231,9 +284,7 @@ public class RewardConstructor {
         }
 
         BigDecimal staticRewardRate = new BigDecimal(staticRewardRateSystemConfig.getValue());
-        if (staticRewardRate.compareTo(BigDecimal.ZERO) < 0 || staticRewardRate.compareTo(BigDecimal.ONE) > 0) {
-            return SingleResponse.buildFailure("静态奖励比例系统配置错误");
-        }
+
         return SingleResponse.of(staticRewardRate);
     }
 
@@ -252,9 +303,7 @@ public class RewardConstructor {
         }
 
         BigDecimal dynamicRewardRate = new BigDecimal(dynamicRewardRateSystemConfig.getValue());
-        if (dynamicRewardRate.compareTo(BigDecimal.ZERO) < 0 || dynamicRewardRate.compareTo(BigDecimal.ONE) > 0) {
-            return SingleResponse.buildFailure("动态奖励比例系统配置错误");
-        }
+
         return SingleResponse.of(dynamicRewardRate);
 
     }
@@ -273,14 +322,15 @@ public class RewardConstructor {
         }
 
         BigDecimal dynamicRewardRecommendRate = new BigDecimal(dynamicRewardRecommendRateSystemConfig.getValue());
-        if (dynamicRewardRecommendRate.compareTo(BigDecimal.ZERO) < 0 || dynamicRewardRecommendRate.compareTo(BigDecimal.ONE) > 0) {
-            return SingleResponse.buildFailure("动态奖励推荐人比例系统配置错误");
-        }
+
         return SingleResponse.of(dynamicRewardRecommendRate);
     }
 
 
-    public SingleResponse<Void> staticReward(BigDecimal totalComputingPower, BigDecimal totalReward, String dayTime) {
+    public SingleResponse<Void> staticReward(BigDecimal totalComputingPower,
+                                             BigDecimal totalReward,
+                                             String dayTime,
+                                             List<PurchaseMinerProjectReward> rewardList) {
 
         LambdaQueryWrapper<PurchaseMinerProject> lambdaQueryWrapper = new LambdaQueryWrapper<>();
 
@@ -308,7 +358,7 @@ public class RewardConstructor {
             Recommend recommend = recommendResponse.getData();
 
             // 获取每个矿机的静态奖励
-            staticReward(purchaseMinerProject, recommend, totalComputingPower, staticTotalReward, dayTime);
+            staticReward(purchaseMinerProject, recommend, totalComputingPower, staticTotalReward, dayTime, rewardList);
 
         }
 
@@ -323,7 +373,8 @@ public class RewardConstructor {
                                                    Recommend recommend,
                                                    BigDecimal totalComputingPower,
                                                    BigDecimal staticTotalReward,
-                                                   String dayTime) {
+                                                   String dayTime,
+                                                   List<PurchaseMinerProjectReward> rewardList) {
         // 计算静态奖励 = 每天总奖励数 * 静态奖励比例 * (用户矿机算力 / 总算力)
 
 
@@ -353,6 +404,8 @@ public class RewardConstructor {
             return null;
         }
 
+        rewardList.add(purchaseMinerProjectReward);
+
         log.info("用户{}发放静态奖励{}成功", purchaseMinerProject.getWalletAddress(), staticReward);
 
 
@@ -380,7 +433,8 @@ public class RewardConstructor {
      */
     public SingleResponse<Void> dynamicReward(String dayTime,
                                               BigDecimal totalReward,
-                                              List<RecommendStatisticsLogDTO> recommendStatisticsLogList) {
+                                              List<RecommendStatisticsLogDTO> recommendStatisticsLogList,
+                                              List<PurchaseMinerProjectReward> rewardList) {
 
         // 获取动态奖励比例
         SingleResponse<BigDecimal> dynamicRewardRateResponse = getDynamicRewardRate();
@@ -395,19 +449,19 @@ public class RewardConstructor {
 
 
         // 动态推荐奖励
-        SingleResponse<Void> recommendRewardResponse = recommendReward(dynamicTotalReward, recommendStatisticsLogList, dayTime);
+        SingleResponse<Void> recommendRewardResponse = recommendReward(dynamicTotalReward, recommendStatisticsLogList, dayTime, rewardList);
         if (!recommendRewardResponse.isSuccess()) {
             return SingleResponse.buildFailure(recommendRewardResponse.getErrMessage());
         }
 
         // 动态基础奖励
-        SingleResponse<Void> baseRewardResponse = baseReward(dynamicTotalReward, recommendStatisticsLogList, dayTime);
+        SingleResponse<Void> baseRewardResponse = baseReward(dynamicTotalReward, recommendStatisticsLogList, dayTime, rewardList);
         if (!baseRewardResponse.isSuccess()) {
             return SingleResponse.buildFailure(baseRewardResponse.getErrMessage());
         }
 
         // 动态新增奖励
-        SingleResponse<Void> newRewardResponse = newReward(dynamicTotalReward, recommendStatisticsLogList, dayTime);
+        SingleResponse<Void> newRewardResponse = newReward(dynamicTotalReward, recommendStatisticsLogList, dayTime, rewardList);
         if (!newRewardResponse.isSuccess()) {
             return SingleResponse.buildFailure(newRewardResponse.getErrMessage());
         }
@@ -419,7 +473,10 @@ public class RewardConstructor {
     /**
      * 动态推荐奖励
      */
-    public SingleResponse<Void> recommendReward(BigDecimal dynamicTotalReward, List<RecommendStatisticsLogDTO> recommendStatisticsLogList, String dayTime) {
+    public SingleResponse<Void> recommendReward(BigDecimal dynamicTotalReward,
+                                                List<RecommendStatisticsLogDTO> recommendStatisticsLogList,
+                                                String dayTime,
+                                                List<PurchaseMinerProjectReward> rewardList) {
 
 
         // 获取动态奖励推荐比例
@@ -459,7 +516,7 @@ public class RewardConstructor {
             Recommend recommend = recommendResponse.getData();
 
             // 计算动态推荐奖励
-            recommendReward(totalRecommendStatisticsLog, dynamicRewardRecommendTotalReward, totalDirectRecommendComputingPower, recommend, dayTime);
+            recommendReward(totalRecommendStatisticsLog, dynamicRewardRecommendTotalReward, totalDirectRecommendComputingPower, recommend, dayTime, rewardList);
 
         }
         return SingleResponse.buildSuccess();
@@ -474,7 +531,8 @@ public class RewardConstructor {
                                                 BigDecimal dynamicRewardRecommendTotalReward,
                                                 BigDecimal totalDirectRecommendComputingPower,
                                                 Recommend recommend,
-                                                String dayTime) {
+                                                String dayTime,
+                                                List<PurchaseMinerProjectReward> rewardList) {
 
         // 计算动态推荐奖励 = 推荐总奖励 * (用户直推算力 / 总直推算力)
 
@@ -497,10 +555,14 @@ public class RewardConstructor {
         purchaseMinerProjectReward.setDayTime(dayTime);
         purchaseMinerProjectReward.setCreateTime(System.currentTimeMillis());
         int insert = purchaseMinerProjectRewardMapper.insert(purchaseMinerProjectReward);
+
         if (insert <= 0) {
             log.info("用户{}发放动态推荐奖励失败", recommendStatisticsLogDTO.getWalletAddress());
             return SingleResponse.buildFailure("发放动态推荐奖励失败");
         }
+
+        rewardList.add(purchaseMinerProjectReward);
+
         log.info("用户{}发放动态推荐奖励{}成功", recommendStatisticsLogDTO.getWalletAddress(), recommendReward);
 
         try {
@@ -535,9 +597,7 @@ public class RewardConstructor {
         }
 
         BigDecimal dynamicRewardBaseRate = new BigDecimal(dynamicRewardBaseRateSystemConfig.getValue());
-        if (dynamicRewardBaseRate.compareTo(BigDecimal.ZERO) < 0 || dynamicRewardBaseRate.compareTo(BigDecimal.ONE) > 0) {
-            return SingleResponse.buildFailure("动态奖励小区奖励比例系统配置错误");
-        }
+
         return SingleResponse.of(dynamicRewardBaseRate);
     }
 
@@ -547,7 +607,8 @@ public class RewardConstructor {
      */
     public SingleResponse<Void> baseReward(BigDecimal dynamicTotalReward,
                                            List<RecommendStatisticsLogDTO> recommendStatisticsLogList,
-                                           String dayTime) {
+                                           String dayTime,
+                                           List<PurchaseMinerProjectReward> rewardList) {
 
         // 获取动态奖励小区比例
         SingleResponse<BigDecimal> dynamicRewardBaseRateResponse = getDynamicBaseRewardRate();
@@ -577,7 +638,7 @@ public class RewardConstructor {
             Recommend recommend = recommendResponse.getData();
 
             // 计算动态小区奖励
-            baseReward(recommendStatisticsLog, dynamicBaseTotalReward, totalMinComputingPower, recommend, dayTime);
+            baseReward(recommendStatisticsLog, dynamicBaseTotalReward, totalMinComputingPower, recommend, dayTime, rewardList);
 
         }
 
@@ -590,7 +651,8 @@ public class RewardConstructor {
                                            BigDecimal dynamicBaseTotalReward,
                                            BigDecimal totalMinComputingPower,
                                            Recommend recommend,
-                                           String dayTime) {
+                                           String dayTime,
+                                           List<PurchaseMinerProjectReward> rewardList) {
 
         // 计算动态小区奖励 = 动态小区奖励总额 * (用户小区总算力 / 总算力)
 
@@ -622,6 +684,9 @@ public class RewardConstructor {
             log.info("用户{}发放动态小区奖励失败", recommendStatisticsLogDTO.getWalletAddress());
             return SingleResponse.buildFailure("发放动态小区奖励失败");
         }
+
+        rewardList.add(purchaseMinerProjectReward);
+
         log.info("用户{}发放动态小区奖励失败{}成功", recommendStatisticsLogDTO.getWalletAddress(), baseReward);
 
         try {
@@ -658,9 +723,7 @@ public class RewardConstructor {
         }
 
         BigDecimal dynamicRewardNewRate = new BigDecimal(dynamicRewardNewRateSystemConfig.getValue());
-        if (dynamicRewardNewRate.compareTo(BigDecimal.ZERO) < 0 || dynamicRewardNewRate.compareTo(BigDecimal.ONE) > 0) {
-            return SingleResponse.buildFailure("动态奖励新增奖比例系统配置错误");
-        }
+
         return SingleResponse.of(dynamicRewardNewRate);
     }
 
@@ -669,8 +732,9 @@ public class RewardConstructor {
      * 动态新增奖励
      */
     public SingleResponse<Void> newReward(BigDecimal dynamicTotalReward,
-                                           List<RecommendStatisticsLogDTO> recommendStatisticsLogList,
-                                           String dayTime) {
+                                          List<RecommendStatisticsLogDTO> recommendStatisticsLogList,
+                                          String dayTime,
+                                          List<PurchaseMinerProjectReward> rewardList) {
 
         // 获取动态奖励小区比例
         SingleResponse<BigDecimal> dynamicRewardNewRateResponse = getDynamicRewardNewRate();
@@ -700,7 +764,7 @@ public class RewardConstructor {
             Recommend recommend = recommendResponse.getData();
 
             // 计算动态小区奖励
-            newReward(recommendStatisticsLog, dynamicNewTotalReward, totalNewComputingPower, recommend, dayTime);
+            newReward(recommendStatisticsLog, dynamicNewTotalReward, totalNewComputingPower, recommend, dayTime, rewardList);
 
         }
 
@@ -709,10 +773,11 @@ public class RewardConstructor {
     }
 
     public SingleResponse<Void> newReward(RecommendStatisticsLogDTO recommendStatisticsLogDTO,
-                                           BigDecimal dynamicNewTotalReward,
-                                           BigDecimal totalNewComputingPower,
-                                           Recommend recommend,
-                                           String dayTime) {
+                                          BigDecimal dynamicNewTotalReward,
+                                          BigDecimal totalNewComputingPower,
+                                          Recommend recommend,
+                                          String dayTime,
+                                          List<PurchaseMinerProjectReward> rewardList) {
 
         // 计算动态小区奖励 = 动态小区奖励总额 * (用户小区总算力 / 总算力)
 
@@ -744,6 +809,9 @@ public class RewardConstructor {
             log.info("用户{}发放动态小区奖励失败", recommendStatisticsLogDTO.getWalletAddress());
             return SingleResponse.buildFailure("发放动态小区奖励失败");
         }
+
+        rewardList.add(purchaseMinerProjectReward);
+
         log.info("用户{}发放动态小区奖励失败{}成功", recommendStatisticsLogDTO.getWalletAddress(), newReward);
 
         try {
@@ -763,6 +831,82 @@ public class RewardConstructor {
         }
 
         return SingleResponse.buildSuccess();
+    }
+
+    /**
+     * 添加奖励统计
+     */
+    public SingleResponse<Void> addRewardStatisticsLog(String dayTime, List<PurchaseMinerProjectReward> rewardList) {
+
+
+        BigDecimal totalReward = rewardList.stream()
+                .map(PurchaseMinerProjectReward::getReward)
+                .map(BigDecimal::new)
+                .reduce(BigDecimal::add)
+                .orElse(BigDecimal.ZERO);
+
+
+        BigDecimal totalStaticReward = rewardList.stream()
+                .filter(x -> x.getType().equals(PurchaseMinerProjectRewardType.STATIC.getCode()))
+                .map(PurchaseMinerProjectReward::getReward)
+                .map(BigDecimal::new)
+                .reduce(BigDecimal::add)
+                .orElse(BigDecimal.ZERO);
+
+
+        BigDecimal totalDynamicReward = rewardList.stream()
+                .filter(x -> x.getType().equals(PurchaseMinerProjectRewardType.DYNAMIC.getCode()))
+                .map(PurchaseMinerProjectReward::getReward)
+                .map(BigDecimal::new)
+                .reduce(BigDecimal::add)
+                .orElse(BigDecimal.ZERO);
+
+        BigDecimal totalDynamicRecommendReward = rewardList.stream()
+                .filter(x -> x.getType().equals(PurchaseMinerProjectRewardType.DYNAMIC.getCode()))
+                .filter(x -> x.getRewardType().equals(PurchaseMinerProjectDynamicRewardType.RECOMMEND.getCode()))
+                .map(PurchaseMinerProjectReward::getReward)
+                .map(BigDecimal::new)
+                .reduce(BigDecimal::add)
+                .orElse(BigDecimal.ZERO);
+
+
+        BigDecimal totalDynamicBaseReward = rewardList.stream()
+                .filter(x -> x.getType().equals(PurchaseMinerProjectRewardType.DYNAMIC.getCode()))
+                .filter(x -> x.getRewardType().equals(PurchaseMinerProjectDynamicRewardType.BASE.getCode()))
+                .map(PurchaseMinerProjectReward::getReward)
+                .map(BigDecimal::new)
+                .reduce(BigDecimal::add)
+                .orElse(BigDecimal.ZERO);
+
+        BigDecimal totalDynamicNewReward = rewardList.stream()
+                .filter(x -> x.getType().equals(PurchaseMinerProjectRewardType.DYNAMIC.getCode()))
+                .filter(x -> x.getRewardType().equals(PurchaseMinerProjectDynamicRewardType.NEW.getCode()))
+                .map(PurchaseMinerProjectReward::getReward)
+                .map(BigDecimal::new)
+                .reduce(BigDecimal::add)
+                .orElse(BigDecimal.ZERO);
+
+
+        LambdaQueryWrapper<RewardStatisticsLog> queryWrapper = new LambdaQueryWrapper<>();
+        queryWrapper.eq(RewardStatisticsLog::getDayTime, dayTime);
+
+        RewardStatisticsLog rewardStatisticsLog = rewardStatisticsLogMapper.selectOne(queryWrapper);
+        if (Objects.isNull(rewardStatisticsLog)) {
+            rewardStatisticsLog = new RewardStatisticsLog();
+        }
+
+        rewardStatisticsLog.setDayTime(dayTime);
+        rewardStatisticsLog.setTotalReward(totalReward.toString());
+        rewardStatisticsLog.setTotalStaticReward(totalStaticReward.toString());
+        rewardStatisticsLog.setTotalDynamicReward(totalDynamicReward.toString());
+        rewardStatisticsLog.setTotalRecommendReward(totalDynamicRecommendReward.toString());
+        rewardStatisticsLog.setTotalBaseReward(totalDynamicBaseReward.toString());
+        rewardStatisticsLog.setTotalNewReward(totalDynamicNewReward.toString());
+
+        rewardStatisticsLogMapper.insert(rewardStatisticsLog);
+
+        return SingleResponse.buildSuccess();
+
     }
 
 }
