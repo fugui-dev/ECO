@@ -55,5 +55,10 @@ public class PendOrderCreateCmd {
      */
     private String phone;
 
+    /**
+     * 收款钱包
+     */
+    private String recipientWalletAddress;
+
 
 }

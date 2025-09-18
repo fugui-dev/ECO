@@ -59,6 +59,8 @@ public class PurchaseMinerProjectServiceImpl implements PurchaseMinerProjectServ
     private ESGUtils esgUtils;
     @Resource
     private RewardStatisticsLogMapper rewardStatisticsLogMapper;
+    @Resource
+    private PurchaseMinerProjectRewardMapper purchaseMinerProjectRewardMapper;
 
 
     @Override
@@ -294,6 +296,20 @@ public class PurchaseMinerProjectServiceImpl implements PurchaseMinerProjectServ
             BeanUtils.copyProperties(purchaseMinerProject, purchaseMinerProjectDTO);
             purchaseMinerProjectDTO.setTypeName(PurchaseMinerType.of(purchaseMinerProject.getType()).getName());
             purchaseMinerProjectDTO.setStatusName(PurchaseMinerProjectStatus.of(purchaseMinerProject.getStatus()).getName());
+
+
+            LambdaQueryWrapper<PurchaseMinerProjectReward> queryWrapper = new LambdaQueryWrapper<>();
+            queryWrapper.eq(PurchaseMinerProjectReward::getPurchaseMinerProjectId, purchaseMinerProject.getId());
+
+            List<PurchaseMinerProjectReward> rewardList = purchaseMinerProjectRewardMapper.selectList(queryWrapper);
+
+            BigDecimal totalReward = rewardList.stream()
+                    .map(PurchaseMinerProjectReward::getReward)
+                    .map(BigDecimal::new)
+                    .reduce(BigDecimal::add)
+                    .orElse(BigDecimal.ZERO);
+
+
             purchaseMinerProjectDTOS.add(purchaseMinerProjectDTO);
         }
         return MultiResponse.of(purchaseMinerProjectDTOS, (int) purchaseMinerProjectPage.getTotal());

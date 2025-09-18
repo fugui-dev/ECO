@@ -23,7 +23,7 @@ public class RecommendStatisticsLogController {
     private RecommendStatisticsLogService recommendStatisticsLogService;
 
     /**
-     * 查询推荐统计日志
+     * 查询推荐统计日志 -》（我的业绩）
      */
     @PostMapping("/info")
     SingleResponse<RecommendStatisticsLogDTO> get(@RequestBody RecommendStatisticsLogQry recommendStatisticsLogQry){

@@ -78,6 +78,16 @@ public class AccountDTO {
      */
     private String dynamicReward;
 
+    /**
+     * 昨日静态奖励
+     */
+    private String yesterdayStaticReward;
+
+    /**
+     * 昨日动态奖励
+     */
+    private String yesterdayDynamicReward;
+
 
     private Long createTime;
 

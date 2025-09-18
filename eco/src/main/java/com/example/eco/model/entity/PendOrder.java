@@ -50,6 +50,12 @@ public class PendOrder {
      */
     private String phone;
 
+
+    /**
+     * 收款钱包
+     */
+    private String recipientWalletAddress;
+
     /**
      * 挂单类型
      */
@@ -79,6 +85,7 @@ public class PendOrder {
      * 买家钱包地址
      */
     private String buyerWalletAddress;
+
 
 
     /**

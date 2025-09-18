@@ -13,6 +13,7 @@ import com.example.eco.common.AccountType;
 import com.example.eco.core.service.AccountService;
 import com.example.eco.model.entity.Account;
 import com.example.eco.model.entity.AccountTransaction;
+import com.example.eco.model.entity.PurchaseMinerProjectReward;
 import com.example.eco.model.mapper.AccountMapper;
 import com.example.eco.model.mapper.AccountTransactionMapper;
 import org.springframework.beans.BeanUtils;
@@ -26,6 +27,8 @@ import org.springframework.util.CollectionUtils;
 
 import javax.annotation.Resource;
 import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -114,8 +117,8 @@ public class AccountServiceImpl implements AccountService {
         for (Account account : accountPage.getRecords()) {
             AccountDTO accountDTO = new AccountDTO();
             BeanUtils.copyProperties(account, accountDTO);
-
             accountDTO.setTypeName(AccountType.of(account.getType()).getName());
+
             accountDTOList.add(accountDTO);
         }
         return MultiResponse.of(accountDTOList, (int) accountPage.getTotal());

@@ -47,6 +47,16 @@ public class PurchaseMinerProjectDTO {
     private String statusName;
 
     /**
+     * 总ECO奖励
+     */
+    private String totalReward;
+
+    /**
+     * 昨天总ECO奖励
+     */
+    private String yesterdayTotalReward;
+
+    /**
      * 失败原因
      */
     private String reason;

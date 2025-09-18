@@ -72,7 +72,7 @@ public class PendOrderServiceImpl implements PendOrderService {
         pendOrder.setPhone(pendOrderCreateCmd.getPhone());
         pendOrder.setTelegram(pendOrderCreateCmd.getTelegram());
         pendOrder.setWechat(pendOrderCreateCmd.getWechat());
-
+        pendOrder.setRecipientWalletAddress(pendOrderCreateCmd.getRecipientWalletAddress());
         pendOrderMapper.insert(pendOrder);
         return SingleResponse.buildSuccess();
     }
