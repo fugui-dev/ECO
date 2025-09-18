@@ -7,6 +7,8 @@ public enum SystemConfigEnum {
 
     ECO_PRICE("ECO_PRICE", "ECO价格"),
 
+    ECO_TOTAL_NUMBER("ECO_TOTAL_NUMBER", "ECO总发行量"),
+
     DAILY_TOTAL_REWARD("DAILY_TOTAL_REWARD", "每天挖矿总数数量"),
 
     DAILY_TOTAL_REWARD_LIMIT("DAILY_TOTAL_REWARD_LIMIT", "每天挖矿总数数量上限"),

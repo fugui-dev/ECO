@@ -5,11 +5,9 @@ import com.example.eco.bean.SingleResponse;
 import com.example.eco.bean.cmd.PurchaseMinerProjectPageQry;
 import com.example.eco.bean.cmd.PurchaseMinerProjectsCreateCmd;
 import com.example.eco.bean.dto.PurchaseMinerProjectDTO;
+import com.example.eco.bean.dto.PurchaseMinerProjectStatisticsDTO;
 import com.example.eco.core.service.PurchaseMinerProjectService;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.Resource;
 
@@ -22,7 +20,7 @@ public class PurchaseMinerProjectController {
 
 
     /**
-     * 分页查询购买矿机项目
+     * 首页 -》 我的资产 （购买几台矿机，总算力）
      */
     @PostMapping("/page")
     MultiResponse<PurchaseMinerProjectDTO> page(@RequestBody PurchaseMinerProjectPageQry purchaseMinerProjectPageQry) {
@@ -36,5 +34,13 @@ public class PurchaseMinerProjectController {
     @PostMapping("/create")
     SingleResponse<Void> create(@RequestBody PurchaseMinerProjectsCreateCmd purchaseMinerProjectsCreateCmd) {
         return purchaseMinerProjectService.create(purchaseMinerProjectsCreateCmd);
+    }
+
+    /**
+     * 首页-》矿机的相关统计数据
+     */
+    @GetMapping("/statistics")
+    SingleResponse<PurchaseMinerProjectStatisticsDTO> statistics(){
+        return purchaseMinerProjectService.statistics();
     }
 }

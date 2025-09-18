@@ -6,6 +6,7 @@ import com.example.eco.bean.cmd.PurchaseMinerProjectPageQry;
 import com.example.eco.bean.cmd.PurchaseMinerProjectRewardCmd;
 import com.example.eco.bean.cmd.PurchaseMinerProjectsCreateCmd;
 import com.example.eco.bean.dto.PurchaseMinerProjectDTO;
+import com.example.eco.bean.dto.PurchaseMinerProjectStatisticsDTO;
 
 public interface PurchaseMinerProjectService {
 
@@ -18,6 +19,11 @@ public interface PurchaseMinerProjectService {
      * 分页查询购买矿机项目
      */
     MultiResponse<PurchaseMinerProjectDTO> page(PurchaseMinerProjectPageQry purchaseMinerProjectPageQry);
+
+    /**
+     * 首页-》矿机的相关统计数据
+     */
+    SingleResponse<PurchaseMinerProjectStatisticsDTO> statistics();
 
 
 }

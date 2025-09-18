@@ -20,14 +20,10 @@ public class AccountController {
     private AccountService accountService;
 
     /**
-     * 获取账户信息
+     * 首页 -》获取账户信息 （ESG ECO 数量）
      */
     @PostMapping("/list")
     MultiResponse<AccountDTO> list(@RequestBody AccountPageQry accountPageQry) {
-
-        if (StringUtils.isEmpty(accountPageQry.getWalletAddress())){
-            return MultiResponse.buildFailure("400","钱包地址不能为空");
-        }
 
         return accountService.list(accountPageQry);
     }
