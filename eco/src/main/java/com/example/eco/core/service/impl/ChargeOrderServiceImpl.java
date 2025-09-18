@@ -7,6 +7,7 @@ import com.example.eco.bean.MultiResponse;
 import com.example.eco.bean.SingleResponse;
 import com.example.eco.bean.cmd.*;
 import com.example.eco.bean.dto.ChargeOrderDTO;
+import com.example.eco.common.AccountType;
 import com.example.eco.common.ChargeOrderStatus;
 import com.example.eco.core.service.AccountService;
 import com.example.eco.core.service.ChargeOrderService;
@@ -45,6 +46,7 @@ public class ChargeOrderServiceImpl implements ChargeOrderService {
 
         AccountChargeNumberCmd accountChargeNumberCmd = new AccountChargeNumberCmd();
         accountChargeNumberCmd.setWalletAddress(chargeOrderCreateCmd.getWalletAddress());
+        accountChargeNumberCmd.setType(chargeOrderCreateCmd.getType());
         accountChargeNumberCmd.setNumber(chargeOrderCreateCmd.getNumber());
         accountChargeNumberCmd.setOrder(order);
         accountChargeNumberCmd.setHash(chargeOrderCreateCmd.getHash());
@@ -136,7 +138,7 @@ public class ChargeOrderServiceImpl implements ChargeOrderService {
             ChargeOrderDTO chargeOrderDTO = new ChargeOrderDTO();
             BeanUtils.copyProperties(chargeOrder, chargeOrderDTO);
 
-            chargeOrderDTO.setTypeName(ChargeOrderStatus.of(chargeOrder.getType()).getName());
+            chargeOrderDTO.setTypeName(AccountType.of(chargeOrder.getType()).getName());
             chargeOrderDTO.setStatusName(ChargeOrderStatus.of(chargeOrder.getStatus()).getName());
             chargeOrderList.add(chargeOrderDTO);
         }

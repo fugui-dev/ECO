@@ -99,6 +99,8 @@ public class PurchaseMinerProjectServiceImpl implements PurchaseMinerProjectServ
 
         BigDecimal amount = BigDecimal.ZERO;
 
+        BigDecimal totalEsgNumber = BigDecimal.ZERO;
+
         if (purchaseMinerProjectsCreateCmd.getType().equals(PurchaseMinerType.ESG.getCode())) {
 
             BigDecimal esgPrice = esgUtils.getEsgPrice();
@@ -109,7 +111,6 @@ public class PurchaseMinerProjectServiceImpl implements PurchaseMinerProjectServ
 
             BigDecimal esgNumber = new BigDecimal(minerProject.getPrice()).divide(esgPrice, 4, RoundingMode.HALF_DOWN);
             purchaseMinerProject.setEsgNumber(esgNumber.toString());
-
 
             AccountDeductCmd accountDeductCmd = new AccountDeductCmd();
             accountDeductCmd.setAccountType(AccountType.ESG.getCode());
@@ -131,6 +132,8 @@ public class PurchaseMinerProjectServiceImpl implements PurchaseMinerProjectServ
                 purchaseMinerProjectMapper.updateById(purchaseMinerProject);
 
                 amount = amount.add(new BigDecimal(minerProject.getPrice()));
+
+                totalEsgNumber = totalEsgNumber.add(esgNumber);
 
             }
         }
@@ -222,6 +225,8 @@ public class PurchaseMinerProjectServiceImpl implements PurchaseMinerProjectServ
             }
 
             amount = amount.add(halfPrice);
+
+            totalEsgNumber = totalEsgNumber.add(esgNumber);
         }
 
         TotalComputingPowerCmd totalComputingPowerCmd = new TotalComputingPowerCmd();
@@ -237,7 +242,7 @@ public class PurchaseMinerProjectServiceImpl implements PurchaseMinerProjectServ
             minerProjectStatisticsLogCmd.setAmount(amount);
             minerProjectStatisticsLogCmd.setMinerProjectId(minerProject.getId());
             minerProjectStatisticsLogCmd.setDayTime(dayTime);
-            minerProjectStatisticsLogCmd.setEsgNumber(new BigDecimal(purchaseMinerProjectsCreateCmd.getEsgNumber()));
+            minerProjectStatisticsLogCmd.setEsgNumber(totalEsgNumber);
 
             minerProjectService.statistics(minerProjectStatisticsLogCmd);
         }
@@ -291,6 +296,8 @@ public class PurchaseMinerProjectServiceImpl implements PurchaseMinerProjectServ
 
         List<PurchaseMinerProjectDTO> purchaseMinerProjectDTOS = new ArrayList<>();
 
+        String dayTime = LocalDate.now().minusDays(1).format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+
         for (PurchaseMinerProject purchaseMinerProject : purchaseMinerProjectPage.getRecords()) {
             PurchaseMinerProjectDTO purchaseMinerProjectDTO = new PurchaseMinerProjectDTO();
             BeanUtils.copyProperties(purchaseMinerProject, purchaseMinerProjectDTO);
@@ -309,6 +316,15 @@ public class PurchaseMinerProjectServiceImpl implements PurchaseMinerProjectServ
                     .reduce(BigDecimal::add)
                     .orElse(BigDecimal.ZERO);
 
+            BigDecimal yesterdayTotalReward = rewardList.stream()
+                    .filter(x -> x.getDayTime().equals(dayTime))
+                    .map(PurchaseMinerProjectReward::getReward)
+                    .map(BigDecimal::new)
+                    .reduce(BigDecimal::add)
+                    .orElse(BigDecimal.ZERO);
+
+            purchaseMinerProjectDTO.setTotalReward(totalReward.toString());
+            purchaseMinerProjectDTO.setYesterdayTotalReward(yesterdayTotalReward.toString());
 
             purchaseMinerProjectDTOS.add(purchaseMinerProjectDTO);
         }

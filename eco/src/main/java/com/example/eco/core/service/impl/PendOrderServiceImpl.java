@@ -73,6 +73,7 @@ public class PendOrderServiceImpl implements PendOrderService {
         pendOrder.setTelegram(pendOrderCreateCmd.getTelegram());
         pendOrder.setWechat(pendOrderCreateCmd.getWechat());
         pendOrder.setRecipientWalletAddress(pendOrderCreateCmd.getRecipientWalletAddress());
+        pendOrder.setCreateTime(System.currentTimeMillis());
         pendOrderMapper.insert(pendOrder);
         return SingleResponse.buildSuccess();
     }
@@ -299,7 +300,7 @@ public class PendOrderServiceImpl implements PendOrderService {
         }
 
         pendOrder.setStatus(PendOrderStatus.APPLY.getCode());
-        pendOrder.setVoucher(pendOrderUploadVoucherCmd.getVoucher());
+        pendOrder.setImageList(pendOrderUploadVoucherCmd.getImageList());
         pendOrder.setUpdateTime(System.currentTimeMillis());
         pendOrderMapper.updateById(pendOrder);
 

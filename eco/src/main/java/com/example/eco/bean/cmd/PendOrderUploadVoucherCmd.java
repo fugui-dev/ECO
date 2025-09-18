@@ -8,7 +8,7 @@ public class PendOrderUploadVoucherCmd {
     private Integer id;
 
     /**
-     * 上传凭证
+     * 转账凭证图片列表,逗号分隔
      */
-    private String voucher;
+    private String imageList;
 }

@@ -5,10 +5,6 @@ import lombok.Data;
 @Data
 public class PendOrderCreateCmd {
 
-    /**
-     * 订单号
-     */
-    private String order;
 
     /**
      * 钱包地址
