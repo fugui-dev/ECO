@@ -734,7 +734,7 @@ public class AccountServiceImpl implements AccountService {
 
         accountTransactionMapper.insert(accountRollbackLockChargeTransaction);
 
-        return null;
+        return SingleResponse.buildSuccess();
     }
 
     @Override
@@ -938,101 +938,6 @@ public class AccountServiceImpl implements AccountService {
         }
 
 
-        List<AccountTransaction> accountTransactionList = new ArrayList<>();
-        // 使用充值积分扣除
-        if (deductNumber.compareTo(new BigDecimal(0)) > 0) {
-
-            String beforeChargeNumber = account.getChargeNumber();
-            BigDecimal number = BigDecimal.ZERO;
-            if (new BigDecimal(account.getChargeNumber()).compareTo(deductNumber) >= 0) {
-                number = new BigDecimal(account.getChargeNumber()).subtract(deductNumber);
-                account.setChargeNumber(String.valueOf(new BigDecimal(account.getChargeNumber()).subtract(deductNumber)));
-                deductNumber = BigDecimal.ZERO;
-            } else {
-                number = deductNumber.subtract(new BigDecimal(account.getChargeNumber()));
-                deductNumber = deductNumber.subtract(new BigDecimal(account.getChargeNumber()));
-                account.setChargeNumber("0");
-            }
-
-            AccountTransaction accountChargeTransaction = new AccountTransaction();
-            accountChargeTransaction.setWalletAddress(accountDeductCmd.getWalletAddress());
-            accountChargeTransaction.setAccountId(account.getId());
-            accountChargeTransaction.setBeforeNumber(beforeChargeNumber);
-            accountChargeTransaction.setTransactionTime(System.currentTimeMillis());
-            accountChargeTransaction.setNumber(number.toString());
-            accountChargeTransaction.setAfterNumber(account.getChargeNumber());
-            accountChargeTransaction.setStatus(AccountTransactionStatusEnum.SUCCESS.getCode());
-            accountChargeTransaction.setTransactionType(AccountTransactionType.DEDUCT_CHARGE.getCode());
-            accountChargeTransaction.setOrder(accountDeductCmd.getOrder());
-            accountChargeTransaction.setAccountType(account.getType());
-
-            accountTransactionList.add(accountChargeTransaction);
-        }
-
-        // 使用静态积分扣除
-        if (deductNumber.compareTo(new BigDecimal(0)) > 0) {
-
-            String beforeStaticReward = account.getStaticReward();
-            BigDecimal number = BigDecimal.ZERO;
-            if (new BigDecimal(account.getStaticReward()).compareTo(deductNumber) >= 0) {
-                number = new BigDecimal(account.getStaticReward()).subtract(deductNumber);
-                account.setStaticReward(String.valueOf(new BigDecimal(account.getStaticReward()).subtract(deductNumber).longValue()));
-                deductNumber = BigDecimal.ZERO;
-            } else {
-                number = deductNumber.subtract(new BigDecimal(account.getStaticReward()));
-                deductNumber = deductNumber.subtract(new BigDecimal(account.getStaticReward()));
-                account.setStaticReward("0");
-            }
-
-            AccountTransaction accountStaticTransaction = new AccountTransaction();
-            accountStaticTransaction.setWalletAddress(accountDeductCmd.getWalletAddress());
-            accountStaticTransaction.setAccountId(account.getId());
-            accountStaticTransaction.setBeforeNumber(beforeStaticReward);
-            accountStaticTransaction.setTransactionTime(System.currentTimeMillis());
-            accountStaticTransaction.setNumber(number.toString());
-            accountStaticTransaction.setAfterNumber(account.getStaticReward());
-            accountStaticTransaction.setStatus(AccountTransactionStatusEnum.SUCCESS.getCode());
-            accountStaticTransaction.setTransactionType(AccountTransactionType.DEDUCT_STATIC_REWARD.getCode());
-            accountStaticTransaction.setOrder(accountDeductCmd.getOrder());
-            accountStaticTransaction.setAccountType(account.getType());
-
-            accountTransactionList.add(accountStaticTransaction);
-        }
-
-        // 使用动态积分扣除
-        if (deductNumber.compareTo(new BigDecimal(0)) > 0) {
-
-            String beforeDynamicReward = account.getDynamicReward();
-            BigDecimal number = BigDecimal.ZERO;
-            if (new BigDecimal(account.getDynamicReward()).compareTo(deductNumber) >= 0) {
-                number = new BigDecimal(account.getDynamicReward()).subtract(deductNumber);
-                account.setDynamicReward(String.valueOf(new BigDecimal(account.getDynamicReward()).subtract(deductNumber).longValue()));
-                deductNumber = BigDecimal.ZERO;
-            } else {
-                number = deductNumber.subtract(new BigDecimal(account.getDynamicReward()));
-                deductNumber = deductNumber.subtract(new BigDecimal(account.getDynamicReward()));
-                account.setDynamicReward("0");
-            }
-
-            AccountTransaction accountDynamicTransaction = new AccountTransaction();
-            accountDynamicTransaction.setWalletAddress(accountDeductCmd.getWalletAddress());
-            accountDynamicTransaction.setAccountId(account.getId());
-            accountDynamicTransaction.setBeforeNumber(beforeDynamicReward);
-            accountDynamicTransaction.setTransactionTime(System.currentTimeMillis());
-            accountDynamicTransaction.setNumber(number.toString());
-            accountDynamicTransaction.setAfterNumber(account.getDynamicReward());
-            accountDynamicTransaction.setStatus(AccountTransactionStatusEnum.SUCCESS.getCode());
-            accountDynamicTransaction.setTransactionType(AccountTransactionType.DEDUCT_DYNAMIC_REWARD.getCode());
-            accountDynamicTransaction.setOrder(accountDeductCmd.getOrder());
-            accountDynamicTransaction.setAccountType(account.getType());
-
-            accountTransactionList.add(accountDynamicTransaction);
-        }
-
-        if (deductNumber.compareTo(new BigDecimal(0)) > 0) {
-            throw new OptimisticLockingFailureException("扣除积分失败");
-        }
-
         String beforeNumber = account.getNumber();
         account.setNumber(String.valueOf(new BigDecimal(account.getNumber()).subtract(deductNumber)));
         account.setUpdateTime(System.currentTimeMillis());
@@ -1049,16 +954,13 @@ public class AccountServiceImpl implements AccountService {
         accountTransaction.setOrder(accountDeductCmd.getOrder());
         accountTransaction.setAccountType(account.getType());
 
-        accountTransactionList.add(accountTransaction);
+        accountTransactionMapper.insert(accountTransaction);
 
         int updateCount = accountMapper.updateById(account);
         if (updateCount == 0) {
             throw new OptimisticLockingFailureException("扣除积分失败");
         }
 
-        for (AccountTransaction transaction : accountTransactionList) {
-            accountTransactionMapper.insert(transaction);
-        }
 
         return SingleResponse.buildSuccess();
 
