@@ -25,7 +25,11 @@ public enum SystemConfigEnum {
 
     DYNAMIC_REWARD_BASE_RATE("DYNAMIC_REWARD_BASE_RATE", "动态奖励基础奖励占比"),
 
-    DYNAMIC_REWARD_NEW_RATE("DYNAMIC_REWARD_NEW_RATE", "动态奖励新增奖励占比");
+    DYNAMIC_REWARD_NEW_RATE("DYNAMIC_REWARD_NEW_RATE", "动态奖励新增奖励占比"),
+
+    API_KEY("API_KEY","API_KEY"),
+
+    CONTRACT_ADDRESS("CONTRACT_ADDRESS","合约地址");
 
     private String code;
 
