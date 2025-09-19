@@ -284,9 +284,9 @@ public class PurchaseMinerProjectServiceImpl implements PurchaseMinerProjectServ
     public MultiResponse<PurchaseMinerProjectDTO> page(PurchaseMinerProjectPageQry purchaseMinerProjectPageQry) {
 
         LambdaQueryWrapper<PurchaseMinerProject> lambdaQueryWrapper = new LambdaQueryWrapper<>();
-        if (StringUtils.hasLength(purchaseMinerProjectPageQry.getWalletAddress())) {
-            lambdaQueryWrapper.eq(PurchaseMinerProject::getWalletAddress, purchaseMinerProjectPageQry.getWalletAddress());
-        }
+        lambdaQueryWrapper.eq(StringUtils.hasLength(purchaseMinerProjectPageQry.getWalletAddress()),PurchaseMinerProject::getWalletAddress, purchaseMinerProjectPageQry.getWalletAddress());
+        lambdaQueryWrapper.eq(StringUtils.hasLength(purchaseMinerProjectPageQry.getType()),PurchaseMinerProject::getType, purchaseMinerProjectPageQry.getType());
+        lambdaQueryWrapper.eq(StringUtils.hasLength(purchaseMinerProjectPageQry.getStatus()),PurchaseMinerProject::getStatus, purchaseMinerProjectPageQry.getStatus());
 
         Page<PurchaseMinerProject> purchaseMinerProjectPage = purchaseMinerProjectMapper.selectPage(Page.of(purchaseMinerProjectPageQry.getPageNum(), purchaseMinerProjectPageQry.getPageSize()), lambdaQueryWrapper);
 
