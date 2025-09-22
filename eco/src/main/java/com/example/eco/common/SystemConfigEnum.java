@@ -9,6 +9,10 @@ public enum SystemConfigEnum {
 
     ECO_TOTAL_NUMBER("ECO_TOTAL_NUMBER", "ECO总发行量"),
 
+    INCREASE_MULTIPLIER("INCREASE_MULTIPLIER","矿机增加倍数"),
+
+    EFFECTIVE_DAY("EFFECTIVE_DAY","增加倍数有效天数"),
+
     DAILY_TOTAL_REWARD("DAILY_TOTAL_REWARD", "每天挖矿总数数量"),
 
     DAILY_TOTAL_REWARD_LIMIT("DAILY_TOTAL_REWARD_LIMIT", "每天挖矿总数数量上限"),

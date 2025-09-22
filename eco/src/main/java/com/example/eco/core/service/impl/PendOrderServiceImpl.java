@@ -241,7 +241,7 @@ public class PendOrderServiceImpl implements PendOrderService {
                 return SingleResponse.buildFailure("只能确认自己的锁单");
             }
 
-            if (!pendOrder.getStatus().equals(PendOrderStatus.APPLY.getCode())) {
+            if (!pendOrder.getStatus().equals(PendOrderStatus.LOCK.getCode())) {
                 return SingleResponse.buildFailure("挂单状态不允许确认");
             }
 
