@@ -5,6 +5,18 @@ import lombok.Data;
 
 @Data
 public class PurchaseMinerProjectPageQry extends PageQuery {
-
+    /**
+     * 钱包地址
+     */
     private String walletAddress;
+
+    /**
+     * 购买方式
+     */
+    private String type;
+
+    /**
+     * 状态
+     */
+    private String status;
 }
