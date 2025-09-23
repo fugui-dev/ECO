@@ -6,6 +6,7 @@ import com.example.eco.bean.cmd.SystemConfigLogPageQry;
 import com.example.eco.bean.cmd.SystemConfigUpdateCmd;
 import com.example.eco.bean.dto.SystemConfigDTO;
 import com.example.eco.bean.dto.SystemConfigLogDTO;
+import com.example.eco.common.SystemConfigEnum;
 import com.example.eco.core.service.SystemConfigService;
 import org.springframework.web.bind.annotation.*;
 
@@ -24,6 +25,7 @@ public class SystemConfigController {
      */
     @PostMapping("/log/list")
     MultiResponse<SystemConfigLogDTO> list(@RequestBody SystemConfigLogPageQry systemConfigLogPageQry){
+        systemConfigLogPageQry.setName(SystemConfigEnum.ECO_PRICE.getCode());
         return systemConfigService.list(systemConfigLogPageQry);
     }
 }
