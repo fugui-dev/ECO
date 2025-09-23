@@ -25,6 +25,7 @@ import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 
 import javax.annotation.Resource;
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -50,7 +51,7 @@ public class PendOrderServiceImpl implements PendOrderService {
         String order = "PO" + System.currentTimeMillis();
 
         AccountSellNumberCmd accountSellNumberCmd = new AccountSellNumberCmd();
-        accountSellNumberCmd.setNumber(pendOrderCreateCmd.getNumber());
+        accountSellNumberCmd.setNumber(String.valueOf(new BigDecimal(pendOrderCreateCmd.getNumber()).add(new BigDecimal(pendOrderCreateCmd.getComplimentaryNumber()))));
         accountSellNumberCmd.setOrder(order);
         accountSellNumberCmd.setType(pendOrderCreateCmd.getType());
         accountSellNumberCmd.setWalletAddress(pendOrderCreateCmd.getWalletAddress());
@@ -65,6 +66,7 @@ public class PendOrderServiceImpl implements PendOrderService {
         pendOrder.setWalletAddress(pendOrderCreateCmd.getWalletAddress());
         pendOrder.setType(pendOrderCreateCmd.getType());
         pendOrder.setNumber(pendOrderCreateCmd.getNumber());
+        pendOrder.setComplimentaryNumber(pendOrderCreateCmd.getComplimentaryNumber());
         pendOrder.setPrice(pendOrderCreateCmd.getPrice());
         pendOrder.setTotalPrice(pendOrderCreateCmd.getTotalPrice());
         pendOrder.setStatus(PendOrderStatus.WAIT.getCode());
@@ -144,7 +146,7 @@ public class PendOrderServiceImpl implements PendOrderService {
 
             AccountBuyNumberCmd accountBuyNumberCmd = new AccountBuyNumberCmd();
             accountBuyNumberCmd.setOrder(pendOrderLockCmd.getOrder());
-            accountBuyNumberCmd.setNumber(pendOrder.getNumber());
+            accountBuyNumberCmd.setNumber(String.valueOf(new BigDecimal(pendOrder.getNumber()).add(new BigDecimal(pendOrder.getComplimentaryNumber()))));
             accountBuyNumberCmd.setType(pendOrder.getType());
             accountBuyNumberCmd.setWalletAddress(pendOrderLockCmd.getWalletAddress());
             SingleResponse<Void> response = accountService.buyNumber(accountBuyNumberCmd);

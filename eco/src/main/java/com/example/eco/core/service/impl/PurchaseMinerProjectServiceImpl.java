@@ -7,6 +7,7 @@ import com.example.eco.bean.MultiResponse;
 import com.example.eco.bean.SingleResponse;
 import com.example.eco.bean.cmd.*;
 import com.example.eco.bean.dto.PurchaseMinerProjectDTO;
+import com.example.eco.bean.dto.PurchaseMinerProjectRewardDTO;
 import com.example.eco.bean.dto.PurchaseMinerProjectStatisticsDTO;
 import com.example.eco.common.*;
 import com.example.eco.core.service.AccountService;
@@ -159,7 +160,6 @@ public class PurchaseMinerProjectServiceImpl implements PurchaseMinerProjectServ
                 purchaseMinerProjectMapper.updateById(purchaseMinerProject);
 
                 amount = amount.add(new BigDecimal(minerProject.getPrice()));
-
                 totalEsgNumber = totalEsgNumber.add(esgNumber);
 
             }
@@ -193,7 +193,6 @@ public class PurchaseMinerProjectServiceImpl implements PurchaseMinerProjectServ
             } else {
                 // 购买成功，记录购买信息
                 purchaseMinerProject.setStatus(PurchaseMinerProjectStatus.SUCCESS.getCode());
-
                 purchaseMinerProjectMapper.updateById(purchaseMinerProject);
 
             }
@@ -231,10 +230,7 @@ public class PurchaseMinerProjectServiceImpl implements PurchaseMinerProjectServ
             SingleResponse<Void> ecoResponse = accountService.purchaseMinerProjectNumber(ecoAccountDeductCmd);
             if (!ecoResponse.isSuccess()) {
 
-                purchaseMinerProject.setStatus(PurchaseMinerProjectStatus.FAIL.getCode());
-                purchaseMinerProject.setReason(ecoResponse.getErrMessage());
-                purchaseMinerProjectMapper.updateById(purchaseMinerProject);
-                return ecoResponse;
+                throw new RuntimeException(ecoResponse.getErrMessage());
             }
 
             AccountDeductCmd esgAccountDeductCmd = new AccountDeductCmd();
@@ -245,11 +241,29 @@ public class PurchaseMinerProjectServiceImpl implements PurchaseMinerProjectServ
             SingleResponse<Void> esgResponse = accountService.purchaseMinerProjectNumber(esgAccountDeductCmd);
             if (!esgResponse.isSuccess()) {
 
-                purchaseMinerProject.setStatus(PurchaseMinerProjectStatus.FAIL.getCode());
-                purchaseMinerProject.setReason(esgResponse.getErrMessage());
-                purchaseMinerProjectMapper.updateById(purchaseMinerProject);
-                return esgResponse;
+                throw new RuntimeException(esgResponse.getErrMessage());
+
+//                purchaseMinerProject.setStatus(PurchaseMinerProjectStatus.FAIL.getCode());
+//                purchaseMinerProject.setReason(esgResponse.getErrMessage());
+//                purchaseMinerProjectMapper.updateById(purchaseMinerProject);
+//
+//                AccountAddCmd ecoAccountAddCmd = new AccountAddCmd();
+//                ecoAccountAddCmd.setAccountType(AccountType.ECO.getCode());
+//                ecoAccountAddCmd.setNumber(ecoNumber.toString());
+//                ecoAccountAddCmd.setWalletAddress(purchaseMinerProjectsCreateCmd.getWalletAddress());
+//                ecoAccountAddCmd.setOrder(order);
+//                SingleResponse<Void> rollbackEcoResponse = accountService.rollbackPurchaseMinerProjectNumber(ecoAccountAddCmd);
+//
+//                if (!rollbackEcoResponse.isSuccess()){
+//                    throw new RuntimeException("购买矿机失败");
+//                }
+//                return esgResponse;
             }
+
+            // 购买成功，记录购买信息
+            purchaseMinerProject.setStatus(PurchaseMinerProjectStatus.SUCCESS.getCode());
+
+            purchaseMinerProjectMapper.updateById(purchaseMinerProject);
 
             amount = amount.add(halfPrice);
 
@@ -456,5 +470,73 @@ public class PurchaseMinerProjectServiceImpl implements PurchaseMinerProjectServ
         purchaseMinerProjectStatisticsDTO.setYesterdayTotalPurchaseMinerProjectCount(yesterdayTotalPurchaseMinerProjectCount);
 
         return SingleResponse.of(purchaseMinerProjectStatisticsDTO);
+    }
+
+    @Override
+    public SingleResponse<PurchaseMinerProjectRewardDTO> reward(PurchaseMinerProjectRewardQry purchaseMinerProjectRewardQry) {
+
+        LambdaQueryWrapper<PurchaseMinerProjectReward> queryWrapper = new LambdaQueryWrapper<>();
+        queryWrapper.eq(PurchaseMinerProjectReward::getWalletAddress,purchaseMinerProjectRewardQry.getWalletAddress());
+        queryWrapper.eq(PurchaseMinerProjectReward::getDayTime,purchaseMinerProjectRewardQry.getDayTime());
+
+        List<PurchaseMinerProjectReward> purchaseMinerProjectRewards = purchaseMinerProjectRewardMapper.selectList(queryWrapper);
+
+        PurchaseMinerProjectRewardDTO purchaseMinerProjectRewardDTO = new PurchaseMinerProjectRewardDTO();
+        if (CollectionUtils.isEmpty(purchaseMinerProjectRewards)){
+
+            purchaseMinerProjectRewardDTO.setBaseReward("0");
+            purchaseMinerProjectRewardDTO.setNewReward("0");
+            purchaseMinerProjectRewardDTO.setDynamicReward("0");
+            purchaseMinerProjectRewardDTO.setRecommendReward("0");
+            purchaseMinerProjectRewardDTO.setStaticReward("0");
+        }
+
+        BigDecimal totalStaticReward = purchaseMinerProjectRewards.stream()
+                .filter(x -> x.getType().equals(PurchaseMinerProjectRewardType.STATIC.getCode()))
+                .map(PurchaseMinerProjectReward::getReward)
+                .map(BigDecimal::new)
+                .reduce(BigDecimal::add)
+                .orElse(BigDecimal.ZERO);
+
+
+        BigDecimal totalDynamicReward = purchaseMinerProjectRewards.stream()
+                .filter(x -> x.getType().equals(PurchaseMinerProjectRewardType.DYNAMIC.getCode()))
+                .map(PurchaseMinerProjectReward::getReward)
+                .map(BigDecimal::new)
+                .reduce(BigDecimal::add)
+                .orElse(BigDecimal.ZERO);
+
+        BigDecimal totalDynamicRecommendReward = purchaseMinerProjectRewards.stream()
+                .filter(x -> x.getType().equals(PurchaseMinerProjectRewardType.DYNAMIC.getCode()))
+                .filter(x -> x.getRewardType().equals(PurchaseMinerProjectDynamicRewardType.RECOMMEND.getCode()))
+                .map(PurchaseMinerProjectReward::getReward)
+                .map(BigDecimal::new)
+                .reduce(BigDecimal::add)
+                .orElse(BigDecimal.ZERO);
+
+
+        BigDecimal totalDynamicBaseReward = purchaseMinerProjectRewards.stream()
+                .filter(x -> x.getType().equals(PurchaseMinerProjectRewardType.DYNAMIC.getCode()))
+                .filter(x -> x.getRewardType().equals(PurchaseMinerProjectDynamicRewardType.BASE.getCode()))
+                .map(PurchaseMinerProjectReward::getReward)
+                .map(BigDecimal::new)
+                .reduce(BigDecimal::add)
+                .orElse(BigDecimal.ZERO);
+
+        BigDecimal totalDynamicNewReward = purchaseMinerProjectRewards.stream()
+                .filter(x -> x.getType().equals(PurchaseMinerProjectRewardType.DYNAMIC.getCode()))
+                .filter(x -> x.getRewardType().equals(PurchaseMinerProjectDynamicRewardType.NEW.getCode()))
+                .map(PurchaseMinerProjectReward::getReward)
+                .map(BigDecimal::new)
+                .reduce(BigDecimal::add)
+                .orElse(BigDecimal.ZERO);
+
+        purchaseMinerProjectRewardDTO.setDynamicReward(totalDynamicReward.toString());
+        purchaseMinerProjectRewardDTO.setStaticReward(totalStaticReward.toString());
+        purchaseMinerProjectRewardDTO.setBaseReward(totalDynamicBaseReward.toString());
+        purchaseMinerProjectRewardDTO.setNewReward(totalDynamicNewReward.toString());
+        purchaseMinerProjectRewardDTO.setRecommendReward(totalDynamicRecommendReward.toString());
+
+        return SingleResponse.of(purchaseMinerProjectRewardDTO);
     }
 }

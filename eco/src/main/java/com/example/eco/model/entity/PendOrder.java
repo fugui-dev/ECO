@@ -46,6 +46,11 @@ public class PendOrder {
     private String number;
 
     /**
+     * 赠送数量
+     */
+    private String complimentaryNumber;
+
+    /**
      * 挂单单价
      */
     private String price;

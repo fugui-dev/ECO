@@ -4,18 +4,23 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.toolkit.CollectionUtils;
 import com.example.eco.bean.MultiResponse;
 import com.example.eco.bean.SingleResponse;
+import com.example.eco.bean.cmd.SystemConfigLogPageQry;
 import com.example.eco.bean.cmd.SystemConfigUpdateCmd;
 import com.example.eco.bean.dto.SystemConfigDTO;
+import com.example.eco.bean.dto.SystemConfigLogDTO;
 import com.example.eco.core.service.SystemConfigService;
 import com.example.eco.model.entity.SystemConfig;
 import com.example.eco.model.entity.SystemConfigLog;
 import com.example.eco.model.mapper.SystemConfigLogMapper;
 import com.example.eco.model.mapper.SystemConfigMapper;
+import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 
 import javax.annotation.Resource;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 @Service
 public class SystemConfigServiceImpl implements SystemConfigService {
@@ -47,7 +52,7 @@ public class SystemConfigServiceImpl implements SystemConfigService {
         SystemConfigLog systemConfigLog = new SystemConfigLog();
         systemConfigLog.setName(systemConfig.getName());
         systemConfigLog.setValue(systemConfig.getValue());
-
+        systemConfigLog.setCreateTime(System.currentTimeMillis());
         systemConfigLogMapper.insert(systemConfigLog);
 
         return SingleResponse.buildSuccess();
@@ -72,5 +77,29 @@ public class SystemConfigServiceImpl implements SystemConfigService {
             systemConfigDTOList.add(systemConfigDTO);
         }
         return MultiResponse.of(systemConfigDTOList);
+    }
+
+    @Override
+    public MultiResponse<SystemConfigLogDTO> list(SystemConfigLogPageQry systemConfigLogPageQry) {
+
+        LambdaQueryWrapper<SystemConfigLog> queryWrapper = new LambdaQueryWrapper<>();
+        queryWrapper.eq(SystemConfigLog::getName,systemConfigLogPageQry.getName());
+
+        if (Objects.nonNull(systemConfigLogPageQry.getStartTime()) && Objects.nonNull(systemConfigLogPageQry.getEndTime())) {
+            queryWrapper.between(SystemConfigLog::getCreateTime,systemConfigLogPageQry.getStartTime(),systemConfigLogPageQry.getEndTime());
+        }
+
+        List<SystemConfigLog> systemConfigLogs = systemConfigLogMapper.selectList(queryWrapper);
+
+        List<SystemConfigLogDTO> systemConfigLogDTOList = new ArrayList<>();
+        for (SystemConfigLog systemConfigLog : systemConfigLogs){
+
+            SystemConfigLogDTO systemConfigLogDTO = new SystemConfigLogDTO();
+            BeanUtils.copyProperties(systemConfigLog,systemConfigLogDTO);
+
+            systemConfigLogDTOList.add(systemConfigLogDTO);
+
+        }
+        return MultiResponse.of(systemConfigLogDTOList);
     }
 }

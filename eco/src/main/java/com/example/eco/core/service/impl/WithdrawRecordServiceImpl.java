@@ -8,10 +8,15 @@ import com.example.eco.bean.SingleResponse;
 import com.example.eco.bean.cmd.*;
 import com.example.eco.bean.dto.WithdrawRecordDTO;
 import com.example.eco.common.AccountType;
+import com.example.eco.common.MinerConfigEnum;
 import com.example.eco.common.WithdrawRecordStatus;
 import com.example.eco.core.service.AccountService;
 import com.example.eco.core.service.WithdrawRecordService;
+import com.example.eco.model.entity.MinerConfig;
+import com.example.eco.model.entity.SystemConfig;
 import com.example.eco.model.entity.WithdrawRecord;
+import com.example.eco.model.mapper.MinerConfigMapper;
+import com.example.eco.model.mapper.SystemConfigMapper;
 import com.example.eco.model.mapper.WithdrawRecordMapper;
 import org.redisson.api.RedissonClient;
 import org.springframework.beans.BeanUtils;
@@ -33,6 +38,9 @@ public class WithdrawRecordServiceImpl implements WithdrawRecordService {
     @Resource
     private AccountService accountService;
 
+    @Resource
+    private MinerConfigMapper minerConfigMapper;
+
     @Override
     @Transactional(isolation = Isolation.REPEATABLE_READ, rollbackFor = Exception.class)
     public SingleResponse<Void> create(WithdrawRecordCreateCmd withdrawRecordCreateCmd) {
@@ -47,8 +55,26 @@ public class WithdrawRecordServiceImpl implements WithdrawRecordService {
 
         SingleResponse<Void> response = accountService.withdrawNumber(accountWithdrawNumberCmd);
         if (!response.isSuccess()) {
-            return response;
+            throw new RuntimeException(response.getErrMessage());
         }
+
+        LambdaQueryWrapper<MinerConfig> minerConfigLambdaQueryWrapper = new LambdaQueryWrapper<>();
+        minerConfigLambdaQueryWrapper.eq(MinerConfig::getName, MinerConfigEnum.WITHDRAW_SERVICE.getName());
+
+        MinerConfig minerConfig = minerConfigMapper.selectOne(minerConfigLambdaQueryWrapper);
+        if (Objects.nonNull(minerConfig) && StringUtils.isNotEmpty(minerConfig.getValue())){
+
+            AccountWithdrawServiceCmd accountWithdrawServiceCmd = new AccountWithdrawServiceCmd();
+            accountWithdrawServiceCmd.setNumber(minerConfig.getValue());
+            accountWithdrawServiceCmd.setWalletAddress(withdrawRecordCreateCmd.getWalletAddress());
+            accountWithdrawServiceCmd.setOrder(order);
+            SingleResponse<Void> serviceResponse = accountService.withdrawServiceNumber(accountWithdrawServiceCmd);
+            if (!serviceResponse.isSuccess()) {
+
+                throw new RuntimeException(serviceResponse.getErrMessage());
+            }
+        }
+
 
         WithdrawRecord withdrawRecord = new WithdrawRecord();
         withdrawRecord.setWalletAddress(withdrawRecordCreateCmd.getWalletAddress());
@@ -86,7 +112,16 @@ public class WithdrawRecordServiceImpl implements WithdrawRecordService {
 
             SingleResponse<Void> response = accountService.releaseLockWithdrawNumber(accountReleaseLockWithdrawNumberCmd);
             if (!response.isSuccess()) {
-                return response;
+                throw new RuntimeException(response.getErrMessage());
+            }
+
+            AccountReleaseLockWithdrawServiceCmd accountReleaseLockWithdrawServiceCmd = new AccountReleaseLockWithdrawServiceCmd();
+            accountReleaseLockWithdrawServiceCmd.setOrder(withdrawRecord.getOrder());
+            accountReleaseLockWithdrawServiceCmd.setWalletAddress(withdrawRecord.getWalletAddress());
+
+            SingleResponse<Void> releaseResponse = accountService.releaseLockWithdrawServiceNumber(accountReleaseLockWithdrawServiceCmd);
+            if (!releaseResponse.isSuccess()){
+                throw new RuntimeException(releaseResponse.getErrMessage());
             }
         }else {
 
@@ -96,7 +131,16 @@ public class WithdrawRecordServiceImpl implements WithdrawRecordService {
 
             SingleResponse<Void> response = accountService.rollbackLockWithdrawNumber(rollbackLockWithdrawNumberCmd);
             if (!response.isSuccess()) {
-                return response;
+                throw new RuntimeException(response.getErrMessage());
+            }
+
+            RollbackLockWithdrawServiceCmd rollbackLockWithdrawServiceCmd = new RollbackLockWithdrawServiceCmd();
+            rollbackLockWithdrawServiceCmd.setOrder(withdrawRecord.getOrder());
+            rollbackLockWithdrawServiceCmd.setWalletAddress(withdrawRecord.getWalletAddress());
+
+            SingleResponse<Void> rollbackResponse = accountService.rollbackLockWithdrawServiceNumber(rollbackLockWithdrawServiceCmd);
+            if (!rollbackResponse.isSuccess()) {
+                throw new RuntimeException(rollbackResponse.getErrMessage());
             }
         }
 
@@ -127,7 +171,16 @@ public class WithdrawRecordServiceImpl implements WithdrawRecordService {
         rollbackLockWithdrawNumberCmd.setWalletAddress(withdrawRecord.getWalletAddress());
         SingleResponse<Void> response = accountService.rollbackLockWithdrawNumber(rollbackLockWithdrawNumberCmd);
         if (!response.isSuccess()) {
-            return response;
+            throw new RuntimeException(response.getErrMessage());
+        }
+
+        RollbackLockWithdrawServiceCmd rollbackLockWithdrawServiceCmd = new RollbackLockWithdrawServiceCmd();
+        rollbackLockWithdrawServiceCmd.setOrder(withdrawRecord.getOrder());
+        rollbackLockWithdrawServiceCmd.setWalletAddress(withdrawRecord.getWalletAddress());
+
+        SingleResponse<Void> rollbackResponse = accountService.rollbackLockWithdrawServiceNumber(rollbackLockWithdrawServiceCmd);
+        if (!rollbackResponse.isSuccess()) {
+            throw new RuntimeException(rollbackResponse.getErrMessage());
         }
         withdrawRecord.setStatus(WithdrawRecordStatus.CANCELED.getCode());
         withdrawRecord.setCancelTime(System.currentTimeMillis());

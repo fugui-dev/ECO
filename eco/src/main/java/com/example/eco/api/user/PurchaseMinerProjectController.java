@@ -3,8 +3,10 @@ package com.example.eco.api.user;
 import com.example.eco.bean.MultiResponse;
 import com.example.eco.bean.SingleResponse;
 import com.example.eco.bean.cmd.PurchaseMinerProjectPageQry;
+import com.example.eco.bean.cmd.PurchaseMinerProjectRewardQry;
 import com.example.eco.bean.cmd.PurchaseMinerProjectsCreateCmd;
 import com.example.eco.bean.dto.PurchaseMinerProjectDTO;
+import com.example.eco.bean.dto.PurchaseMinerProjectRewardDTO;
 import com.example.eco.bean.dto.PurchaseMinerProjectStatisticsDTO;
 import com.example.eco.core.service.PurchaseMinerProjectService;
 import org.springframework.web.bind.annotation.*;
@@ -43,4 +45,15 @@ public class PurchaseMinerProjectController {
     SingleResponse<PurchaseMinerProjectStatisticsDTO> statistics(){
         return purchaseMinerProjectService.statistics();
     }
+
+
+    /**
+     * 根据天数查询奖励数据
+     */
+    @PostMapping("/reward")
+    SingleResponse<PurchaseMinerProjectRewardDTO> reward(@RequestBody PurchaseMinerProjectRewardQry purchaseMinerProjectRewardQry){
+        return purchaseMinerProjectService.reward(purchaseMinerProjectRewardQry);
+    }
+
+
 }

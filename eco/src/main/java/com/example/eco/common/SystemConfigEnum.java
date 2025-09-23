@@ -33,6 +33,8 @@ public enum SystemConfigEnum {
 
     API_KEY("API_KEY","API_KEY"),
 
+    SYSTEM_ADDRESS("SYSTEM_ADDRESS","官方钱包地址"),
+
     CONTRACT_ADDRESS("CONTRACT_ADDRESS","合约地址");
 
     private String code;

@@ -10,12 +10,15 @@ import com.example.eco.bean.dto.AccountDTO;
 import com.example.eco.common.AccountTransactionStatusEnum;
 import com.example.eco.common.AccountTransactionType;
 import com.example.eco.common.AccountType;
+import com.example.eco.common.SystemConfigEnum;
 import com.example.eco.core.service.AccountService;
 import com.example.eco.model.entity.Account;
 import com.example.eco.model.entity.AccountTransaction;
 import com.example.eco.model.entity.PurchaseMinerProjectReward;
+import com.example.eco.model.entity.SystemConfig;
 import com.example.eco.model.mapper.AccountMapper;
 import com.example.eco.model.mapper.AccountTransactionMapper;
+import com.example.eco.model.mapper.SystemConfigMapper;
 import org.springframework.beans.BeanUtils;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.retry.annotation.Backoff;
@@ -40,6 +43,8 @@ public class AccountServiceImpl implements AccountService {
     private AccountMapper accountMapper;
     @Resource
     private AccountTransactionMapper accountTransactionMapper;
+    @Resource
+    private SystemConfigMapper systemConfigMapper;
 
     @Override
     public SingleResponse<Void> createAccount(AccountCreateCmd accountCreateCmd) {
@@ -964,5 +969,274 @@ public class AccountServiceImpl implements AccountService {
 
         return SingleResponse.buildSuccess();
 
+    }
+
+    @Override
+    public SingleResponse<Void> rollbackPurchaseMinerProjectNumber(AccountAddCmd accountAddCmd) {
+        LambdaQueryWrapper<Account> queryWrapper = new LambdaQueryWrapper<>();
+        queryWrapper.eq(Account::getWalletAddress, accountAddCmd.getWalletAddress());
+        queryWrapper.eq(Account::getType, accountAddCmd.getAccountType());
+
+        Account account = accountMapper.selectOne(queryWrapper);
+        if (account == null) {
+            return SingleResponse.buildFailure(account.getType() + "账户不存在");
+        }
+
+        BigDecimal addNumber = new BigDecimal(accountAddCmd.getNumber());
+
+        String beforeNumber = account.getNumber();
+        account.setNumber(String.valueOf(new BigDecimal(account.getNumber()).add(addNumber)));
+        account.setUpdateTime(System.currentTimeMillis());
+
+        AccountTransaction accountTransaction = new AccountTransaction();
+        accountTransaction.setWalletAddress(accountAddCmd.getWalletAddress());
+        accountTransaction.setAccountId(account.getId());
+        accountTransaction.setBeforeNumber(beforeNumber);
+        accountTransaction.setTransactionTime(System.currentTimeMillis());
+        accountTransaction.setNumber(accountAddCmd.getNumber());
+        accountTransaction.setAfterNumber(account.getNumber());
+        accountTransaction.setStatus(AccountTransactionStatusEnum.SUCCESS.getCode());
+        accountTransaction.setTransactionType(AccountTransactionType.ADD_NUMBER.getCode());
+        accountTransaction.setOrder(accountAddCmd.getOrder());
+        accountTransaction.setAccountType(account.getType());
+
+        accountTransactionMapper.insert(accountTransaction);
+
+        int updateCount = accountMapper.updateById(account);
+        if (updateCount == 0) {
+            throw new OptimisticLockingFailureException("扣除积分失败");
+        }
+
+
+        return SingleResponse.buildSuccess();
+    }
+
+    @Override
+    @Retryable(value = OptimisticLockingFailureException.class, maxAttempts = 3, backoff = @Backoff(delay = 100))
+    @Transactional(isolation = Isolation.REPEATABLE_READ, rollbackFor = Exception.class)
+    public SingleResponse<Void> withdrawServiceNumber(AccountWithdrawServiceCmd accountWithdrawServiceCmd) {
+        LambdaQueryWrapper<Account> queryWrapper = new LambdaQueryWrapper<>();
+        queryWrapper.eq(Account::getWalletAddress, accountWithdrawServiceCmd.getWalletAddress());
+        queryWrapper.eq(Account::getType, AccountType.ESG.getCode());
+
+        Account account = accountMapper.selectOne(queryWrapper);
+        if (account == null) {
+            return SingleResponse.buildFailure(account.getType() + "账户不存在");
+        }
+
+        BigDecimal balance = new BigDecimal(account.getNumber());
+        BigDecimal serviceNumber = new BigDecimal(accountWithdrawServiceCmd.getNumber());
+
+        if (balance.compareTo(serviceNumber) < 0) {
+            return SingleResponse.buildFailure(account.getType() + "账户积分不足");
+        }
+
+
+        String beforeNumber = account.getNumber();
+        String beforeServiceLockNumber = account.getServiceLockNumber();
+
+        account.setNumber(String.valueOf(new BigDecimal(account.getNumber()).subtract(serviceNumber)));
+        account.setServiceLockNumber(String.valueOf(new BigDecimal(account.getServiceLockNumber()).add(new BigDecimal(accountWithdrawServiceCmd.getNumber()))));
+
+        account.setUpdateTime(System.currentTimeMillis());
+
+        AccountTransaction accountTransaction = new AccountTransaction();
+        accountTransaction.setWalletAddress(accountWithdrawServiceCmd.getWalletAddress());
+        accountTransaction.setAccountId(account.getId());
+        accountTransaction.setBeforeNumber(beforeNumber);
+        accountTransaction.setTransactionTime(System.currentTimeMillis());
+        accountTransaction.setNumber(accountWithdrawServiceCmd.getNumber());
+        accountTransaction.setAfterNumber(account.getNumber());
+        accountTransaction.setAccountType(account.getType());
+        accountTransaction.setStatus(AccountTransactionStatusEnum.SUCCESS.getCode());
+        accountTransaction.setTransactionType(AccountTransactionType.DEDUCT_NUMBER.getCode());
+        accountTransaction.setOrder(accountWithdrawServiceCmd.getOrder());
+        accountTransactionMapper.insert(accountTransaction);
+
+        AccountTransaction accountLockServiceTransaction = new AccountTransaction();
+        accountLockServiceTransaction.setWalletAddress(accountWithdrawServiceCmd.getWalletAddress());
+        accountLockServiceTransaction.setAccountId(account.getId());
+        accountLockServiceTransaction.setBeforeNumber(beforeServiceLockNumber);
+        accountLockServiceTransaction.setTransactionTime(System.currentTimeMillis());
+        accountLockServiceTransaction.setNumber(accountWithdrawServiceCmd.getNumber());
+        accountLockServiceTransaction.setAfterNumber(account.getServiceLockNumber());
+        accountLockServiceTransaction.setStatus(AccountTransactionStatusEnum.SUCCESS.getCode());
+        accountLockServiceTransaction.setTransactionType(AccountTransactionType.LOCK_WITHDRAW_SERVICE.getCode());
+        accountLockServiceTransaction.setOrder(accountWithdrawServiceCmd.getOrder());
+        accountLockServiceTransaction.setAccountType(account.getType());
+
+        accountTransactionMapper.insert(accountLockServiceTransaction);
+
+        int updateCount = accountMapper.updateById(account);
+        if (updateCount == 0) {
+            throw new OptimisticLockingFailureException("扣除积分失败");
+        }
+
+
+        return SingleResponse.buildSuccess();
+
+    }
+
+    @Override
+    @Retryable(value = OptimisticLockingFailureException.class, maxAttempts = 3, backoff = @Backoff(delay = 100))
+    @Transactional(isolation = Isolation.REPEATABLE_READ, rollbackFor = Exception.class)
+    public SingleResponse<Void> rollbackLockWithdrawServiceNumber(RollbackLockWithdrawServiceCmd rollbackLockWithdrawServiceCmd) {
+        LambdaQueryWrapper<AccountTransaction> lambdaQueryWrapper = new LambdaQueryWrapper<>();
+        lambdaQueryWrapper.eq(AccountTransaction::getWalletAddress, rollbackLockWithdrawServiceCmd.getWalletAddress());
+        lambdaQueryWrapper.eq(AccountTransaction::getOrder, rollbackLockWithdrawServiceCmd.getOrder());
+        lambdaQueryWrapper.eq(AccountTransaction::getTransactionType, AccountTransactionType.LOCK_WITHDRAW_SERVICE.getCode());
+
+        AccountTransaction lockServiceTransaction = accountTransactionMapper.selectOne(lambdaQueryWrapper);
+
+        if (Objects.isNull(lockServiceTransaction)){
+            return SingleResponse.buildSuccess();
+        }
+
+        Account account = accountMapper.selectById(lockServiceTransaction.getAccountId());
+
+
+        String beforeServiceLockNumber = account.getServiceLockNumber();
+
+        String beforeNumber = account.getNumber();
+
+        account.setServiceLockNumber(String.valueOf(new BigDecimal(account.getServiceLockNumber()).subtract(new BigDecimal(lockServiceTransaction.getNumber()))));
+        account.setNumber(String.valueOf(new BigDecimal(account.getNumber()).add(new BigDecimal(lockServiceTransaction.getNumber()))));
+        account.setUpdateTime(System.currentTimeMillis());
+        accountMapper.updateById(account);
+
+        AccountTransaction accountTransaction = new AccountTransaction();
+        accountTransaction.setWalletAddress(lockServiceTransaction.getWalletAddress());
+        accountTransaction.setAccountId(account.getId());
+        accountTransaction.setBeforeNumber(beforeNumber);
+        accountTransaction.setTransactionTime(System.currentTimeMillis());
+        accountTransaction.setNumber(lockServiceTransaction.getNumber());
+        accountTransaction.setAfterNumber(account.getNumber());
+        accountTransaction.setAccountType(account.getType());
+        accountTransaction.setStatus(AccountTransactionStatusEnum.SUCCESS.getCode());
+        accountTransaction.setTransactionType(AccountTransactionType.ADD_NUMBER.getCode());
+        accountTransaction.setOrder(lockServiceTransaction.getOrder());
+
+        accountTransactionMapper.insert(accountTransaction);
+
+        AccountTransaction accountRollbackLockWithdrawTransaction = new AccountTransaction();
+        accountRollbackLockWithdrawTransaction.setWalletAddress(lockServiceTransaction.getWalletAddress());
+        accountRollbackLockWithdrawTransaction.setAccountId(account.getId());
+        accountRollbackLockWithdrawTransaction.setBeforeNumber(beforeServiceLockNumber);
+        accountRollbackLockWithdrawTransaction.setTransactionTime(System.currentTimeMillis());
+        accountRollbackLockWithdrawTransaction.setNumber(lockServiceTransaction.getNumber());
+        accountRollbackLockWithdrawTransaction.setAfterNumber(account.getSellLockNumber());
+        accountRollbackLockWithdrawTransaction.setAccountType(account.getType());
+        accountRollbackLockWithdrawTransaction.setStatus(AccountTransactionStatusEnum.SUCCESS.getCode());
+        accountRollbackLockWithdrawTransaction.setTransactionType(AccountTransactionType.ROLLBACK_LOCK_WITHDRAW.getCode());
+        accountRollbackLockWithdrawTransaction.setOrder(lockServiceTransaction.getOrder());
+
+        accountTransactionMapper.insert(accountRollbackLockWithdrawTransaction);
+
+        return SingleResponse.buildSuccess();
+    }
+
+    @Override
+    @Retryable(value = OptimisticLockingFailureException.class, maxAttempts = 3, backoff = @Backoff(delay = 100))
+    @Transactional(isolation = Isolation.REPEATABLE_READ, rollbackFor = Exception.class)
+    public SingleResponse<Void> releaseLockWithdrawServiceNumber(AccountReleaseLockWithdrawServiceCmd accountReleaseLockWithdrawServiceCmd) {
+        LambdaQueryWrapper<AccountTransaction> lambdaQueryWrapper = new LambdaQueryWrapper<>();
+        lambdaQueryWrapper.eq(AccountTransaction::getWalletAddress, accountReleaseLockWithdrawServiceCmd.getWalletAddress());
+        lambdaQueryWrapper.eq(AccountTransaction::getOrder, accountReleaseLockWithdrawServiceCmd.getOrder());
+        lambdaQueryWrapper.eq(AccountTransaction::getTransactionType, AccountTransactionType.LOCK_WITHDRAW_SERVICE.getCode());
+
+        AccountTransaction lockWithdrawServiceTransaction = accountTransactionMapper.selectOne(lambdaQueryWrapper);
+        if (Objects.isNull(lockWithdrawServiceTransaction)){
+            return SingleResponse.buildSuccess();
+        }
+
+        Account account = accountMapper.selectById(lockWithdrawServiceTransaction.getAccountId());
+        if (account == null) {
+            return SingleResponse.buildFailure("账户不存在");
+        }
+
+        String beforeServiceNumber = account.getServiceNumber();
+
+        String beforeServiceLockNumber = account.getServiceLockNumber();
+
+        account.setServiceNumber(String.valueOf(new BigDecimal(account.getServiceNumber()).add(new BigDecimal(lockWithdrawServiceTransaction.getNumber()))));
+        account.setServiceLockNumber(String.valueOf(new BigDecimal(account.getServiceLockNumber()).subtract(new BigDecimal(lockWithdrawServiceTransaction.getNumber()))));
+
+        account.setUpdateTime(System.currentTimeMillis());
+        int updateCount = accountMapper.updateById(account);
+
+        if (updateCount == 0) {
+            throw new OptimisticLockingFailureException("乐观锁异常");
+        }
+
+
+        AccountTransaction accountWithdrawServiceTransaction = new AccountTransaction();
+        accountWithdrawServiceTransaction.setWalletAddress(lockWithdrawServiceTransaction.getWalletAddress());
+        accountWithdrawServiceTransaction.setAccountId(account.getId());
+        accountWithdrawServiceTransaction.setBeforeNumber(beforeServiceNumber);
+        accountWithdrawServiceTransaction.setTransactionTime(System.currentTimeMillis());
+        accountWithdrawServiceTransaction.setNumber(lockWithdrawServiceTransaction.getNumber());
+        accountWithdrawServiceTransaction.setAfterNumber(account.getServiceNumber());
+        accountWithdrawServiceTransaction.setAccountType(account.getType());
+        accountWithdrawServiceTransaction.setStatus(AccountTransactionStatusEnum.SUCCESS.getCode());
+        accountWithdrawServiceTransaction.setTransactionType(AccountTransactionType.WITHDRAW_SERVICE.getCode());
+        accountWithdrawServiceTransaction.setOrder(lockWithdrawServiceTransaction.getOrder());
+        accountTransactionMapper.insert(accountWithdrawServiceTransaction);
+
+
+        AccountTransaction accountLockWithdrawServiceTransaction = new AccountTransaction();
+        accountLockWithdrawServiceTransaction.setWalletAddress(lockWithdrawServiceTransaction.getWalletAddress());
+        accountLockWithdrawServiceTransaction.setAccountId(account.getId());
+        accountLockWithdrawServiceTransaction.setBeforeNumber(beforeServiceLockNumber);
+        accountLockWithdrawServiceTransaction.setTransactionTime(System.currentTimeMillis());
+        accountLockWithdrawServiceTransaction.setNumber(lockWithdrawServiceTransaction.getNumber());
+        accountLockWithdrawServiceTransaction.setAfterNumber(account.getServiceLockNumber());
+        accountLockWithdrawServiceTransaction.setAccountType(account.getType());
+        accountLockWithdrawServiceTransaction.setStatus(AccountTransactionStatusEnum.SUCCESS.getCode());
+        accountLockWithdrawServiceTransaction.setTransactionType(AccountTransactionType.RELEASE_LOCK_WITHDRAW_SERVICE.getCode());
+        accountLockWithdrawServiceTransaction.setOrder(lockWithdrawServiceTransaction.getOrder());
+        accountTransactionMapper.insert(accountLockWithdrawServiceTransaction);
+
+
+        LambdaQueryWrapper<SystemConfig> systemConfigLambdaQueryWrapper = new LambdaQueryWrapper<>();
+        systemConfigLambdaQueryWrapper.eq(SystemConfig::getName, SystemConfigEnum.SYSTEM_ADDRESS.getCode());
+
+        SystemConfig systemConfig = systemConfigMapper.selectOne(systemConfigLambdaQueryWrapper);
+        if (Objects.nonNull(systemConfig)){
+
+            LambdaQueryWrapper<Account> accountLambdaQueryWrapper = new LambdaQueryWrapper<>();
+            accountLambdaQueryWrapper.eq(Account::getWalletAddress,systemConfig.getValue());
+            accountLambdaQueryWrapper.eq(Account::getType,AccountType.ESG.getCode());
+
+            Account systemAccount = accountMapper.selectOne(accountLambdaQueryWrapper);
+            if (Objects.nonNull(systemAccount)){
+
+                String beforeSystemServiceNumber = systemAccount.getServiceNumber();
+
+                systemAccount.setServiceNumber(String.valueOf(new BigDecimal(account.getServiceNumber())
+                        .add(new BigDecimal(lockWithdrawServiceTransaction.getNumber()))));
+                systemAccount.setUpdateTime(System.currentTimeMillis());
+                int updateSystemCount = accountMapper.updateById(systemAccount);
+
+                if (updateSystemCount == 0) {
+                    throw new OptimisticLockingFailureException("乐观锁异常");
+                }
+
+                AccountTransaction accountServiceTransaction = new AccountTransaction();
+                accountServiceTransaction.setWalletAddress(systemAccount.getWalletAddress());
+                accountServiceTransaction.setAccountId(systemAccount.getId());
+                accountServiceTransaction.setBeforeNumber(beforeSystemServiceNumber);
+                accountServiceTransaction.setTransactionTime(System.currentTimeMillis());
+                accountServiceTransaction.setNumber(lockWithdrawServiceTransaction.getNumber());
+                accountServiceTransaction.setAfterNumber(systemAccount.getServiceNumber());
+                accountServiceTransaction.setAccountType(systemAccount.getType());
+                accountServiceTransaction.setStatus(AccountTransactionStatusEnum.SUCCESS.getCode());
+                accountServiceTransaction.setTransactionType(AccountTransactionType.WITHDRAW_SERVICE.getCode());
+                accountServiceTransaction.setOrder(lockWithdrawServiceTransaction.getOrder());
+                accountTransactionMapper.insert(accountServiceTransaction);
+
+            }
+        }
+
+        return SingleResponse.buildSuccess();
     }
 }

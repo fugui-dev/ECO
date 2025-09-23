@@ -91,4 +91,28 @@ public interface AccountService {
      * 购买矿机项目扣除账户金额 不能使用购买金额
      */
     SingleResponse<Void> purchaseMinerProjectNumber(AccountDeductCmd accountDeductCmd);
+
+
+    /**
+     * 回滚购买矿机项目扣除账户金额 不能使用购买金额
+     */
+    SingleResponse<Void> rollbackPurchaseMinerProjectNumber(AccountAddCmd accountAddCmd);
+
+
+    /**
+     * 添加提现服务费
+     */
+    SingleResponse<Void> withdrawServiceNumber(AccountWithdrawServiceCmd accountWithdrawServiceCmd);
+
+
+    /**
+     * 回滚提现服务费
+     */
+    SingleResponse<Void> rollbackLockWithdrawServiceNumber(RollbackLockWithdrawServiceCmd rollbackLockWithdrawServiceCmd);
+
+
+    /**
+     * 释放提现服务费
+     */
+    SingleResponse<Void> releaseLockWithdrawServiceNumber(AccountReleaseLockWithdrawServiceCmd accountReleaseLockWithdrawServiceCmd);
 }

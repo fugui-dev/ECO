@@ -75,6 +75,16 @@ public class Account {
     private String buyLockNumber;
 
     /**
+     * 提现服务费
+     */
+    private String serviceNumber;
+
+    /**
+     * 提现锁定服务费
+     */
+    private String serviceLockNumber;
+
+    /**
      * 静态收益
      */
     private String staticReward;

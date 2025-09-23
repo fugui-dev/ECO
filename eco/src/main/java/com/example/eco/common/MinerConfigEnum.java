@@ -5,7 +5,7 @@ import lombok.Getter;
 @Getter
 public enum MinerConfigEnum {
 
-    WITHDRAW_FEE("WITHDRAW_FEE", "提币消耗ESG比例"),
+    WITHDRAW_SERVICE("WITHDRAW_SERVICE", "提币消耗ESG服务费"),
 
     MINER_ADD_NUMBER_REQUIREMENT("MINER_ADD_NUMBER_REQUIREMENT", "新增矿机挖矿数量要求"),
 
