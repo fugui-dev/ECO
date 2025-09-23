@@ -89,11 +89,38 @@ public class PurchaseMinerProjectServiceImpl implements PurchaseMinerProjectServ
         purchaseMinerProject.setMinerProjectId(purchaseMinerProjectsCreateCmd.getMinerProjectId());
         purchaseMinerProject.setPrice(minerProject.getPrice());
         purchaseMinerProject.setComputingPower(minerProject.getComputingPower());
+        purchaseMinerProject.setActualComputingPower(minerProject.getComputingPower());
         purchaseMinerProject.setType(purchaseMinerProjectsCreateCmd.getType());
         purchaseMinerProject.setWalletAddress(purchaseMinerProjectsCreateCmd.getWalletAddress());
         purchaseMinerProject.setStatus(PurchaseMinerProjectStatus.DEALING.getCode());
         purchaseMinerProject.setOrder(order);
         purchaseMinerProject.setCreateTime(System.currentTimeMillis());
+
+        LambdaQueryWrapper<SystemConfig> increaseQueryWrapper = new LambdaQueryWrapper<>();
+        increaseQueryWrapper.eq(SystemConfig::getName, SystemConfigEnum.INCREASE_MULTIPLIER.getCode());
+
+        SystemConfig increaseSystemConfig = systemConfigMapper.selectOne(increaseQueryWrapper);
+        if (Objects.nonNull(increaseSystemConfig)) {
+
+
+            LambdaQueryWrapper<SystemConfig> effectiveQueryWrapper = new LambdaQueryWrapper<>();
+            effectiveQueryWrapper.eq(SystemConfig::getName, SystemConfigEnum.EFFECTIVE_DAY.getCode());
+
+            SystemConfig effectiveSystemConfig = systemConfigMapper.selectOne(effectiveQueryWrapper);
+            if (Objects.nonNull(effectiveSystemConfig)){
+
+                BigDecimal increase = new BigDecimal(increaseSystemConfig.getValue());
+
+                BigDecimal actualComputingPower = new BigDecimal(minerProject.getComputingPower()).multiply(increase);
+
+                LocalDateTime effectiveDate = LocalDateTime.now().plusDays(Long.parseLong(effectiveSystemConfig.getValue()));
+
+                Long effectiveTime = effectiveDate.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli();
+
+                purchaseMinerProject.setActualComputingPower(actualComputingPower.toString());
+                purchaseMinerProject.setAccelerateExpireTime(effectiveTime);
+            }
+        }
 
         purchaseMinerProjectMapper.insert(purchaseMinerProject);
 
@@ -230,8 +257,8 @@ public class PurchaseMinerProjectServiceImpl implements PurchaseMinerProjectServ
         }
 
         TotalComputingPowerCmd totalComputingPowerCmd = new TotalComputingPowerCmd();
-        totalComputingPowerCmd.setWalletAddress(purchaseMinerProjectsCreateCmd.getWalletAddress());
-        totalComputingPowerCmd.setComputingPower(minerProject.getComputingPower());
+        totalComputingPowerCmd.setWalletAddress(purchaseMinerProject.getWalletAddress());
+        totalComputingPowerCmd.setComputingPower(purchaseMinerProject.getActualComputingPower());
 
         recommendStatisticsLogService.statistics(totalComputingPowerCmd);
 

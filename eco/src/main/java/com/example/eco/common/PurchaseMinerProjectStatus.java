@@ -9,6 +9,8 @@ public enum PurchaseMinerProjectStatus {
 
     SUCCESS("SUCCESS", "成功"),
 
+    STOP("STOP","该矿机已达到2倍的标准，停止所有奖励"),
+
     FAIL("FAIL", "失败");
 
     private String code;

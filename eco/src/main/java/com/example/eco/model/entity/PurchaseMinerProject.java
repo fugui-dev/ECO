@@ -51,6 +51,16 @@ public class PurchaseMinerProject {
     private String computingPower;
 
     /**
+     * 实际到账矿机算力
+     */
+    private String actualComputingPower;
+
+    /**
+     * 加速到期时间
+     */
+    private Long accelerateExpireTime;
+
+    /**
      * 购买方式类型
      */
     private String type;
@@ -80,6 +90,9 @@ public class PurchaseMinerProject {
      * 创建时间
      */
     private Long createTime;
+
+
+    private Long updateTime;
 
     /**
      * 完成时间

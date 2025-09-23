@@ -68,10 +68,6 @@ public class PendOrderServiceImpl implements PendOrderService {
         pendOrder.setPrice(pendOrderCreateCmd.getPrice());
         pendOrder.setTotalPrice(pendOrderCreateCmd.getTotalPrice());
         pendOrder.setStatus(PendOrderStatus.WAIT.getCode());
-        pendOrder.setEmail(pendOrderCreateCmd.getEmail());
-        pendOrder.setPhone(pendOrderCreateCmd.getPhone());
-        pendOrder.setTelegram(pendOrderCreateCmd.getTelegram());
-        pendOrder.setWechat(pendOrderCreateCmd.getWechat());
         pendOrder.setRecipientWalletAddress(pendOrderCreateCmd.getRecipientWalletAddress());
         pendOrder.setCreateTime(System.currentTimeMillis());
         pendOrderMapper.insert(pendOrder);
@@ -141,7 +137,9 @@ public class PendOrderServiceImpl implements PendOrderService {
                 return SingleResponse.buildFailure("挂单状态不允许锁单");
             }
 
+            pendOrder.setPlaceOrderTime(System.currentTimeMillis());
             pendOrder.setStatus(PendOrderStatus.LOCK.getCode());
+            pendOrder.setUpdateTime(System.currentTimeMillis());
             pendOrderMapper.updateById(pendOrder);
 
             AccountBuyNumberCmd accountBuyNumberCmd = new AccountBuyNumberCmd();
@@ -246,7 +244,7 @@ public class PendOrderServiceImpl implements PendOrderService {
             }
 
             pendOrder.setStatus(PendOrderStatus.COMPLETE.getCode());
-            pendOrder.setCancelTime(System.currentTimeMillis());
+            pendOrder.setConfirmTime(System.currentTimeMillis());
             pendOrder.setUpdateTime(System.currentTimeMillis());
             pendOrderMapper.updateById(pendOrder);
 

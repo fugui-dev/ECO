@@ -333,7 +333,7 @@ public class RewardConstructor {
                                              List<PurchaseMinerProjectReward> rewardList) {
 
         LambdaQueryWrapper<PurchaseMinerProject> lambdaQueryWrapper = new LambdaQueryWrapper<>();
-
+        lambdaQueryWrapper.eq(PurchaseMinerProject::getStatus,PurchaseMinerProjectStatus.SUCCESS.getCode());
         List<PurchaseMinerProject> purchaseMinerProjectList = purchaseMinerProjectMapper.selectList(lambdaQueryWrapper);
 
         // 获取静态奖励比例
@@ -380,7 +380,7 @@ public class RewardConstructor {
 
         String order = "ST" + System.currentTimeMillis();
 
-        BigDecimal computingPower = new BigDecimal(purchaseMinerProject.getComputingPower());
+        BigDecimal computingPower = new BigDecimal(purchaseMinerProject.getActualComputingPower());
 
         BigDecimal staticReward = computingPower.divide(totalComputingPower, 8, RoundingMode.HALF_DOWN).multiply(staticTotalReward);
 
@@ -392,7 +392,7 @@ public class RewardConstructor {
         purchaseMinerProjectReward.setType(PurchaseMinerProjectRewardType.STATIC.getCode());
         purchaseMinerProjectReward.setWalletAddress(purchaseMinerProject.getWalletAddress());
         purchaseMinerProjectReward.setLeaderWalletAddress(recommend.getLeaderWalletAddress());
-        purchaseMinerProjectReward.setComputingPower(purchaseMinerProject.getComputingPower());
+        purchaseMinerProjectReward.setComputingPower(purchaseMinerProject.getActualComputingPower());
         purchaseMinerProjectReward.setTotalComputingPower(totalComputingPower.toString());
         purchaseMinerProjectReward.setRecommendWalletAddress(recommend.getRecommendWalletAddress());
         purchaseMinerProjectReward.setDayTime(dayTime);

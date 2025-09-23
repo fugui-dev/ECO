@@ -31,27 +31,6 @@ public class PendOrder {
     private String walletAddress;
 
     /**
-     * 电报
-     */
-    private String telegram;
-
-    /**
-     * 微信
-     */
-    private String wechat;
-
-    /**
-     * 邮箱
-     */
-    private String email;
-
-    /**
-     * 手机号
-     */
-    private String phone;
-
-
-    /**
      * 收款钱包
      */
     private String recipientWalletAddress;
