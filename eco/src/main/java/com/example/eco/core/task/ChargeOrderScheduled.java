@@ -25,8 +25,12 @@ public class ChargeOrderScheduled {
 
         log.info("checkChargeOrder 开始执行");
 
-        chargeOrderService.checkChargeOrder();
-
+        try {
+            chargeOrderService.checkChargeOrder();
+        }
+        catch (Exception e){
+            e.printStackTrace();
+        }
         log.info("checkChargeOrder 执行结束");
     }
 }

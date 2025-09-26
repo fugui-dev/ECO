@@ -292,6 +292,8 @@ public class AccountServiceImpl implements AccountService {
         lambdaQueryWrapper.eq(AccountTransaction::getWalletAddress, accountReleaseLockBuyNumberCmd.getWalletAddress());
         lambdaQueryWrapper.eq(AccountTransaction::getOrder, accountReleaseLockBuyNumberCmd.getOrder());
         lambdaQueryWrapper.eq(AccountTransaction::getTransactionType, AccountTransactionType.LOCK_BUY.getCode());
+        lambdaQueryWrapper.orderByDesc(AccountTransaction::getId);
+        lambdaQueryWrapper.last("LIMIT 1");
 
         AccountTransaction lockBuyTransaction = accountTransactionMapper.selectOne(lambdaQueryWrapper);
 
@@ -369,6 +371,8 @@ public class AccountServiceImpl implements AccountService {
         lambdaQueryWrapper.eq(AccountTransaction::getWalletAddress, rollbackLockBuyNumberCmd.getWalletAddress());
         lambdaQueryWrapper.eq(AccountTransaction::getOrder, rollbackLockBuyNumberCmd.getOrder());
         lambdaQueryWrapper.eq(AccountTransaction::getTransactionType, AccountTransactionType.LOCK_BUY.getCode());
+        lambdaQueryWrapper.orderByDesc(AccountTransaction::getId);
+        lambdaQueryWrapper.last("LIMIT 1");
 
         AccountTransaction lockBuyTransaction = accountTransactionMapper.selectOne(lambdaQueryWrapper);
 
@@ -390,7 +394,7 @@ public class AccountServiceImpl implements AccountService {
         accountRollbackBuyLockTransaction.setAfterNumber(account.getBuyLockNumber());
         accountRollbackBuyLockTransaction.setAccountType(account.getType());
         accountRollbackBuyLockTransaction.setStatus(AccountTransactionStatusEnum.SUCCESS.getCode());
-        accountRollbackBuyLockTransaction.setTransactionType(AccountTransactionType.ROLLBACK_LOCK_SELL.getCode());
+        accountRollbackBuyLockTransaction.setTransactionType(AccountTransactionType.ROLLBACK_LOCK_BUY.getCode());
         accountRollbackBuyLockTransaction.setOrder(rollbackLockBuyNumberCmd.getOrder());
 
         accountTransactionMapper.insert(accountRollbackBuyLockTransaction);
@@ -467,6 +471,8 @@ public class AccountServiceImpl implements AccountService {
         lambdaQueryWrapper.eq(AccountTransaction::getWalletAddress, accountReleaseLockSellNumberCmd.getWalletAddress());
         lambdaQueryWrapper.eq(AccountTransaction::getOrder, accountReleaseLockSellNumberCmd.getOrder());
         lambdaQueryWrapper.eq(AccountTransaction::getTransactionType, AccountTransactionType.LOCK_SELL.getCode());
+        lambdaQueryWrapper.orderByDesc(AccountTransaction::getId);
+        lambdaQueryWrapper.last("LIMIT 1");
 
         AccountTransaction lockSellTransaction = accountTransactionMapper.selectOne(lambdaQueryWrapper);
 
@@ -530,7 +536,8 @@ public class AccountServiceImpl implements AccountService {
         lambdaQueryWrapper.eq(AccountTransaction::getWalletAddress, rollbackLockSellNumberCmd.getWalletAddress());
         lambdaQueryWrapper.eq(AccountTransaction::getOrder, rollbackLockSellNumberCmd.getOrder());
         lambdaQueryWrapper.eq(AccountTransaction::getTransactionType, AccountTransactionType.LOCK_SELL.getCode());
-
+        lambdaQueryWrapper.orderByDesc(AccountTransaction::getId);
+        lambdaQueryWrapper.last("LIMIT 1");
 
         AccountTransaction lockSellTransaction = accountTransactionMapper.selectOne(lambdaQueryWrapper);
 
@@ -630,6 +637,8 @@ public class AccountServiceImpl implements AccountService {
         lambdaQueryWrapper.eq(AccountTransaction::getOrder, accountLockChargeNumberCmd.getOrder());
         lambdaQueryWrapper.eq(AccountTransaction::getHash, accountLockChargeNumberCmd.getHash());
         lambdaQueryWrapper.eq(AccountTransaction::getTransactionType, AccountTransactionType.LOCK_CHARGE.getCode());
+        lambdaQueryWrapper.orderByDesc(AccountTransaction::getId);
+        lambdaQueryWrapper.last("LIMIT 1");
 
         AccountTransaction lockChargeTransaction = accountTransactionMapper.selectOne(lambdaQueryWrapper);
 
@@ -707,6 +716,8 @@ public class AccountServiceImpl implements AccountService {
         lambdaQueryWrapper.eq(AccountTransaction::getOrder, rollbackLockChargeNumberCmd.getOrder());
         lambdaQueryWrapper.eq(AccountTransaction::getHash, rollbackLockChargeNumberCmd.getHash());
         lambdaQueryWrapper.eq(AccountTransaction::getTransactionType, AccountTransactionType.LOCK_CHARGE.getCode());
+        lambdaQueryWrapper.orderByDesc(AccountTransaction::getId);
+        lambdaQueryWrapper.last("LIMIT 1");
 
         AccountTransaction lockChargeTransaction = accountTransactionMapper.selectOne(lambdaQueryWrapper);
 
@@ -811,6 +822,8 @@ public class AccountServiceImpl implements AccountService {
         lambdaQueryWrapper.eq(AccountTransaction::getWalletAddress, rollbackLockWithdrawNumberCmd.getWalletAddress());
         lambdaQueryWrapper.eq(AccountTransaction::getOrder, rollbackLockWithdrawNumberCmd.getOrder());
         lambdaQueryWrapper.eq(AccountTransaction::getTransactionType, AccountTransactionType.LOCK_WITHDRAW.getCode());
+        lambdaQueryWrapper.orderByDesc(AccountTransaction::getId);
+        lambdaQueryWrapper.last("LIMIT 1");
 
         AccountTransaction lockWithdrawTransaction = accountTransactionMapper.selectOne(lambdaQueryWrapper);
 
@@ -866,6 +879,8 @@ public class AccountServiceImpl implements AccountService {
         lambdaQueryWrapper.eq(AccountTransaction::getWalletAddress, accountReleaseLockWithdrawNumberCmd.getWalletAddress());
         lambdaQueryWrapper.eq(AccountTransaction::getOrder, accountReleaseLockWithdrawNumberCmd.getOrder());
         lambdaQueryWrapper.eq(AccountTransaction::getTransactionType, AccountTransactionType.LOCK_WITHDRAW.getCode());
+        lambdaQueryWrapper.orderByDesc(AccountTransaction::getId);
+        lambdaQueryWrapper.last("LIMIT 1");
 
         AccountTransaction lockWithdrawTransaction = accountTransactionMapper.selectOne(lambdaQueryWrapper);
 
@@ -1085,6 +1100,8 @@ public class AccountServiceImpl implements AccountService {
         lambdaQueryWrapper.eq(AccountTransaction::getWalletAddress, rollbackLockWithdrawServiceCmd.getWalletAddress());
         lambdaQueryWrapper.eq(AccountTransaction::getOrder, rollbackLockWithdrawServiceCmd.getOrder());
         lambdaQueryWrapper.eq(AccountTransaction::getTransactionType, AccountTransactionType.LOCK_WITHDRAW_SERVICE.getCode());
+        lambdaQueryWrapper.orderByDesc(AccountTransaction::getId);
+        lambdaQueryWrapper.last("LIMIT 1");
 
         AccountTransaction lockServiceTransaction = accountTransactionMapper.selectOne(lambdaQueryWrapper);
 
@@ -1143,11 +1160,10 @@ public class AccountServiceImpl implements AccountService {
         lambdaQueryWrapper.eq(AccountTransaction::getWalletAddress, accountReleaseLockWithdrawServiceCmd.getWalletAddress());
         lambdaQueryWrapper.eq(AccountTransaction::getOrder, accountReleaseLockWithdrawServiceCmd.getOrder());
         lambdaQueryWrapper.eq(AccountTransaction::getTransactionType, AccountTransactionType.LOCK_WITHDRAW_SERVICE.getCode());
+        lambdaQueryWrapper.orderByDesc(AccountTransaction::getId);
+        lambdaQueryWrapper.last("LIMIT 1");
 
         AccountTransaction lockWithdrawServiceTransaction = accountTransactionMapper.selectOne(lambdaQueryWrapper);
-        if (Objects.isNull(lockWithdrawServiceTransaction)){
-            return SingleResponse.buildSuccess();
-        }
 
         Account account = accountMapper.selectById(lockWithdrawServiceTransaction.getAccountId());
         if (account == null) {

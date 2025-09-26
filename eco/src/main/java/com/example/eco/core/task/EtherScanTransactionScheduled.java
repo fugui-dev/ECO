@@ -63,7 +63,12 @@ public class EtherScanTransactionScheduled {
         if (Objects.isNull(contractAddressConfig)) {
             return;
         }
-        getBscScanAccountTransactionResponse(apikeyConfig.getValue(), contractAddressConfig.getValue());
+
+        try {
+            getBscScanAccountTransactionResponse(apikeyConfig.getValue(), contractAddressConfig.getValue());
+        }catch (Exception e){
+            e.printStackTrace();
+        }
 
         log.info("transactionAccountRecord 结束执行");
 

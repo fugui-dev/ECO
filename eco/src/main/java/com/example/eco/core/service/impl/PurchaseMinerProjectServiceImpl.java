@@ -10,6 +10,7 @@ import com.example.eco.bean.dto.PurchaseMinerProjectDTO;
 import com.example.eco.bean.dto.PurchaseMinerProjectRewardDTO;
 import com.example.eco.bean.dto.PurchaseMinerProjectStatisticsDTO;
 import com.example.eco.common.*;
+import com.example.eco.common.BusinessException;
 import com.example.eco.core.service.AccountService;
 import com.example.eco.core.service.MinerProjectService;
 import com.example.eco.core.service.PurchaseMinerProjectService;
@@ -123,7 +124,6 @@ public class PurchaseMinerProjectServiceImpl implements PurchaseMinerProjectServ
             }
         }
 
-        purchaseMinerProjectMapper.insert(purchaseMinerProject);
 
         BigDecimal amount = BigDecimal.ZERO;
 
@@ -145,23 +145,24 @@ public class PurchaseMinerProjectServiceImpl implements PurchaseMinerProjectServ
             accountDeductCmd.setNumber(esgNumber.toString());
             accountDeductCmd.setWalletAddress(purchaseMinerProjectsCreateCmd.getWalletAddress());
             accountDeductCmd.setOrder(order);
-            SingleResponse<Void> response = accountService.purchaseMinerProjectNumber(accountDeductCmd);
-            if (!response.isSuccess()) {
 
-                purchaseMinerProject.setStatus(PurchaseMinerProjectStatus.FAIL.getCode());
-                purchaseMinerProject.setReason(response.getErrMessage());
-                purchaseMinerProject.setFinishTime(System.currentTimeMillis());
-                purchaseMinerProjectMapper.updateById(purchaseMinerProject);
-                return response;
-            } else {
-                // 购买成功，记录购买信息
-                purchaseMinerProject.setStatus(PurchaseMinerProjectStatus.SUCCESS.getCode());
-                purchaseMinerProject.setFinishTime(System.currentTimeMillis());
-                purchaseMinerProjectMapper.updateById(purchaseMinerProject);
+            try {
 
-                amount = amount.add(new BigDecimal(minerProject.getPrice()));
-                totalEsgNumber = totalEsgNumber.add(esgNumber);
+                SingleResponse<Void> response = accountService.purchaseMinerProjectNumber(accountDeductCmd);
+                if (!response.isSuccess()) {
+                    return response;
+                } else {
+                    // 购买成功，记录购买信息
+                    purchaseMinerProject.setStatus(PurchaseMinerProjectStatus.SUCCESS.getCode());
+                    purchaseMinerProject.setFinishTime(System.currentTimeMillis());
 
+                    amount = amount.add(new BigDecimal(minerProject.getPrice()));
+                    totalEsgNumber = totalEsgNumber.add(esgNumber);
+
+                }
+            }catch (Exception e){
+                e.printStackTrace();
+                throw new RuntimeException("购买矿机异常");
             }
         }
 
@@ -183,19 +184,23 @@ public class PurchaseMinerProjectServiceImpl implements PurchaseMinerProjectServ
             accountDeductCmd.setNumber(ecoNumber.toString());
             accountDeductCmd.setWalletAddress(purchaseMinerProjectsCreateCmd.getWalletAddress());
             accountDeductCmd.setOrder(order);
-            SingleResponse<Void> response = accountService.purchaseMinerProjectNumber(accountDeductCmd);
-            if (!response.isSuccess()) {
 
-                purchaseMinerProject.setStatus(PurchaseMinerProjectStatus.FAIL.getCode());
-                purchaseMinerProject.setReason(response.getErrMessage());
-                purchaseMinerProjectMapper.updateById(purchaseMinerProject);
-                return response;
-            } else {
-                // 购买成功，记录购买信息
-                purchaseMinerProject.setStatus(PurchaseMinerProjectStatus.SUCCESS.getCode());
-                purchaseMinerProjectMapper.updateById(purchaseMinerProject);
+            try {
 
+                SingleResponse<Void> response = accountService.purchaseMinerProjectNumber(accountDeductCmd);
+                if (!response.isSuccess()) {
+
+                    return response;
+                } else {
+                    // 购买成功，记录购买信息
+                    purchaseMinerProject.setStatus(PurchaseMinerProjectStatus.SUCCESS.getCode());
+                    purchaseMinerProject.setFinishTime(System.currentTimeMillis());
+                }
+            }catch (Exception e){
+                e.printStackTrace();
+                throw new RuntimeException("购买矿机异常");
             }
+
         }
 
         if (purchaseMinerProjectsCreateCmd.getType().equals(PurchaseMinerType.ECO_ESG.getCode())) {
@@ -227,65 +232,68 @@ public class PurchaseMinerProjectServiceImpl implements PurchaseMinerProjectServ
             ecoAccountDeductCmd.setNumber(ecoNumber.toString());
             ecoAccountDeductCmd.setWalletAddress(purchaseMinerProjectsCreateCmd.getWalletAddress());
             ecoAccountDeductCmd.setOrder(order);
-            SingleResponse<Void> ecoResponse = accountService.purchaseMinerProjectNumber(ecoAccountDeductCmd);
-            if (!ecoResponse.isSuccess()) {
 
-                throw new RuntimeException(ecoResponse.getErrMessage());
+            try {
+
+                SingleResponse<Void> ecoResponse = accountService.purchaseMinerProjectNumber(ecoAccountDeductCmd);
+                if (!ecoResponse.isSuccess()) {
+                    return ecoResponse;
+                }
+            }catch (Exception e){
+                e.printStackTrace();
+                throw new RuntimeException("购买矿机异常");
             }
+
 
             AccountDeductCmd esgAccountDeductCmd = new AccountDeductCmd();
             esgAccountDeductCmd.setAccountType(AccountType.ESG.getCode());
             esgAccountDeductCmd.setNumber(esgNumber.toString());
             esgAccountDeductCmd.setWalletAddress(purchaseMinerProjectsCreateCmd.getWalletAddress());
             esgAccountDeductCmd.setOrder(order);
-            SingleResponse<Void> esgResponse = accountService.purchaseMinerProjectNumber(esgAccountDeductCmd);
-            if (!esgResponse.isSuccess()) {
 
-                throw new RuntimeException(esgResponse.getErrMessage());
-
-//                purchaseMinerProject.setStatus(PurchaseMinerProjectStatus.FAIL.getCode());
-//                purchaseMinerProject.setReason(esgResponse.getErrMessage());
-//                purchaseMinerProjectMapper.updateById(purchaseMinerProject);
-//
-//                AccountAddCmd ecoAccountAddCmd = new AccountAddCmd();
-//                ecoAccountAddCmd.setAccountType(AccountType.ECO.getCode());
-//                ecoAccountAddCmd.setNumber(ecoNumber.toString());
-//                ecoAccountAddCmd.setWalletAddress(purchaseMinerProjectsCreateCmd.getWalletAddress());
-//                ecoAccountAddCmd.setOrder(order);
-//                SingleResponse<Void> rollbackEcoResponse = accountService.rollbackPurchaseMinerProjectNumber(ecoAccountAddCmd);
-//
-//                if (!rollbackEcoResponse.isSuccess()){
-//                    throw new RuntimeException("购买矿机失败");
-//                }
-//                return esgResponse;
+            try {
+                SingleResponse<Void> esgResponse = accountService.purchaseMinerProjectNumber(esgAccountDeductCmd);
+                if (!esgResponse.isSuccess()) {
+                    throw new BusinessException("ESG支付失败: " + esgResponse.getErrMessage());
+                }
+            }catch (Exception e){
+                e.printStackTrace();
+                throw new RuntimeException("购买矿机异常");
             }
+
 
             // 购买成功，记录购买信息
             purchaseMinerProject.setStatus(PurchaseMinerProjectStatus.SUCCESS.getCode());
-
-            purchaseMinerProjectMapper.updateById(purchaseMinerProject);
+            purchaseMinerProject.setCreateTime(System.currentTimeMillis());
 
             amount = amount.add(halfPrice);
 
             totalEsgNumber = totalEsgNumber.add(esgNumber);
         }
 
-        TotalComputingPowerCmd totalComputingPowerCmd = new TotalComputingPowerCmd();
-        totalComputingPowerCmd.setWalletAddress(purchaseMinerProject.getWalletAddress());
-        totalComputingPowerCmd.setComputingPower(purchaseMinerProject.getActualComputingPower());
+        try {
 
-        recommendStatisticsLogService.statistics(totalComputingPowerCmd);
+            TotalComputingPowerCmd totalComputingPowerCmd = new TotalComputingPowerCmd();
+            totalComputingPowerCmd.setWalletAddress(purchaseMinerProject.getWalletAddress());
+            totalComputingPowerCmd.setComputingPower(purchaseMinerProject.getActualComputingPower());
 
+            recommendStatisticsLogService.statistics(totalComputingPowerCmd);
 
-        if (amount.compareTo(BigDecimal.ZERO) == 0) {
+            if (amount.compareTo(BigDecimal.ZERO) == 0) {
 
-            MinerProjectStatisticsLogCmd minerProjectStatisticsLogCmd = new MinerProjectStatisticsLogCmd();
-            minerProjectStatisticsLogCmd.setAmount(amount);
-            minerProjectStatisticsLogCmd.setMinerProjectId(minerProject.getId());
-            minerProjectStatisticsLogCmd.setDayTime(dayTime);
-            minerProjectStatisticsLogCmd.setEsgNumber(totalEsgNumber);
+                MinerProjectStatisticsLogCmd minerProjectStatisticsLogCmd = new MinerProjectStatisticsLogCmd();
+                minerProjectStatisticsLogCmd.setAmount(amount);
+                minerProjectStatisticsLogCmd.setMinerProjectId(minerProject.getId());
+                minerProjectStatisticsLogCmd.setDayTime(dayTime);
+                minerProjectStatisticsLogCmd.setEsgNumber(totalEsgNumber);
 
-            minerProjectService.statistics(minerProjectStatisticsLogCmd);
+                minerProjectService.statistics(minerProjectStatisticsLogCmd);
+            }
+            purchaseMinerProjectMapper.insert(purchaseMinerProject);
+
+        }catch (Exception e){
+            e.printStackTrace();
+            throw new RuntimeException("购买矿机异常");
         }
 
         return SingleResponse.buildSuccess();

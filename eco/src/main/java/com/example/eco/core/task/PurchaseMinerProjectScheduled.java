@@ -59,9 +59,14 @@ public class PurchaseMinerProjectScheduled {
             totalComputingPowerCmd.setWalletAddress(purchaseMinerProject.getWalletAddress());
             totalComputingPowerCmd.setComputingPower(computingPower.toString());
 
-            recommendStatisticsLogService.statistics(totalComputingPowerCmd);
+            try {
 
-            purchaseMinerProjectMapper.updateById(purchaseMinerProject);
+                recommendStatisticsLogService.statistics(totalComputingPowerCmd);
+
+                purchaseMinerProjectMapper.updateById(purchaseMinerProject);
+            }catch (Exception e){
+                e.printStackTrace();
+            }
         }
     }
 

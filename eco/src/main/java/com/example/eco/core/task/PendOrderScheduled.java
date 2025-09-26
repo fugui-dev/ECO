@@ -41,7 +41,11 @@ public class PendOrderScheduled {
             pendOrderCompleteCmd.setOrder(pendOrder.getOrder());
             pendOrderCompleteCmd.setWalletAddress(pendOrder.getWalletAddress());
 
-            pendOrderService.completePendOrder(pendOrderCompleteCmd);
+            try {
+                pendOrderService.completePendOrder(pendOrderCompleteCmd);
+            }catch (Exception e){
+                e.printStackTrace();
+            }
         }
     }
 }

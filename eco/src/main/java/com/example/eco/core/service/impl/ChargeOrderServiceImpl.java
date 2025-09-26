@@ -15,6 +15,7 @@ import com.example.eco.model.entity.ChargeOrder;
 import com.example.eco.model.entity.EtherScanAccountTransaction;
 import com.example.eco.model.mapper.ChargeOrderMapper;
 import com.example.eco.model.mapper.EtherScanAccountTransactionMapper;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Isolation;
@@ -25,6 +26,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
+@Slf4j
 @Service
 public class ChargeOrderServiceImpl implements ChargeOrderService {
 
@@ -51,9 +53,14 @@ public class ChargeOrderServiceImpl implements ChargeOrderService {
         accountChargeNumberCmd.setOrder(order);
         accountChargeNumberCmd.setHash(chargeOrderCreateCmd.getHash());
 
-        SingleResponse<Void> response = accountService.chargeNumber(accountChargeNumberCmd);
-        if (!response.isSuccess()) {
-            return response;
+        try {
+            SingleResponse<Void> response = accountService.chargeNumber(accountChargeNumberCmd);
+            if (!response.isSuccess()) {
+                return response;
+            }
+        }catch (Exception e){
+            e.printStackTrace();
+            throw new RuntimeException("创建充值订单异常");
         }
 
         ChargeOrder chargeOrder = new ChargeOrder();
@@ -96,10 +103,16 @@ public class ChargeOrderServiceImpl implements ChargeOrderService {
             accountLockChargeNumberCmd.setWalletAddress(chargeOrder.getWalletAddress());
             accountLockChargeNumberCmd.setOrder(chargeOrder.getOrder());
             accountLockChargeNumberCmd.setHash(chargeOrder.getHash());
-            SingleResponse<Void> response = accountService.releaseLockChargeNumber(accountLockChargeNumberCmd);
 
-            if (!response.isSuccess()) {
-                return response;
+            try {
+                SingleResponse<Void> response = accountService.releaseLockChargeNumber(accountLockChargeNumberCmd);
+
+                if (!response.isSuccess()) {
+                    return response;
+                }
+            }catch (Exception e){
+                e.printStackTrace();
+                throw new RuntimeException("更新充值订单失败");
             }
         }else {
 
@@ -110,10 +123,17 @@ public class ChargeOrderServiceImpl implements ChargeOrderService {
             rollbackLockChargeNumberCmd.setWalletAddress(chargeOrder.getWalletAddress());
             rollbackLockChargeNumberCmd.setOrder(chargeOrder.getOrder());
             rollbackLockChargeNumberCmd.setHash(chargeOrder.getHash());
-            SingleResponse<Void> response = accountService.rollbackLockChargeNumber(rollbackLockChargeNumberCmd);
 
-            if (!response.isSuccess()) {
-                return response;
+            try {
+                SingleResponse<Void> response = accountService.rollbackLockChargeNumber(rollbackLockChargeNumberCmd);
+
+                if (!response.isSuccess()) {
+                    log.info("更新充值订单失败{}",response.getErrMessage());
+                    throw new RuntimeException("更新充值订单失败");
+                }
+            }catch (Exception e){
+                e.printStackTrace();
+                throw new RuntimeException("更新充值订单失败");
             }
         }
 

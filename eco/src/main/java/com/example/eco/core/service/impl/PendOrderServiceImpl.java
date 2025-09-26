@@ -9,11 +9,13 @@ import com.example.eco.bean.SingleResponse;
 import com.example.eco.bean.cmd.*;
 import com.example.eco.bean.dto.PendOrderDTO;
 import com.example.eco.common.AccountType;
+import com.example.eco.common.BusinessException;
 import com.example.eco.common.PendOrderStatus;
 import com.example.eco.core.service.AccountService;
 import com.example.eco.core.service.PendOrderService;
 import com.example.eco.model.entity.PendOrder;
 import com.example.eco.model.mapper.PendOrderMapper;
+import lombok.extern.slf4j.Slf4j;
 import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
 import org.springframework.beans.BeanUtils;
@@ -30,6 +32,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
+@Slf4j
 @Service
 public class PendOrderServiceImpl implements PendOrderService {
 
@@ -56,9 +59,16 @@ public class PendOrderServiceImpl implements PendOrderService {
         accountSellNumberCmd.setType(pendOrderCreateCmd.getType());
         accountSellNumberCmd.setWalletAddress(pendOrderCreateCmd.getWalletAddress());
 
-        SingleResponse<Void> response = accountService.sellNumber(accountSellNumberCmd);
-        if (!response.isSuccess()) {
-            return response;
+        try {
+
+            SingleResponse<Void> response = accountService.sellNumber(accountSellNumberCmd);
+            if (!response.isSuccess()) {
+                return response;
+            }
+
+        }catch (Exception e){
+            e.printStackTrace();
+            throw new RuntimeException("创建挂单异常");
         }
 
         PendOrder pendOrder = new PendOrder();
@@ -97,20 +107,30 @@ public class PendOrderServiceImpl implements PendOrderService {
                 return SingleResponse.buildFailure("挂单状态不允许取消");
             }
 
-            pendOrder.setStatus(PendOrderStatus.DELETE.getCode());
-            pendOrderMapper.updateById(pendOrder);
-
             RollbackLockSellNumberCmd rollbackLockSellNumberCmd = new RollbackLockSellNumberCmd();
             rollbackLockSellNumberCmd.setOrder(pendOrderDeleteCmd.getOrder());
             rollbackLockSellNumberCmd.setWalletAddress(pendOrder.getWalletAddress());
-            accountService.rollbackLockSellNumber(rollbackLockSellNumberCmd);
+
+            try {
+                SingleResponse<Void> response = accountService.rollbackLockSellNumber(rollbackLockSellNumberCmd);
+                if (!response.isSuccess()){
+                    return response;
+                }
+            }catch (Exception e){
+                e.printStackTrace();
+                throw new RuntimeException("删除挂单异常: " + e.getMessage());
+            }
+
+            pendOrder.setStatus(PendOrderStatus.DELETE.getCode());
+            pendOrderMapper.updateById(pendOrder);
 
             return SingleResponse.buildSuccess();
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             return SingleResponse.buildFailure("操作被中断");
         } catch (Exception e) {
-            return SingleResponse.buildFailure("删除挂单失败: " + e.getMessage());
+            // 重新抛出异常以确保事务回滚
+            throw new RuntimeException("删除挂单失败: " + e.getMessage());
         } finally {
             if (lock.isLocked() && lock.isHeldByCurrentThread()) {
                 lock.unlock();
@@ -139,27 +159,35 @@ public class PendOrderServiceImpl implements PendOrderService {
                 return SingleResponse.buildFailure("挂单状态不允许锁单");
             }
 
-            pendOrder.setPlaceOrderTime(System.currentTimeMillis());
-            pendOrder.setStatus(PendOrderStatus.LOCK.getCode());
-            pendOrder.setUpdateTime(System.currentTimeMillis());
-            pendOrderMapper.updateById(pendOrder);
-
             AccountBuyNumberCmd accountBuyNumberCmd = new AccountBuyNumberCmd();
             accountBuyNumberCmd.setOrder(pendOrderLockCmd.getOrder());
             accountBuyNumberCmd.setNumber(String.valueOf(new BigDecimal(pendOrder.getNumber()).add(new BigDecimal(pendOrder.getComplimentaryNumber()))));
             accountBuyNumberCmd.setType(pendOrder.getType());
             accountBuyNumberCmd.setWalletAddress(pendOrderLockCmd.getWalletAddress());
-            SingleResponse<Void> response = accountService.buyNumber(accountBuyNumberCmd);
-            if (!response.isSuccess()) {
-                throw new OptimisticLockingFailureException("锁单金额失败");
+
+            try {
+                SingleResponse<Void> response = accountService.buyNumber(accountBuyNumberCmd);
+                if (!response.isSuccess()) {
+                    return  response;
+                }
+            }catch (Exception e){
+                e.printStackTrace();
+                throw new RuntimeException("锁单异常: " + e.getMessage());
             }
+
+            pendOrder.setBuyerWalletAddress(pendOrderLockCmd.getWalletAddress());
+            pendOrder.setPlaceOrderTime(System.currentTimeMillis());
+            pendOrder.setStatus(PendOrderStatus.LOCK.getCode());
+            pendOrder.setUpdateTime(System.currentTimeMillis());
+            pendOrderMapper.updateById(pendOrder);
 
             return SingleResponse.buildSuccess();
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             return SingleResponse.buildFailure("操作被中断");
         } catch (Exception e) {
-            return SingleResponse.buildFailure("锁单失败: " + e.getMessage());
+            // 重新抛出异常以确保事务回滚
+            throw new RuntimeException("锁单失败: " + e.getMessage());
         } finally {
             if (lock.isLocked() && lock.isHeldByCurrentThread()) {
                 lock.unlock();
@@ -192,27 +220,34 @@ public class PendOrderServiceImpl implements PendOrderService {
                 return SingleResponse.buildFailure("挂单状态不允许取消");
             }
 
-            pendOrder.setStatus(PendOrderStatus.WAIT.getCode());
-            pendOrder.setCancelTime(System.currentTimeMillis());
-            pendOrder.setUpdateTime(System.currentTimeMillis());
-            pendOrderMapper.updateById(pendOrder);
 
             RollbackLockBuyNumberCmd rollbackLockBuyNumberCmd = new RollbackLockBuyNumberCmd();
             rollbackLockBuyNumberCmd.setOrder(pendOrderCancelCmd.getOrder());
             rollbackLockBuyNumberCmd.setWalletAddress(pendOrderCancelCmd.getWalletAddress());
 
-            SingleResponse<Void> response = accountService.rollbackLockBuyNumber(rollbackLockBuyNumberCmd);
-            if (!response.isSuccess()) {
-                throw new OptimisticLockingFailureException("回滚购买金额失败");
+            try {
+                SingleResponse<Void> response = accountService.rollbackLockBuyNumber(rollbackLockBuyNumberCmd);
+                if (!response.isSuccess()) {
+                    return response;
+                }
+            }catch (Exception e){
+                e.printStackTrace();
+                throw new RuntimeException("取消锁单异常: " + e.getMessage());
             }
 
+            pendOrder.setPlaceOrderTime(null);
+            pendOrder.setBuyerWalletAddress(null);
+            pendOrder.setStatus(PendOrderStatus.WAIT.getCode());
+            pendOrder.setUpdateTime(System.currentTimeMillis());
+            pendOrderMapper.updateById(pendOrder);
 
             return SingleResponse.buildSuccess();
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             return SingleResponse.buildFailure("操作被中断");
         } catch (Exception e) {
-            return SingleResponse.buildFailure("取消锁单失败: " + e.getMessage());
+            // 重新抛出异常以确保事务回滚
+            throw new RuntimeException("取消锁单失败: " + e.getMessage());
         } finally {
             if (lock.isLocked() && lock.isHeldByCurrentThread()) {
                 lock.unlock();
@@ -245,18 +280,20 @@ public class PendOrderServiceImpl implements PendOrderService {
                 return SingleResponse.buildFailure("挂单状态不允许确认");
             }
 
-            pendOrder.setStatus(PendOrderStatus.COMPLETE.getCode());
-            pendOrder.setConfirmTime(System.currentTimeMillis());
-            pendOrder.setUpdateTime(System.currentTimeMillis());
-            pendOrderMapper.updateById(pendOrder);
 
             //释放购买金额
             AccountReleaseLockBuyNumberCmd accountReleaseLockBuyNumberCmd = new AccountReleaseLockBuyNumberCmd();
             accountReleaseLockBuyNumberCmd.setOrder(pendOrderCompleteCmd.getOrder());
             accountReleaseLockBuyNumberCmd.setWalletAddress(pendOrder.getBuyerWalletAddress());
-            SingleResponse<Void> buyResponse = accountService.releaseLockBuyNumber(accountReleaseLockBuyNumberCmd);
-            if (!buyResponse.isSuccess()) {
-                throw new OptimisticLockingFailureException("释放购买金额失败");
+
+            try {
+                SingleResponse<Void> buyResponse = accountService.releaseLockBuyNumber(accountReleaseLockBuyNumberCmd);
+                if (!buyResponse.isSuccess()) {
+                    return buyResponse;
+                }
+            }catch (Exception e){
+                e.printStackTrace();
+                throw new RuntimeException("确认挂单异常: " + e.getMessage());
             }
 
             //释放销售金额
@@ -264,18 +301,29 @@ public class PendOrderServiceImpl implements PendOrderService {
             accountReleaseLockSellNumberCmd.setOrder(pendOrderCompleteCmd.getOrder());
             accountReleaseLockSellNumberCmd.setWalletAddress(pendOrder.getWalletAddress());
 
-            SingleResponse<Void> sellResponse = accountService.releaseLockSellNumber(accountReleaseLockSellNumberCmd);
-            if (!sellResponse.isSuccess()) {
-                throw new OptimisticLockingFailureException("释放销售金额失败");
+            try {
+                SingleResponse<Void> sellResponse = accountService.releaseLockSellNumber(accountReleaseLockSellNumberCmd);
+                if (!sellResponse.isSuccess()) {
+                    log.info("确认挂单异常：{}",sellResponse.getErrMessage());
+                    throw new BusinessException("确认挂单异常："+ sellResponse.getErrMessage());
+                }
+            }catch (Exception e){
+                e.printStackTrace();
+                throw new RuntimeException("确认挂单异常: " + e.getMessage());
             }
 
+            pendOrder.setStatus(PendOrderStatus.COMPLETE.getCode());
+            pendOrder.setConfirmTime(System.currentTimeMillis());
+            pendOrder.setUpdateTime(System.currentTimeMillis());
+            pendOrderMapper.updateById(pendOrder);
 
             return SingleResponse.buildSuccess();
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             return SingleResponse.buildFailure("操作被中断");
         } catch (Exception e) {
-            return SingleResponse.buildFailure("取消锁单失败: " + e.getMessage());
+            // 重新抛出异常以确保事务回滚
+            throw new RuntimeException("确认挂单失败: " + e.getMessage());
         } finally {
             if (lock.isLocked() && lock.isHeldByCurrentThread()) {
                 lock.unlock();

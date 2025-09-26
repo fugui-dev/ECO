@@ -8,6 +8,7 @@ import com.example.eco.bean.SingleResponse;
 import com.example.eco.bean.cmd.*;
 import com.example.eco.bean.dto.WithdrawRecordDTO;
 import com.example.eco.common.AccountType;
+import com.example.eco.common.BusinessException;
 import com.example.eco.common.MinerConfigEnum;
 import com.example.eco.common.WithdrawRecordStatus;
 import com.example.eco.core.service.AccountService;
@@ -18,6 +19,7 @@ import com.example.eco.model.entity.WithdrawRecord;
 import com.example.eco.model.mapper.MinerConfigMapper;
 import com.example.eco.model.mapper.SystemConfigMapper;
 import com.example.eco.model.mapper.WithdrawRecordMapper;
+import lombok.extern.slf4j.Slf4j;
 import org.redisson.api.RedissonClient;
 import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
@@ -29,6 +31,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
+@Slf4j
 @Service
 public class WithdrawRecordServiceImpl implements WithdrawRecordService {
 
@@ -53,9 +56,15 @@ public class WithdrawRecordServiceImpl implements WithdrawRecordService {
         accountWithdrawNumberCmd.setOrder(order);
         accountWithdrawNumberCmd.setType(withdrawRecordCreateCmd.getType());
 
-        SingleResponse<Void> response = accountService.withdrawNumber(accountWithdrawNumberCmd);
-        if (!response.isSuccess()) {
-            throw new RuntimeException(response.getErrMessage());
+        try {
+
+            SingleResponse<Void> response = accountService.withdrawNumber(accountWithdrawNumberCmd);
+            if (!response.isSuccess()) {
+                return response;
+            }
+        }catch (Exception e){
+            e.printStackTrace();
+            throw new RuntimeException("创建提现异常");
         }
 
         LambdaQueryWrapper<MinerConfig> minerConfigLambdaQueryWrapper = new LambdaQueryWrapper<>();
@@ -68,10 +77,16 @@ public class WithdrawRecordServiceImpl implements WithdrawRecordService {
             accountWithdrawServiceCmd.setNumber(minerConfig.getValue());
             accountWithdrawServiceCmd.setWalletAddress(withdrawRecordCreateCmd.getWalletAddress());
             accountWithdrawServiceCmd.setOrder(order);
-            SingleResponse<Void> serviceResponse = accountService.withdrawServiceNumber(accountWithdrawServiceCmd);
-            if (!serviceResponse.isSuccess()) {
 
-                throw new RuntimeException(serviceResponse.getErrMessage());
+            try {
+                SingleResponse<Void> serviceResponse = accountService.withdrawServiceNumber(accountWithdrawServiceCmd);
+                if (!serviceResponse.isSuccess()) {
+                    log.info("创建提现异常:{}",serviceResponse.getErrMessage());
+                    throw new BusinessException("创建提现异常："+serviceResponse.getErrMessage());
+                }
+            }catch (Exception e){
+                e.printStackTrace();
+                throw new RuntimeException("创建提现异常");
             }
         }
 
@@ -110,18 +125,30 @@ public class WithdrawRecordServiceImpl implements WithdrawRecordService {
             accountReleaseLockWithdrawNumberCmd.setOrder(withdrawRecord.getOrder());
             accountReleaseLockWithdrawNumberCmd.setWalletAddress(withdrawRecord.getWalletAddress());
 
-            SingleResponse<Void> response = accountService.releaseLockWithdrawNumber(accountReleaseLockWithdrawNumberCmd);
-            if (!response.isSuccess()) {
-                throw new RuntimeException(response.getErrMessage());
+            try {
+                SingleResponse<Void> response = accountService.releaseLockWithdrawNumber(accountReleaseLockWithdrawNumberCmd);
+                if (!response.isSuccess()) {
+                    return response;
+                }
+            }catch (Exception e){
+                e.printStackTrace();
+                throw new RuntimeException("处理提现异常");
             }
 
             AccountReleaseLockWithdrawServiceCmd accountReleaseLockWithdrawServiceCmd = new AccountReleaseLockWithdrawServiceCmd();
             accountReleaseLockWithdrawServiceCmd.setOrder(withdrawRecord.getOrder());
             accountReleaseLockWithdrawServiceCmd.setWalletAddress(withdrawRecord.getWalletAddress());
 
-            SingleResponse<Void> releaseResponse = accountService.releaseLockWithdrawServiceNumber(accountReleaseLockWithdrawServiceCmd);
-            if (!releaseResponse.isSuccess()){
-                throw new RuntimeException(releaseResponse.getErrMessage());
+            try {
+                SingleResponse<Void> releaseResponse = accountService.releaseLockWithdrawServiceNumber(accountReleaseLockWithdrawServiceCmd);
+                if (!releaseResponse.isSuccess()){
+
+                    log.info("处理提现异常:{}",releaseResponse.getErrMessage());
+                    throw new BusinessException("处理提现异常:" + releaseResponse.getErrMessage());
+                }
+            }catch (Exception e){
+                e.printStackTrace();
+                throw new RuntimeException("处理提现异常");
             }
         }else {
 
@@ -129,18 +156,30 @@ public class WithdrawRecordServiceImpl implements WithdrawRecordService {
             rollbackLockWithdrawNumberCmd.setOrder(withdrawRecord.getOrder());
             rollbackLockWithdrawNumberCmd.setWalletAddress(withdrawRecord.getWalletAddress());
 
-            SingleResponse<Void> response = accountService.rollbackLockWithdrawNumber(rollbackLockWithdrawNumberCmd);
-            if (!response.isSuccess()) {
-                throw new RuntimeException(response.getErrMessage());
+            try {
+                SingleResponse<Void> response = accountService.rollbackLockWithdrawNumber(rollbackLockWithdrawNumberCmd);
+                if (!response.isSuccess()) {
+                    return response;
+                }
+            }catch (Exception e){
+                e.printStackTrace();
+                throw new RuntimeException("处理提现异常");
             }
+
 
             RollbackLockWithdrawServiceCmd rollbackLockWithdrawServiceCmd = new RollbackLockWithdrawServiceCmd();
             rollbackLockWithdrawServiceCmd.setOrder(withdrawRecord.getOrder());
             rollbackLockWithdrawServiceCmd.setWalletAddress(withdrawRecord.getWalletAddress());
 
-            SingleResponse<Void> rollbackResponse = accountService.rollbackLockWithdrawServiceNumber(rollbackLockWithdrawServiceCmd);
-            if (!rollbackResponse.isSuccess()) {
-                throw new RuntimeException(rollbackResponse.getErrMessage());
+            try {
+                SingleResponse<Void> rollbackResponse = accountService.rollbackLockWithdrawServiceNumber(rollbackLockWithdrawServiceCmd);
+                if (!rollbackResponse.isSuccess()) {
+                    log.info("处理提现异常:{}",rollbackResponse.getErrMessage());
+                    throw new BusinessException("处理提现异常:" + rollbackResponse.getErrMessage());
+                }
+            }catch (Exception e){
+                e.printStackTrace();
+                throw new RuntimeException("处理提现异常");
             }
         }
 
@@ -169,19 +208,34 @@ public class WithdrawRecordServiceImpl implements WithdrawRecordService {
         RollbackLockWithdrawNumberCmd rollbackLockWithdrawNumberCmd = new RollbackLockWithdrawNumberCmd();
         rollbackLockWithdrawNumberCmd.setOrder(withdrawRecord.getOrder());
         rollbackLockWithdrawNumberCmd.setWalletAddress(withdrawRecord.getWalletAddress());
-        SingleResponse<Void> response = accountService.rollbackLockWithdrawNumber(rollbackLockWithdrawNumberCmd);
-        if (!response.isSuccess()) {
-            throw new RuntimeException(response.getErrMessage());
+
+        try {
+
+            SingleResponse<Void> response = accountService.rollbackLockWithdrawNumber(rollbackLockWithdrawNumberCmd);
+            if (!response.isSuccess()) {
+                return response;
+            }
+        }catch (Exception e){
+            e.printStackTrace();
+            throw new RuntimeException("取消提现异常");
         }
+
 
         RollbackLockWithdrawServiceCmd rollbackLockWithdrawServiceCmd = new RollbackLockWithdrawServiceCmd();
         rollbackLockWithdrawServiceCmd.setOrder(withdrawRecord.getOrder());
         rollbackLockWithdrawServiceCmd.setWalletAddress(withdrawRecord.getWalletAddress());
 
-        SingleResponse<Void> rollbackResponse = accountService.rollbackLockWithdrawServiceNumber(rollbackLockWithdrawServiceCmd);
-        if (!rollbackResponse.isSuccess()) {
-            throw new RuntimeException(rollbackResponse.getErrMessage());
+        try {
+            SingleResponse<Void> rollbackResponse = accountService.rollbackLockWithdrawServiceNumber(rollbackLockWithdrawServiceCmd);
+            if (!rollbackResponse.isSuccess()) {
+                log.info("取消提现异常:{}",rollbackResponse.getErrMessage());
+                throw new BusinessException("取消提现异常:" + rollbackResponse.getErrMessage());
+            }
+        }catch (Exception e){
+            e.printStackTrace();
+            throw new RuntimeException("取消提现异常");
         }
+
         withdrawRecord.setStatus(WithdrawRecordStatus.CANCELED.getCode());
         withdrawRecord.setCancelTime(System.currentTimeMillis());
         withdrawRecordMapper.updateById(withdrawRecord);
