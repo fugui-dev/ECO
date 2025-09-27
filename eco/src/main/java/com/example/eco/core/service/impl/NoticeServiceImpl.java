@@ -32,7 +32,7 @@ public class NoticeServiceImpl implements NoticeService {
         Notice notice = new Notice();
         notice.setContent(noticeCreateCmd.getContent());
         notice.setTitle(noticeCreateCmd.getTitle());
-
+        notice.setCreateTime(System.currentTimeMillis());
         noticeMapper.insert(notice);
 
         return SingleResponse.buildSuccess();

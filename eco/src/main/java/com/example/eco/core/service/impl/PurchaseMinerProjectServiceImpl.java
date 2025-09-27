@@ -258,13 +258,13 @@ public class PurchaseMinerProjectServiceImpl implements PurchaseMinerProjectServ
                 }
             }catch (Exception e){
                 e.printStackTrace();
-                throw new RuntimeException("购买矿机异常");
+                throw new BusinessException(e.getMessage());
             }
 
 
             // 购买成功，记录购买信息
             purchaseMinerProject.setStatus(PurchaseMinerProjectStatus.SUCCESS.getCode());
-            purchaseMinerProject.setCreateTime(System.currentTimeMillis());
+            purchaseMinerProject.setFinishTime(System.currentTimeMillis());
 
             amount = amount.add(halfPrice);
 

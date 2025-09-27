@@ -68,7 +68,7 @@ public class WithdrawRecordServiceImpl implements WithdrawRecordService {
         }
 
         LambdaQueryWrapper<MinerConfig> minerConfigLambdaQueryWrapper = new LambdaQueryWrapper<>();
-        minerConfigLambdaQueryWrapper.eq(MinerConfig::getName, MinerConfigEnum.WITHDRAW_SERVICE.getName());
+        minerConfigLambdaQueryWrapper.eq(MinerConfig::getName, MinerConfigEnum.WITHDRAW_SERVICE.getCode());
 
         MinerConfig minerConfig = minerConfigMapper.selectOne(minerConfigLambdaQueryWrapper);
         if (Objects.nonNull(minerConfig) && StringUtils.isNotEmpty(minerConfig.getValue())){
@@ -86,7 +86,7 @@ public class WithdrawRecordServiceImpl implements WithdrawRecordService {
                 }
             }catch (Exception e){
                 e.printStackTrace();
-                throw new RuntimeException("创建提现异常");
+                throw new BusinessException(e.getMessage());
             }
         }
 
@@ -99,7 +99,7 @@ public class WithdrawRecordServiceImpl implements WithdrawRecordService {
         withdrawRecord.setStatus(WithdrawRecordStatus.PENDING_REVIEW.getCode());
         withdrawRecord.setWithdrawNumber(withdrawRecordCreateCmd.getNumber());
         withdrawRecord.setRemark(withdrawRecordCreateCmd.getRemark());
-
+        withdrawRecord.setCreateTime(System.currentTimeMillis());
         withdrawRecordMapper.insert(withdrawRecord);
 
         return SingleResponse.buildSuccess();
@@ -148,7 +148,7 @@ public class WithdrawRecordServiceImpl implements WithdrawRecordService {
                 }
             }catch (Exception e){
                 e.printStackTrace();
-                throw new RuntimeException("处理提现异常");
+                throw new BusinessException(e.getMessage());
             }
         }else {
 
@@ -179,7 +179,7 @@ public class WithdrawRecordServiceImpl implements WithdrawRecordService {
                 }
             }catch (Exception e){
                 e.printStackTrace();
-                throw new RuntimeException("处理提现异常");
+                throw new BusinessException(e.getMessage());
             }
         }
 
@@ -233,7 +233,7 @@ public class WithdrawRecordServiceImpl implements WithdrawRecordService {
             }
         }catch (Exception e){
             e.printStackTrace();
-            throw new RuntimeException("取消提现异常");
+            throw new BusinessException(e.getMessage());
         }
 
         withdrawRecord.setStatus(WithdrawRecordStatus.CANCELED.getCode());

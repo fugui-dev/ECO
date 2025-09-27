@@ -62,17 +62,40 @@ public class RecommendStatisticsLogServiceImpl implements RecommendStatisticsLog
             String dayTime = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
 
             //被推荐人钱包地址
-            RecommendStatisticsLog recommendStatisticsLog = getOrCreate(directRecommendCountCmd.getRecommendWalletAddress(), dayTime);
+            LambdaQueryWrapper<RecommendStatisticsLog> queryWrapper = new LambdaQueryWrapper<>();
+            queryWrapper.eq(RecommendStatisticsLog::getWalletAddress,directRecommendCountCmd.getRecommendWalletAddress());
 
-            BigDecimal totalDirectRecommendComputingPower = new BigDecimal(recommendStatisticsLog.getTotalDirectRecommendComputingPower());
+            List<RecommendStatisticsLog> recommendStatisticsLogs = recommendStatisticsLogMapper.selectList(queryWrapper);
+
+            BigDecimal totalComputingPower = recommendStatisticsLogs.stream()
+                    .map(RecommendStatisticsLog::getTotalComputingPower)
+                    .map(BigDecimal::new)
+                    .reduce(BigDecimal::add)
+                    .orElse(BigDecimal.ZERO);
+
+            BigDecimal totalRecommendTotalComputingPower = recommendStatisticsLogs.stream()
+                    .map(RecommendStatisticsLog::getTotalRecommendComputingPower)
+                    .map(BigDecimal::new)
+                    .reduce(BigDecimal::add)
+                    .orElse(BigDecimal.ZERO);
+
+            totalRecommendTotalComputingPower = totalRecommendTotalComputingPower.add(totalComputingPower);
 
             //推荐人钱包地址
             RecommendStatisticsLog statisticsLog = getOrCreate(directRecommendCountCmd.getWalletAddress(), dayTime);
             statisticsLog.setDirectRecommendCount(statisticsLog.getDirectRecommendCount() + 1);
 
-            BigDecimal newTotalDirectRecommendComputingPower = new BigDecimal(statisticsLog.getTotalDirectRecommendComputingPower()).add(totalDirectRecommendComputingPower);
+            BigDecimal newTotalDirectRecommendComputingPower = new BigDecimal(statisticsLog.getTotalDirectRecommendComputingPower()).add(totalComputingPower);
             statisticsLog.setTotalDirectRecommendComputingPower(newTotalDirectRecommendComputingPower.toString());
+
+            BigDecimal newTotalRecommendComputingPower = new BigDecimal(statisticsLog.getTotalRecommendComputingPower()).add(totalRecommendTotalComputingPower);
+            statisticsLog.setTotalRecommendComputingPower(newTotalRecommendComputingPower.toString());
+
             recommendStatisticsLogMapper.updateById(statisticsLog);
+
+
+            // 递归更新上级的推荐人总算力
+            updateTotalRecommendComputingPower(dayTime, directRecommendCountCmd.getWalletAddress(), totalRecommendTotalComputingPower);
 
             return SingleResponse.buildSuccess();
         } catch (InterruptedException e) {
@@ -87,7 +110,7 @@ public class RecommendStatisticsLogServiceImpl implements RecommendStatisticsLog
         }
     }
 
-    @Async
+//    @Async
     @Override
     @Transactional(isolation = Isolation.REPEATABLE_READ, rollbackFor = Exception.class)
     public SingleResponse<Void> statistics(TotalComputingPowerCmd totalComputingPowerCmd) {
@@ -137,9 +160,9 @@ public class RecommendStatisticsLogServiceImpl implements RecommendStatisticsLog
             return SingleResponse.buildSuccess();
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            return SingleResponse.buildFailure("操作被中断");
+            throw new RuntimeException("推荐统计失败");
         } catch (Exception e) {
-            return SingleResponse.buildFailure("删除挂单失败: " + e.getMessage());
+            throw new RuntimeException(e.getMessage());
         } finally {
             if (lock.isLocked() && lock.isHeldByCurrentThread()) {
                 lock.unlock();
@@ -158,7 +181,7 @@ public class RecommendStatisticsLogServiceImpl implements RecommendStatisticsLog
         queryWrapper.last("FOR UPDATE");
 
         Recommend recommend = recommendMapper.selectOne(queryWrapper);
-        if (Objects.nonNull(recommend)) {
+        if (Objects.nonNull(recommend) && StringUtils.hasLength(recommend.getRecommendWalletAddress())) {
             // 有上级，更新上级的推荐人总算力
             RecommendStatisticsLog parentLog = getOrCreate(recommend.getRecommendWalletAddress(), dayTime);
 
@@ -375,7 +398,7 @@ public class RecommendStatisticsLogServiceImpl implements RecommendStatisticsLog
             existingLog.setTotalComputingPower("0");
             existingLog.setTotalRecommendComputingPower("0");
             existingLog.setTotalDirectRecommendComputingPower("0");
-
+            existingLog.setCreateTime(System.currentTimeMillis());
             recommendStatisticsLogMapper.insert(existingLog);
         }
 

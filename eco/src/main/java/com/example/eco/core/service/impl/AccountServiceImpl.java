@@ -69,6 +69,8 @@ public class AccountServiceImpl implements AccountService {
             existingEcoAccount.setDynamicReward("0");
             existingEcoAccount.setStaticReward("0");
             existingEcoAccount.setNumber("0");
+            existingEcoAccount.setServiceNumber("0");
+            existingEcoAccount.setServiceLockNumber("0");
             existingEcoAccount.setType(AccountType.ECO.getCode());
             existingEcoAccount.setCreateTime(System.currentTimeMillis());
             existingEcoAccount.setUpdateTime(System.currentTimeMillis());
@@ -94,6 +96,8 @@ public class AccountServiceImpl implements AccountService {
             existingEsgAccount.setDynamicReward("0");
             existingEsgAccount.setStaticReward("0");
             existingEsgAccount.setNumber("0");
+            existingEcoAccount.setServiceNumber("0");
+            existingEcoAccount.setServiceLockNumber("0");
             existingEsgAccount.setType(AccountType.ESG.getCode());
             existingEsgAccount.setCreateTime(System.currentTimeMillis());
             existingEsgAccount.setUpdateTime(System.currentTimeMillis());
@@ -477,7 +481,7 @@ public class AccountServiceImpl implements AccountService {
         AccountTransaction lockSellTransaction = accountTransactionMapper.selectOne(lambdaQueryWrapper);
 
 
-        Account account = accountMapper.selectById(lockSellTransaction.getId());
+        Account account = accountMapper.selectById(lockSellTransaction.getAccountId());
         if (account == null) {
             return SingleResponse.buildFailure("账户不存在");
         }

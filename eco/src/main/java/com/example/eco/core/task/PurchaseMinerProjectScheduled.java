@@ -42,7 +42,7 @@ public class PurchaseMinerProjectScheduled {
 
         LambdaQueryWrapper<PurchaseMinerProject> lambdaQueryWrapper = new LambdaQueryWrapper<>();
         lambdaQueryWrapper.eq(PurchaseMinerProject::getStatus, PurchaseMinerProjectStatus.SUCCESS.getCode());
-        lambdaQueryWrapper.ge(PurchaseMinerProject::getAccelerateExpireTime, System.currentTimeMillis());
+        lambdaQueryWrapper.le(PurchaseMinerProject::getAccelerateExpireTime, System.currentTimeMillis());
         lambdaQueryWrapper.isNotNull(PurchaseMinerProject::getAccelerateExpireTime);
 
         List<PurchaseMinerProject> purchaseMinerProjectList = purchaseMinerProjectMapper.selectList(lambdaQueryWrapper);

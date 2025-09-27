@@ -27,10 +27,27 @@ public class PurchaseMinerProjectDTO {
      */
     private String computingPower;
 
+
     /**
-     * 实际到账算力
+     * 实际到账矿机算力
      */
-    private String realComputingPower;
+    private String actualComputingPower;
+
+    /**
+     * 加速到期时间
+     */
+    private Long accelerateExpireTime;
+
+    /**
+     * ESG数量
+     */
+    private String esgNumber;
+
+    /**
+     * ECO数量
+     */
+    private String ecoNumber;
+
 
     /**
      * 购买方式类型
@@ -65,4 +82,9 @@ public class PurchaseMinerProjectDTO {
      * 创建时间
      */
     private Long createTime;
+
+    /**
+     * 完成时间
+     */
+    private Long finishTime;
 }

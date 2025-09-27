@@ -309,7 +309,7 @@ public class PendOrderServiceImpl implements PendOrderService {
                 }
             }catch (Exception e){
                 e.printStackTrace();
-                throw new RuntimeException("确认挂单异常: " + e.getMessage());
+                throw new RuntimeException(e.getMessage());
             }
 
             pendOrder.setStatus(PendOrderStatus.COMPLETE.getCode());
