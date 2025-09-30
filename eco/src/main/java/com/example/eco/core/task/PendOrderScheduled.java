@@ -31,7 +31,7 @@ public class PendOrderScheduled {
 
         LambdaQueryWrapper<PendOrder> lambdaQueryWrapper = new LambdaQueryWrapper<>();
         lambdaQueryWrapper.eq(PendOrder::getStatus, PendOrderStatus.LOCK.getCode());
-        lambdaQueryWrapper.ge(PendOrder::getPlaceOrderTime, time);
+        lambdaQueryWrapper.le(PendOrder::getPlaceOrderTime, time);
 
         List<PendOrder> pendOrderList = pendOrderMapper.selectList(lambdaQueryWrapper);
 

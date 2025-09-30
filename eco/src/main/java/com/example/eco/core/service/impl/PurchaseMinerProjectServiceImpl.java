@@ -404,11 +404,11 @@ public class PurchaseMinerProjectServiceImpl implements PurchaseMinerProjectServ
 
         List<PurchaseMinerProject> purchaseMinerProjectList = purchaseMinerProjectMapper.selectList(purchaseMinerProjectLambdaQueryWrapper);
 
-        Integer totalComputingPower = purchaseMinerProjectList.stream()
+        BigDecimal totalComputingPower = purchaseMinerProjectList.stream()
                 .map(PurchaseMinerProject::getActualComputingPower)
-                .map(Integer::valueOf)
-                .reduce(Integer::sum)
-                .orElse(0);
+                .map(BigDecimal::new)
+                .reduce(BigDecimal::add)
+                .orElse(BigDecimal.ZERO);
 
         Integer totalPurchaseMinerProjectCount = purchaseMinerProjectList.size();
 
@@ -416,12 +416,12 @@ public class PurchaseMinerProjectServiceImpl implements PurchaseMinerProjectServ
                 .filter(x -> x.getCreateTime() > startTimestamp && x.getCreateTime() < endTimestamp)
                 .collect(Collectors.toList());
 
-        Integer yesterdayTotalComputingPower = yesterdayPurchaseMinerProjectList
+        BigDecimal yesterdayTotalComputingPower = yesterdayPurchaseMinerProjectList
                 .stream()
                 .map(PurchaseMinerProject::getActualComputingPower)
-                .map(Integer::valueOf)
-                .reduce(Integer::sum)
-                .orElse(0);
+                .map(BigDecimal::new)
+                .reduce(BigDecimal::add)
+                .orElse(BigDecimal.ZERO);
 
         Integer yesterdayTotalPurchaseMinerProjectCount = yesterdayPurchaseMinerProjectList.size();
 
