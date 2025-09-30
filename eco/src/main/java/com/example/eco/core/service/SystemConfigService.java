@@ -23,4 +23,9 @@ public interface SystemConfigService {
      * 获取系统修改记录
      */
     MultiResponse<SystemConfigLogDTO> list(SystemConfigLogPageQry systemConfigLogPageQry);
+
+    /**
+     * 获取ECO价格
+     */
+    SingleResponse<SystemConfigDTO> getEcoPrice();
 }

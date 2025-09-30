@@ -405,7 +405,7 @@ public class PurchaseMinerProjectServiceImpl implements PurchaseMinerProjectServ
         List<PurchaseMinerProject> purchaseMinerProjectList = purchaseMinerProjectMapper.selectList(purchaseMinerProjectLambdaQueryWrapper);
 
         Integer totalComputingPower = purchaseMinerProjectList.stream()
-                .map(PurchaseMinerProject::getComputingPower)
+                .map(PurchaseMinerProject::getActualComputingPower)
                 .map(Integer::valueOf)
                 .reduce(Integer::sum)
                 .orElse(0);
@@ -418,7 +418,7 @@ public class PurchaseMinerProjectServiceImpl implements PurchaseMinerProjectServ
 
         Integer yesterdayTotalComputingPower = yesterdayPurchaseMinerProjectList
                 .stream()
-                .map(PurchaseMinerProject::getComputingPower)
+                .map(PurchaseMinerProject::getActualComputingPower)
                 .map(Integer::valueOf)
                 .reduce(Integer::sum)
                 .orElse(0);

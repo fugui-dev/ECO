@@ -8,6 +8,7 @@ import com.example.eco.bean.cmd.SystemConfigLogPageQry;
 import com.example.eco.bean.cmd.SystemConfigUpdateCmd;
 import com.example.eco.bean.dto.SystemConfigDTO;
 import com.example.eco.bean.dto.SystemConfigLogDTO;
+import com.example.eco.common.SystemConfigEnum;
 import com.example.eco.core.service.SystemConfigService;
 import com.example.eco.model.entity.SystemConfig;
 import com.example.eco.model.entity.SystemConfigLog;
@@ -101,5 +102,22 @@ public class SystemConfigServiceImpl implements SystemConfigService {
 
         }
         return MultiResponse.of(systemConfigLogDTOList);
+    }
+
+    @Override
+    public SingleResponse<SystemConfigDTO> getEcoPrice() {
+        LambdaQueryWrapper<SystemConfig> queryWrapper = new LambdaQueryWrapper<>();
+        queryWrapper.eq(SystemConfig::getName, SystemConfigEnum.ECO_PRICE.getCode());
+
+        SystemConfig systemConfig = systemConfigMapper.selectOne(queryWrapper);
+        if (Objects.isNull(systemConfig)){
+            return SingleResponse.buildFailure("没有设置ECO价格");
+        }
+
+        SystemConfigDTO systemConfigDTO = new SystemConfigDTO();
+        systemConfigDTO.setName(systemConfig.getName());
+        systemConfigDTO.setValue(systemConfig.getValue());
+
+        return SingleResponse.of(systemConfigDTO);
     }
 }

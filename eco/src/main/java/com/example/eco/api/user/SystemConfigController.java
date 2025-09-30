@@ -28,4 +28,12 @@ public class SystemConfigController {
         systemConfigLogPageQry.setName(SystemConfigEnum.ECO_PRICE.getCode());
         return systemConfigService.list(systemConfigLogPageQry);
     }
+
+    /**
+     * 获取ECO价格
+     */
+    @GetMapping("/eco/price")
+    SingleResponse<SystemConfigDTO> getEcoPrice(){
+        return systemConfigService.getEcoPrice();
+    }
 }
