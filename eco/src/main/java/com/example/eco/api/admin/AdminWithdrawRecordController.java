@@ -3,8 +3,10 @@ package com.example.eco.api.admin;
 import com.example.eco.bean.MultiResponse;
 import com.example.eco.bean.SingleResponse;
 import com.example.eco.bean.cmd.WithdrawRecordDealWithCmd;
+import com.example.eco.bean.cmd.WithdrawRecordBatchDealWithCmd;
 import com.example.eco.bean.cmd.WithdrawRecordPageQry;
 import com.example.eco.bean.dto.WithdrawRecordDTO;
+import com.example.eco.bean.dto.WithdrawRecordBatchResultDTO;
 import com.example.eco.core.service.WithdrawRecordService;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -36,4 +38,13 @@ public class AdminWithdrawRecordController {
     SingleResponse<Void> dealWith(@RequestBody WithdrawRecordDealWithCmd withdrawRecordDealWithCmd) {
         return withdrawRecordService.dealWith(withdrawRecordDealWithCmd);
     }
+    
+    /**
+     * 批量处理提现（基础版本）
+     */
+    @PostMapping("/batch/deal/with")
+    SingleResponse<WithdrawRecordBatchResultDTO> batchDealWith(@RequestBody WithdrawRecordBatchDealWithCmd batchDealWithCmd) {
+        return withdrawRecordService.batchDealWith(batchDealWithCmd);
+    }
+
 }

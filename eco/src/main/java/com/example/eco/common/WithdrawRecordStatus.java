@@ -11,6 +11,8 @@ public enum WithdrawRecordStatus {
 
     AGREE("AGREE", "审核通过"),
 
+    IN_PROGRESS("IN_PROGRESS","审核中"),
+
     REJECT("REJECT", "审核拒绝");
 
     private String code;

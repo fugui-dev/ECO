@@ -123,7 +123,7 @@ public class RecommendServiceImpl implements RecommendService {
             leaderRecommender = recommender.getWalletAddress();
         }
         recommended.setLevel(recommender.getLevel() + 1);
-        recommended.setRecommendWalletAddress(recommendCreateCmd.getRecommendWalletAddress());
+        recommended.setRecommendWalletAddress(recommendCreateCmd.getWalletAddress());
         recommended.setLeaderWalletAddress(leaderRecommender);
         recommended.setUpdateTime(System.currentTimeMillis());
         recommendMapper.updateById(recommended);

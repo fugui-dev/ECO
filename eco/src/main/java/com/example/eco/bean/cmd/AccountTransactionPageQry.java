@@ -21,6 +21,7 @@ public class AccountTransactionPageQry extends PageQuery {
      */
     private String transactionStatus;
 
+
     /**
      * 账号类型
      */

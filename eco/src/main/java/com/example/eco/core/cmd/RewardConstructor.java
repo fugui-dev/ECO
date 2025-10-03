@@ -25,6 +25,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.Objects;
 
 @Slf4j
 @Component
@@ -66,6 +67,8 @@ public class RewardConstructor {
         BigDecimal totalComputingPower = response.getData()
                 .stream()
                 .map(RecommendStatisticsLogDTO::getTotalComputingPower)
+                .filter(Objects::nonNull)  // 过滤null值
+                .filter(totalPower -> !totalPower.trim().isEmpty())  // 过滤空字符串
                 .map(BigDecimal::new)
                 .reduce(BigDecimal::add)
                 .orElse(BigDecimal.ZERO);
@@ -624,6 +627,8 @@ public class RewardConstructor {
         // 获取总小区算力
         BigDecimal totalMinComputingPower = recommendStatisticsLogList.stream()
                 .map(RecommendStatisticsLogDTO::getMinComputingPower)
+                .filter(Objects::nonNull)  // 过滤null值
+                .filter(minPower -> !minPower.trim().isEmpty())  // 过滤空字符串
                 .map(BigDecimal::new)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
@@ -658,7 +663,14 @@ public class RewardConstructor {
 
         String order = "DTB" + System.currentTimeMillis();
 
-        BigDecimal minComputingPower = new BigDecimal(recommendStatisticsLogDTO.getMinComputingPower());
+        // 检查minComputingPower是否为空
+        String minComputingPowerStr = recommendStatisticsLogDTO.getMinComputingPower();
+        if (minComputingPowerStr == null || minComputingPowerStr.trim().isEmpty()) {
+            log.warn("用户{}的小区算力为空，跳过动态小区奖励", recommendStatisticsLogDTO.getWalletAddress());
+            return SingleResponse.buildSuccess();
+        }
+        
+        BigDecimal minComputingPower = new BigDecimal(minComputingPowerStr);
         // 动态奖励
         BigDecimal baseReward = minComputingPower
                 .divide(totalMinComputingPower, 8, RoundingMode.HALF_DOWN)
@@ -687,7 +699,7 @@ public class RewardConstructor {
 
         rewardList.add(purchaseMinerProjectReward);
 
-        log.info("用户{}发放动态小区奖励失败{}成功", recommendStatisticsLogDTO.getWalletAddress(), baseReward);
+        log.info("用户{}发放动态小区奖励{}成功", recommendStatisticsLogDTO.getWalletAddress(), baseReward);
 
         try {
             AccountDynamicNumberCmd accountDynamicNumberCmd = new AccountDynamicNumberCmd();
@@ -750,6 +762,8 @@ public class RewardConstructor {
         // 获取总小区算力
         BigDecimal totalNewComputingPower = recommendStatisticsLogList.stream()
                 .map(RecommendStatisticsLogDTO::getNewComputingPower)
+                .filter(Objects::nonNull)  // 过滤null值
+                .filter(newPower -> !newPower.trim().isEmpty())  // 过滤空字符串
                 .map(BigDecimal::new)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
@@ -783,7 +797,14 @@ public class RewardConstructor {
 
         String order = "DTN" + System.currentTimeMillis();
 
-        BigDecimal newComputingPower = new BigDecimal(recommendStatisticsLogDTO.getNewComputingPower());
+        // 检查newComputingPower是否为空
+        String newComputingPowerStr = recommendStatisticsLogDTO.getNewComputingPower();
+        if (newComputingPowerStr == null || newComputingPowerStr.trim().isEmpty()) {
+            log.warn("用户{}的新增算力为空，跳过动态新增奖励", recommendStatisticsLogDTO.getWalletAddress());
+            return SingleResponse.buildSuccess();
+        }
+        
+        BigDecimal newComputingPower = new BigDecimal(newComputingPowerStr);
         // 动态奖励
         BigDecimal newReward = newComputingPower
                 .divide(totalNewComputingPower, 8, RoundingMode.HALF_DOWN)
@@ -806,13 +827,13 @@ public class RewardConstructor {
 
         int insert = purchaseMinerProjectRewardMapper.insert(purchaseMinerProjectReward);
         if (insert <= 0) {
-            log.info("用户{}发放动态小区奖励失败", recommendStatisticsLogDTO.getWalletAddress());
+            log.info("用户{}发放动态新增奖励失败", recommendStatisticsLogDTO.getWalletAddress());
             return SingleResponse.buildFailure("发放动态小区奖励失败");
         }
 
         rewardList.add(purchaseMinerProjectReward);
 
-        log.info("用户{}发放动态小区奖励失败{}成功", recommendStatisticsLogDTO.getWalletAddress(), newReward);
+        log.info("用户{}发放动态新增奖励{}成功", recommendStatisticsLogDTO.getWalletAddress(), newReward);
 
         try {
             AccountDynamicNumberCmd accountDynamicNumberCmd = new AccountDynamicNumberCmd();
@@ -823,7 +844,7 @@ public class RewardConstructor {
 
             SingleResponse<Void> response = accountService.addDynamicNumber(accountDynamicNumberCmd);
             if (!response.isSuccess()) {
-                log.info("用户{}发放动态小区奖励{}失败，调用账户服务失败", recommendStatisticsLogDTO.getWalletAddress(), newReward);
+                log.info("用户{}发放动态新增奖励{}失败，调用账户服务失败", recommendStatisticsLogDTO.getWalletAddress(), newReward);
             }
 
         } catch (Exception exception) {
@@ -849,6 +870,8 @@ public class RewardConstructor {
         BigDecimal totalStaticReward = rewardList.stream()
                 .filter(x -> x.getType().equals(PurchaseMinerProjectRewardType.STATIC.getCode()))
                 .map(PurchaseMinerProjectReward::getReward)
+                .filter(Objects::nonNull)  // 过滤null值
+                .filter(reward -> !reward.trim().isEmpty())  // 过滤空字符串
                 .map(BigDecimal::new)
                 .reduce(BigDecimal::add)
                 .orElse(BigDecimal.ZERO);
@@ -857,6 +880,8 @@ public class RewardConstructor {
         BigDecimal totalDynamicReward = rewardList.stream()
                 .filter(x -> x.getType().equals(PurchaseMinerProjectRewardType.DYNAMIC.getCode()))
                 .map(PurchaseMinerProjectReward::getReward)
+                .filter(Objects::nonNull)  // 过滤null值
+                .filter(reward -> !reward.trim().isEmpty())  // 过滤空字符串
                 .map(BigDecimal::new)
                 .reduce(BigDecimal::add)
                 .orElse(BigDecimal.ZERO);
@@ -865,6 +890,8 @@ public class RewardConstructor {
                 .filter(x -> x.getType().equals(PurchaseMinerProjectRewardType.DYNAMIC.getCode()))
                 .filter(x -> x.getRewardType().equals(PurchaseMinerProjectDynamicRewardType.RECOMMEND.getCode()))
                 .map(PurchaseMinerProjectReward::getReward)
+                .filter(Objects::nonNull)  // 过滤null值
+                .filter(reward -> !reward.trim().isEmpty())  // 过滤空字符串
                 .map(BigDecimal::new)
                 .reduce(BigDecimal::add)
                 .orElse(BigDecimal.ZERO);
@@ -874,6 +901,8 @@ public class RewardConstructor {
                 .filter(x -> x.getType().equals(PurchaseMinerProjectRewardType.DYNAMIC.getCode()))
                 .filter(x -> x.getRewardType().equals(PurchaseMinerProjectDynamicRewardType.BASE.getCode()))
                 .map(PurchaseMinerProjectReward::getReward)
+                .filter(Objects::nonNull)  // 过滤null值
+                .filter(reward -> !reward.trim().isEmpty())  // 过滤空字符串
                 .map(BigDecimal::new)
                 .reduce(BigDecimal::add)
                 .orElse(BigDecimal.ZERO);
@@ -882,6 +911,8 @@ public class RewardConstructor {
                 .filter(x -> x.getType().equals(PurchaseMinerProjectRewardType.DYNAMIC.getCode()))
                 .filter(x -> x.getRewardType().equals(PurchaseMinerProjectDynamicRewardType.NEW.getCode()))
                 .map(PurchaseMinerProjectReward::getReward)
+                .filter(Objects::nonNull)  // 过滤null值
+                .filter(reward -> !reward.trim().isEmpty())  // 过滤空字符串
                 .map(BigDecimal::new)
                 .reduce(BigDecimal::add)
                 .orElse(BigDecimal.ZERO);
@@ -890,10 +921,9 @@ public class RewardConstructor {
         LambdaQueryWrapper<RewardStatisticsLog> queryWrapper = new LambdaQueryWrapper<>();
         queryWrapper.eq(RewardStatisticsLog::getDayTime, dayTime);
 
-        RewardStatisticsLog rewardStatisticsLog = rewardStatisticsLogMapper.selectOne(queryWrapper);
-        if (Objects.isNull(rewardStatisticsLog)) {
-            rewardStatisticsLog = new RewardStatisticsLog();
-        }
+        rewardStatisticsLogMapper.delete(queryWrapper);
+
+        RewardStatisticsLog rewardStatisticsLog = new RewardStatisticsLog();
 
         rewardStatisticsLog.setDayTime(dayTime);
         rewardStatisticsLog.setTotalReward(totalReward.toString());

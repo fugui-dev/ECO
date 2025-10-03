@@ -20,6 +20,7 @@ import org.springframework.util.StringUtils;
 
 import javax.annotation.Resource;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 
@@ -32,13 +33,23 @@ public class AccountTransactionServiceImpl implements AccountTransactionService 
     @Override
     public MultiResponse<AccountTransactionDTO> page(AccountTransactionPageQry accountTransactionPageQry) {
 
+        List<String> transactionTypeList = Arrays.asList(
+               AccountTransactionType.ADD_NUMBER.getCode(),
+                AccountTransactionType.DEDUCT_NUMBER.getCode()
+        );
+
         LambdaQueryWrapper<AccountTransaction> queryWrapper = new LambdaQueryWrapper<>();
         queryWrapper.eq(StringUtils.hasLength(accountTransactionPageQry.getWalletAddress()), AccountTransaction::getWalletAddress, accountTransactionPageQry.getWalletAddress());
         queryWrapper.eq(StringUtils.hasLength(accountTransactionPageQry.getAccountType()), AccountTransaction::getAccountType, accountTransactionPageQry.getAccountType());
-        queryWrapper.eq(StringUtils.hasLength(accountTransactionPageQry.getTransactionType()), AccountTransaction::getTransactionType, accountTransactionPageQry.getTransactionType());
         queryWrapper.eq(StringUtils.hasLength(accountTransactionPageQry.getTransactionStatus()), AccountTransaction::getStatus, accountTransactionPageQry.getTransactionStatus());
         queryWrapper.eq(StringUtils.hasLength(accountTransactionPageQry.getOrder()), AccountTransaction::getOrder, accountTransactionPageQry.getOrder());
         queryWrapper.eq(StringUtils.hasLength(accountTransactionPageQry.getHash()), AccountTransaction::getHash, accountTransactionPageQry.getHash());
+
+        if (!StringUtils.hasLength(accountTransactionPageQry.getOrder())){
+            queryWrapper.in(AccountTransaction::getTransactionType,transactionTypeList);
+        }
+        queryWrapper.in(AccountTransaction::getTransactionType, transactionTypeList);
+
         queryWrapper.orderByDesc(AccountTransaction::getTransactionTime);
 
         Page<AccountTransaction> accountTransactionPage = accountTransactionMapper.selectPage(Page.of(accountTransactionPageQry.getPageNum(), accountTransactionPageQry.getPageSize()), queryWrapper);

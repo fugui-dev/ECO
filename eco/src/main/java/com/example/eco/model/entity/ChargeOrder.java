@@ -60,6 +60,7 @@ public class ChargeOrder {
      */
     private String hash;
 
+
     /**
      * 创建时间
      */

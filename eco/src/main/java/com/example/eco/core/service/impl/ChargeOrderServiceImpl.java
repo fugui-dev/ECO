@@ -9,12 +9,16 @@ import com.example.eco.bean.cmd.*;
 import com.example.eco.bean.dto.ChargeOrderDTO;
 import com.example.eco.common.AccountType;
 import com.example.eco.common.ChargeOrderStatus;
+import com.example.eco.common.SystemConfigEnum;
 import com.example.eco.core.service.AccountService;
 import com.example.eco.core.service.ChargeOrderService;
 import com.example.eco.model.entity.ChargeOrder;
 import com.example.eco.model.entity.EtherScanAccountTransaction;
+import com.example.eco.model.entity.SystemConfig;
 import com.example.eco.model.mapper.ChargeOrderMapper;
 import com.example.eco.model.mapper.EtherScanAccountTransactionMapper;
+import com.example.eco.model.mapper.SystemConfigMapper;
+import com.example.eco.util.TransactionVerificationUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
@@ -37,7 +41,10 @@ public class ChargeOrderServiceImpl implements ChargeOrderService {
     private AccountService accountService;
 
     @Resource
-    private EtherScanAccountTransactionMapper etherScanAccountTransactionMapper;
+    private TransactionVerificationUtil transactionVerificationUtil;
+
+    @Resource
+    private SystemConfigMapper systemConfigMapper;
 
 
     @Override
@@ -168,6 +175,27 @@ public class ChargeOrderServiceImpl implements ChargeOrderService {
     @Override
     public SingleResponse<Void> checkChargeOrder() {
 
+        LambdaQueryWrapper<SystemConfig> ecoContractAddressQuery = new LambdaQueryWrapper<>();
+        ecoContractAddressQuery.eq(SystemConfig::getName, SystemConfigEnum.ECO_CONTRACT_ADDRESS.getCode());
+
+        SystemConfig ecoContractAddress = systemConfigMapper.selectOne(ecoContractAddressQuery);
+
+        LambdaQueryWrapper<SystemConfig> ecoAddressQuery = new LambdaQueryWrapper<>();
+        ecoAddressQuery.eq(SystemConfig::getName, SystemConfigEnum.ECO_ADDRESS.getCode());
+
+        SystemConfig ecoAddress = systemConfigMapper.selectOne(ecoAddressQuery);
+
+        LambdaQueryWrapper<SystemConfig> esgContractAddressQuery = new LambdaQueryWrapper<>();
+        esgContractAddressQuery.eq(SystemConfig::getName, SystemConfigEnum.ESG_CONTRACT_ADDRESS.getCode());
+
+        SystemConfig esgContractAddress = systemConfigMapper.selectOne(esgContractAddressQuery);
+
+
+        LambdaQueryWrapper<SystemConfig> esgAddressQuery = new LambdaQueryWrapper<>();
+        esgAddressQuery.eq(SystemConfig::getName, SystemConfigEnum.ESG_ADDRESS.getCode());
+
+        SystemConfig esgAddress = systemConfigMapper.selectOne(esgAddressQuery);
+
         LambdaQueryWrapper<ChargeOrder> queryWrapper = new LambdaQueryWrapper<>();
         queryWrapper.eq(ChargeOrder::getStatus, ChargeOrderStatus.PENDING.getCode());
 
@@ -175,26 +203,45 @@ public class ChargeOrderServiceImpl implements ChargeOrderService {
 
         for (ChargeOrder chargeOrder : chargeOrderList){
 
-            LambdaQueryWrapper<EtherScanAccountTransaction> transactionQueryWrapper = new LambdaQueryWrapper<>();
-            transactionQueryWrapper.eq(EtherScanAccountTransaction::getHash, chargeOrder.getHash());
+            if (StringUtils.isEmpty(chargeOrder.getHash())){
+                continue;
+            }
 
-            EtherScanAccountTransaction transaction = etherScanAccountTransactionMapper.selectOne(transactionQueryWrapper);
+            Boolean transaction = null;
+
+            if (chargeOrder.getType().equals(AccountType.ECO.getCode())){
+
+                transaction = transactionVerificationUtil.verifyTransaction(chargeOrder.getHash(),
+                        chargeOrder.getNumber(),
+                        chargeOrder.getType(),
+                        ecoAddress.getValue(),
+                        ecoContractAddress.getValue());
+            }else {
+
+                transaction = transactionVerificationUtil.verifyTransaction(chargeOrder.getHash(),
+                        chargeOrder.getNumber(),
+                        chargeOrder.getType(),
+                        esgAddress.getValue(),
+                        esgContractAddress.getValue());
+            }
 
             if (Objects.isNull(transaction)){
                 continue;
             }
 
-            if (transaction.getReceiptStatus().equals("1")){
+            if (transaction){
+
                 ChargeOrderUpdateCmd chargeOrderUpdateCmd = new ChargeOrderUpdateCmd();
                 chargeOrderUpdateCmd.setHash(chargeOrder.getHash());
                 chargeOrderUpdateCmd.setStatus(ChargeOrderStatus.SUCCESS.getCode());
                 this.update(chargeOrderUpdateCmd);
-            } else if (transaction.getReceiptStatus().equals("0")) {
+            }else {
                 ChargeOrderUpdateCmd chargeOrderUpdateCmd = new ChargeOrderUpdateCmd();
                 chargeOrderUpdateCmd.setHash(chargeOrder.getHash());
                 chargeOrderUpdateCmd.setStatus(ChargeOrderStatus.FAILED.getCode());
                 this.update(chargeOrderUpdateCmd);
             }
+
         }
         return SingleResponse.buildSuccess();
     }

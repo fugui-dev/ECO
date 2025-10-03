@@ -35,7 +35,15 @@ public enum SystemConfigEnum {
 
     SYSTEM_ADDRESS("SYSTEM_ADDRESS","官方钱包地址"),
 
-    CONTRACT_ADDRESS("CONTRACT_ADDRESS","合约地址");
+    CONTRACT_ADDRESS("CONTRACT_ADDRESS","合约地址"),
+
+    ECO_CONTRACT_ADDRESS("ECO_CONTRACT_ADDRESS","ECO合约地址"),
+
+    ECO_ADDRESS("ECO_ADDRESS","ECO代币地址"),
+
+    ESG_CONTRACT_ADDRESS("ESG_CONTRACT_ADDRESS","ESG合约地址"),
+
+    ESG_ADDRESS("ESG_ADDRESS","ESG代币地址");
 
     private String code;
 

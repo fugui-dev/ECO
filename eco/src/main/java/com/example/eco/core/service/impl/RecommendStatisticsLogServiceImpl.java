@@ -283,8 +283,8 @@ public class RecommendStatisticsLogServiceImpl implements RecommendStatisticsLog
             List<RecommendStatisticsLog> logs = entry.getValue();
 
             BigDecimal totalPower = logs.stream()
-                    .map(RecommendStatisticsLog::getTotalRecommendComputingPower)
-                    .map(BigDecimal::new)
+                    .map(x -> new BigDecimal(x.getTotalComputingPower())
+                            .add(new BigDecimal(x.getTotalRecommendComputingPower())))
                     .reduce(BigDecimal.ZERO, BigDecimal::add);
 
             totalRecommendComputingPowerMap.put(walletAddress, totalPower);
@@ -351,7 +351,7 @@ public class RecommendStatisticsLogServiceImpl implements RecommendStatisticsLog
 
             computedPowerMap.put(walletAddress, totalComputingPower);
 
-            totalRecommendComputingPowerMap.put(walletAddress, totalRecommendComputingPower);
+            totalRecommendComputingPowerMap.put(walletAddress, totalRecommendComputingPower.add(totalComputingPower));
 
             RecommendStatisticsLogDTO recommendStatisticsLogDTO = new RecommendStatisticsLogDTO();
             recommendStatisticsLogDTO.setWalletAddress(walletAddress);
@@ -438,10 +438,21 @@ public class RecommendStatisticsLogServiceImpl implements RecommendStatisticsLog
             return;
         }
 
+        log.info("totalRecommendComputingPowerMap : {}",totalRecommendComputingPowerMap);
+
         String maxWalletAddress = totalRecommendComputingPowerMap.entrySet().stream()
                 .max(Map.Entry.comparingByValue())
                 .map(Map.Entry::getKey)
                 .orElse(null);
+
+        if (Objects.isNull(maxWalletAddress)){
+            recommendStatisticsLog.setMinComputingPower("0");
+            recommendStatisticsLog.setMaxComputingPower("0");
+            recommendStatisticsLog.setNewComputingPower("0");
+            return;
+        }
+
+        log.info("maxWalletAddress :{}",maxWalletAddress);
 
         String maxComputedPower = totalRecommendComputingPowerMap.getOrDefault(maxWalletAddress, BigDecimal.ZERO).toString();
 
@@ -451,7 +462,11 @@ public class RecommendStatisticsLogServiceImpl implements RecommendStatisticsLog
 
         for (Recommend directRecommend : directRecommends) {
 
-            if (directRecommend.getWalletAddress().equals(maxWalletAddress)) {
+            log.info("directRecommend :{}",directRecommend.getWalletAddress());
+
+            log.info("result :{}",directRecommend.getWalletAddress().equals(maxWalletAddress));
+
+            if (directRecommend.getWalletAddress().equalsIgnoreCase(maxWalletAddress)) {
                 continue; // 跳过最大算力的直推用户
             }
 

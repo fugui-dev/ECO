@@ -66,7 +66,7 @@ public class AccountTransactionDTO {
     /**
      * 订单ID
      */
-    private Integer orderId;
+    private String order;
 
     /**
      * 状态

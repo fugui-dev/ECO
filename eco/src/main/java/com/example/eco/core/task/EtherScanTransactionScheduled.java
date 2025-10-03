@@ -41,7 +41,7 @@ public class EtherScanTransactionScheduled {
     @Value("${ether.scan.transaction.url}")
     private String url;
 
-    @Scheduled(cron = "0 0/3 * * * ?")
+//    @Scheduled(cron = "0 0/3 * * * ?")
     @SneakyThrows
     public void transactionAccountRecord() {
 

@@ -96,8 +96,8 @@ public class AccountServiceImpl implements AccountService {
             existingEsgAccount.setDynamicReward("0");
             existingEsgAccount.setStaticReward("0");
             existingEsgAccount.setNumber("0");
-            existingEcoAccount.setServiceNumber("0");
-            existingEcoAccount.setServiceLockNumber("0");
+            existingEsgAccount.setServiceNumber("0");
+            existingEsgAccount.setServiceLockNumber("0");
             existingEsgAccount.setType(AccountType.ESG.getCode());
             existingEsgAccount.setCreateTime(System.currentTimeMillis());
             existingEsgAccount.setUpdateTime(System.currentTimeMillis());
@@ -241,7 +241,7 @@ public class AccountServiceImpl implements AccountService {
         accountDynamicTransaction.setStatus(AccountTransactionStatusEnum.SUCCESS.getCode());
         accountDynamicTransaction.setTransactionType(AccountTransactionType.DYNAMIC_REWARD.getCode());
         accountDynamicTransaction.setOrder(accountDynamicNumberCmd.getOrder());
-        accountTransactionMapper.insert(accountTransaction);
+        accountTransactionMapper.insert(accountDynamicTransaction);
 
         return SingleResponse.buildSuccess();
     }
@@ -676,6 +676,7 @@ public class AccountServiceImpl implements AccountService {
         accountTransaction.setAccountType(account.getType());
         accountTransaction.setStatus(AccountTransactionStatusEnum.SUCCESS.getCode());
         accountTransaction.setTransactionType(AccountTransactionType.ADD_NUMBER.getCode());
+        accountTransaction.setOrder(lockChargeTransaction.getOrder());
         accountTransaction.setHash(accountLockChargeNumberCmd.getHash());
         accountTransactionMapper.insert(accountTransaction);
 
@@ -689,6 +690,7 @@ public class AccountServiceImpl implements AccountService {
         accountChargeTransaction.setAccountType(account.getType());
         accountChargeTransaction.setStatus(AccountTransactionStatusEnum.SUCCESS.getCode());
         accountChargeTransaction.setTransactionType(AccountTransactionType.CHARGE.getCode());
+        accountChargeTransaction.setOrder(lockChargeTransaction.getOrder());
         accountChargeTransaction.setHash(accountLockChargeNumberCmd.getHash());
         accountTransactionMapper.insert(accountChargeTransaction);
 
@@ -704,6 +706,7 @@ public class AccountServiceImpl implements AccountService {
         accountReleaseChargeTransaction.setStatus(AccountTransactionStatusEnum.SUCCESS.getCode());
         accountReleaseChargeTransaction.setTransactionType(AccountTransactionType.RELEASE_LOCK_CHARGE.getCode());
         accountReleaseChargeTransaction.setHash(accountLockChargeNumberCmd.getHash());
+        accountReleaseChargeTransaction.setOrder(lockChargeTransaction.getOrder());
         accountTransactionMapper.insert(accountReleaseChargeTransaction);
 
 
