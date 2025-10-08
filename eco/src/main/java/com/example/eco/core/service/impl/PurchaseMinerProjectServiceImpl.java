@@ -9,12 +9,14 @@ import com.example.eco.bean.cmd.*;
 import com.example.eco.bean.dto.PurchaseMinerProjectDTO;
 import com.example.eco.bean.dto.PurchaseMinerProjectRewardDTO;
 import com.example.eco.bean.dto.PurchaseMinerProjectStatisticsDTO;
+import com.example.eco.bean.dto.RewardServiceResultDTO;
 import com.example.eco.common.*;
 import com.example.eco.common.BusinessException;
 import com.example.eco.core.service.AccountService;
 import com.example.eco.core.service.MinerProjectService;
 import com.example.eco.core.service.PurchaseMinerProjectService;
 import com.example.eco.core.service.RecommendStatisticsLogService;
+import com.example.eco.core.service.impl.ComputingPowerServiceImplV2;
 import com.example.eco.model.entity.*;
 import com.example.eco.model.mapper.*;
 import com.example.eco.util.ESGUtils;
@@ -52,6 +54,8 @@ public class PurchaseMinerProjectServiceImpl implements PurchaseMinerProjectServ
     @Resource
     private RecommendStatisticsLogService recommendStatisticsLogService;
     @Resource
+    private ComputingPowerServiceImplV2 computingPowerServiceV2;
+    @Resource
     private MinerProjectService minerProjectService;
     @Resource
     private MinerProjectStatisticsLogMapper minerProjectStatisticsLogMapper;
@@ -63,6 +67,10 @@ public class PurchaseMinerProjectServiceImpl implements PurchaseMinerProjectServ
     private RewardStatisticsLogMapper rewardStatisticsLogMapper;
     @Resource
     private PurchaseMinerProjectRewardMapper purchaseMinerProjectRewardMapper;
+    @Resource
+    private MinerDailyRewardMapper minerDailyRewardMapper;
+    @Resource
+    private RewardServiceLogMapper rewardServiceLogMapper;
 
 
     @Override
@@ -76,7 +84,8 @@ public class PurchaseMinerProjectServiceImpl implements PurchaseMinerProjectServ
 
         String dayTime = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
 
-        if (!purchaseMinerProjectsCreateCmd.getType().equals(PurchaseMinerType.ECO.getCode())) {
+        if (!purchaseMinerProjectsCreateCmd.getType().equals(PurchaseMinerType.ECO.getCode()) &&
+                !purchaseMinerProjectsCreateCmd.getType().equals(PurchaseMinerType.AIRDROP.getCode()) ) {
             Boolean checkQuota = checkQuota(minerProject, dayTime);
             if (!checkQuota) {
                 return SingleResponse.buildFailure("该矿机ESG已达限额,请使用ECO支付");
@@ -96,6 +105,8 @@ public class PurchaseMinerProjectServiceImpl implements PurchaseMinerProjectServ
         purchaseMinerProject.setWalletAddress(purchaseMinerProjectsCreateCmd.getWalletAddress());
         purchaseMinerProject.setStatus(PurchaseMinerProjectStatus.DEALING.getCode());
         purchaseMinerProject.setOrder(order);
+        purchaseMinerProject.setReward("0");
+        purchaseMinerProject.setRewardPrice("0");
         purchaseMinerProject.setCreateTime(System.currentTimeMillis());
 
         LambdaQueryWrapper<SystemConfig> increaseQueryWrapper = new LambdaQueryWrapper<>();
@@ -218,11 +229,16 @@ public class PurchaseMinerProjectServiceImpl implements PurchaseMinerProjectServ
                 return SingleResponse.buildFailure("未设置ECO价格");
             }
 
-            BigDecimal halfPrice = new BigDecimal(minerProject.getPrice()).divide(new BigDecimal(2), 4, RoundingMode.HALF_DOWN);
+//            BigDecimal halfPrice = new BigDecimal(minerProject.getPrice()).divide(new BigDecimal(2), 4, RoundingMode.HALF_DOWN);
 
 
-            BigDecimal ecoNumber = halfPrice.divide(new BigDecimal(systemConfig.getValue()), 4, RoundingMode.HALF_DOWN);
-            BigDecimal esgNumber = halfPrice.divide(esgPrice, 4, RoundingMode.HALF_DOWN);
+            BigDecimal ecoNumber = new BigDecimal(minerProject.getPrice()).divide(new BigDecimal(systemConfig.getValue()), 4, RoundingMode.HALF_DOWN);
+
+            BigDecimal esgNumber = ecoNumber.divide(BigDecimal.valueOf(2));
+
+            ecoNumber = esgNumber;
+
+            amount = amount.add(esgNumber.multiply(esgPrice));
 
             purchaseMinerProject.setEsgNumber(esgNumber.toString());
             purchaseMinerProject.setEcoNumber(ecoNumber.toString());
@@ -266,20 +282,22 @@ public class PurchaseMinerProjectServiceImpl implements PurchaseMinerProjectServ
             purchaseMinerProject.setStatus(PurchaseMinerProjectStatus.SUCCESS.getCode());
             purchaseMinerProject.setFinishTime(System.currentTimeMillis());
 
-            amount = amount.add(halfPrice);
-
             totalEsgNumber = totalEsgNumber.add(esgNumber);
+        }
+
+        if (purchaseMinerProjectsCreateCmd.getType().equals(PurchaseMinerType.AIRDROP.getCode())){
+            purchaseMinerProject.setEsgNumber("0");
+            purchaseMinerProject.setEcoNumber("0");
+            purchaseMinerProject.setStatus(PurchaseMinerProjectStatus.SUCCESS.getCode());
+            purchaseMinerProject.setFinishTime(System.currentTimeMillis());
         }
 
         try {
 
-            TotalComputingPowerCmd totalComputingPowerCmd = new TotalComputingPowerCmd();
-            totalComputingPowerCmd.setWalletAddress(purchaseMinerProject.getWalletAddress());
-            totalComputingPowerCmd.setComputingPower(purchaseMinerProject.getActualComputingPower());
+            // 矿机购买成功，清除用户算力缓存，让下次查询时重新计算
+            computingPowerServiceV2.invalidateUserCache(purchaseMinerProject.getWalletAddress());
 
-            recommendStatisticsLogService.statistics(totalComputingPowerCmd);
-
-            if (amount.compareTo(BigDecimal.ZERO) == 0) {
+            if (amount.compareTo(BigDecimal.ZERO) > 0) {
 
                 MinerProjectStatisticsLogCmd minerProjectStatisticsLogCmd = new MinerProjectStatisticsLogCmd();
                 minerProjectStatisticsLogCmd.setAmount(amount);
@@ -354,26 +372,36 @@ public class PurchaseMinerProjectServiceImpl implements PurchaseMinerProjectServ
             purchaseMinerProjectDTO.setStatusName(PurchaseMinerProjectStatus.of(purchaseMinerProject.getStatus()).getName());
 
 
-            LambdaQueryWrapper<PurchaseMinerProjectReward> queryWrapper = new LambdaQueryWrapper<>();
-            queryWrapper.eq(PurchaseMinerProjectReward::getPurchaseMinerProjectId, purchaseMinerProject.getId());
+//            LambdaQueryWrapper<PurchaseMinerProjectReward> queryWrapper = new LambdaQueryWrapper<>();
+//            queryWrapper.eq(PurchaseMinerProjectReward::getPurchaseMinerProjectId, purchaseMinerProject.getId());
+//
+//            List<PurchaseMinerProjectReward> rewardList = purchaseMinerProjectRewardMapper.selectList(queryWrapper);
+//
+//            BigDecimal totalReward = rewardList.stream()
+//                    .map(PurchaseMinerProjectReward::getReward)
+//                    .map(BigDecimal::new)
+//                    .reduce(BigDecimal::add)
+//                    .orElse(BigDecimal.ZERO);
+//
+//            BigDecimal yesterdayTotalReward = rewardList.stream()
+//                    .filter(x -> x.getDayTime().equals(dayTime))
+//                    .map(PurchaseMinerProjectReward::getReward)
+//                    .map(BigDecimal::new)
+//                    .reduce(BigDecimal::add)
+//                    .orElse(BigDecimal.ZERO);
 
-            List<PurchaseMinerProjectReward> rewardList = purchaseMinerProjectRewardMapper.selectList(queryWrapper);
+            LambdaQueryWrapper<MinerDailyReward> minerDailyRewardLambdaQueryWrapper = new LambdaQueryWrapper<>();
+            minerDailyRewardLambdaQueryWrapper.eq(MinerDailyReward::getMinerProjectId,purchaseMinerProject.getId());
+            minerDailyRewardLambdaQueryWrapper.eq(MinerDailyReward::getDayTime,dayTime);
 
-            BigDecimal totalReward = rewardList.stream()
-                    .map(PurchaseMinerProjectReward::getReward)
-                    .map(BigDecimal::new)
-                    .reduce(BigDecimal::add)
-                    .orElse(BigDecimal.ZERO);
-
-            BigDecimal yesterdayTotalReward = rewardList.stream()
-                    .filter(x -> x.getDayTime().equals(dayTime))
-                    .map(PurchaseMinerProjectReward::getReward)
-                    .map(BigDecimal::new)
-                    .reduce(BigDecimal::add)
-                    .orElse(BigDecimal.ZERO);
-
-            purchaseMinerProjectDTO.setTotalReward(totalReward.toString());
-            purchaseMinerProjectDTO.setYesterdayTotalReward(yesterdayTotalReward.toString());
+            MinerDailyReward minerDailyReward = minerDailyRewardMapper.selectOne(minerDailyRewardLambdaQueryWrapper);
+            if (Objects.isNull(minerDailyReward)){
+                purchaseMinerProjectDTO.setYesterdayTotalRewardPrice("0");
+                purchaseMinerProjectDTO.setYesterdayTotalReward("0");
+            }else {
+                purchaseMinerProjectDTO.setYesterdayTotalReward(minerDailyReward.getTotalReward());
+                purchaseMinerProjectDTO.setYesterdayTotalRewardPrice(minerDailyReward.getTotalRewardPrice());
+            }
 
             purchaseMinerProjectDTOS.add(purchaseMinerProjectDTO);
         }
@@ -497,11 +525,23 @@ public class PurchaseMinerProjectServiceImpl implements PurchaseMinerProjectServ
             purchaseMinerProjectRewardDTO.setDynamicReward("0");
             purchaseMinerProjectRewardDTO.setRecommendReward("0");
             purchaseMinerProjectRewardDTO.setStaticReward("0");
+            purchaseMinerProjectRewardDTO.setBaseRewardPrice("0");
+            purchaseMinerProjectRewardDTO.setDynamicRewardPrice("0");
+            purchaseMinerProjectRewardDTO.setStaticRewardPrice("0");
+            purchaseMinerProjectRewardDTO.setNewRewardPrice("0");
+            purchaseMinerProjectRewardDTO.setRecommendRewardPrice("0");
         }
 
         BigDecimal totalStaticReward = purchaseMinerProjectRewards.stream()
                 .filter(x -> x.getType().equals(PurchaseMinerProjectRewardType.STATIC.getCode()))
                 .map(PurchaseMinerProjectReward::getReward)
+                .map(BigDecimal::new)
+                .reduce(BigDecimal::add)
+                .orElse(BigDecimal.ZERO);
+
+        BigDecimal totalStaticRewardPrice = purchaseMinerProjectRewards.stream()
+                .filter(x -> x.getType().equals(PurchaseMinerProjectRewardType.STATIC.getCode()))
+                .map(PurchaseMinerProjectReward::getRewardPrice)
                 .map(BigDecimal::new)
                 .reduce(BigDecimal::add)
                 .orElse(BigDecimal.ZERO);
@@ -514,10 +554,25 @@ public class PurchaseMinerProjectServiceImpl implements PurchaseMinerProjectServ
                 .reduce(BigDecimal::add)
                 .orElse(BigDecimal.ZERO);
 
+        BigDecimal totalDynamicRewardPrice = purchaseMinerProjectRewards.stream()
+                .filter(x -> x.getType().equals(PurchaseMinerProjectRewardType.DYNAMIC.getCode()))
+                .map(PurchaseMinerProjectReward::getRewardPrice)
+                .map(BigDecimal::new)
+                .reduce(BigDecimal::add)
+                .orElse(BigDecimal.ZERO);
+
         BigDecimal totalDynamicRecommendReward = purchaseMinerProjectRewards.stream()
                 .filter(x -> x.getType().equals(PurchaseMinerProjectRewardType.DYNAMIC.getCode()))
                 .filter(x -> x.getRewardType().equals(PurchaseMinerProjectDynamicRewardType.RECOMMEND.getCode()))
                 .map(PurchaseMinerProjectReward::getReward)
+                .map(BigDecimal::new)
+                .reduce(BigDecimal::add)
+                .orElse(BigDecimal.ZERO);
+
+        BigDecimal totalDynamicRecommendRewardPrice = purchaseMinerProjectRewards.stream()
+                .filter(x -> x.getType().equals(PurchaseMinerProjectRewardType.DYNAMIC.getCode()))
+                .filter(x -> x.getRewardType().equals(PurchaseMinerProjectDynamicRewardType.RECOMMEND.getCode()))
+                .map(PurchaseMinerProjectReward::getRewardPrice)
                 .map(BigDecimal::new)
                 .reduce(BigDecimal::add)
                 .orElse(BigDecimal.ZERO);
@@ -531,10 +586,26 @@ public class PurchaseMinerProjectServiceImpl implements PurchaseMinerProjectServ
                 .reduce(BigDecimal::add)
                 .orElse(BigDecimal.ZERO);
 
+        BigDecimal totalDynamicBaseRewardPrice = purchaseMinerProjectRewards.stream()
+                .filter(x -> x.getType().equals(PurchaseMinerProjectRewardType.DYNAMIC.getCode()))
+                .filter(x -> x.getRewardType().equals(PurchaseMinerProjectDynamicRewardType.BASE.getCode()))
+                .map(PurchaseMinerProjectReward::getRewardPrice)
+                .map(BigDecimal::new)
+                .reduce(BigDecimal::add)
+                .orElse(BigDecimal.ZERO);
+
         BigDecimal totalDynamicNewReward = purchaseMinerProjectRewards.stream()
                 .filter(x -> x.getType().equals(PurchaseMinerProjectRewardType.DYNAMIC.getCode()))
                 .filter(x -> x.getRewardType().equals(PurchaseMinerProjectDynamicRewardType.NEW.getCode()))
                 .map(PurchaseMinerProjectReward::getReward)
+                .map(BigDecimal::new)
+                .reduce(BigDecimal::add)
+                .orElse(BigDecimal.ZERO);
+
+        BigDecimal totalDynamicNewRewardPrice = purchaseMinerProjectRewards.stream()
+                .filter(x -> x.getType().equals(PurchaseMinerProjectRewardType.DYNAMIC.getCode()))
+                .filter(x -> x.getRewardType().equals(PurchaseMinerProjectDynamicRewardType.NEW.getCode()))
+                .map(PurchaseMinerProjectReward::getRewardPrice)
                 .map(BigDecimal::new)
                 .reduce(BigDecimal::add)
                 .orElse(BigDecimal.ZERO);
@@ -545,6 +616,37 @@ public class PurchaseMinerProjectServiceImpl implements PurchaseMinerProjectServ
         purchaseMinerProjectRewardDTO.setNewReward(totalDynamicNewReward.toString());
         purchaseMinerProjectRewardDTO.setRecommendReward(totalDynamicRecommendReward.toString());
 
+        purchaseMinerProjectRewardDTO.setRecommendRewardPrice(totalDynamicRecommendRewardPrice.toString());
+        purchaseMinerProjectRewardDTO.setDynamicRewardPrice(totalDynamicRewardPrice.toString());
+        purchaseMinerProjectRewardDTO.setStaticRewardPrice(totalStaticRewardPrice.toString());
+        purchaseMinerProjectRewardDTO.setBaseRewardPrice(totalDynamicBaseRewardPrice.toString());
+        purchaseMinerProjectRewardDTO.setNewRewardPrice(totalDynamicNewRewardPrice.toString());
+
         return SingleResponse.of(purchaseMinerProjectRewardDTO);
+    }
+
+    @Override
+    public SingleResponse<RewardServiceResultDTO> checkRewardService(RewardServiceQry rewardServiceQry) {
+
+        RewardServiceResultDTO rewardServiceResultDTO = new RewardServiceResultDTO();
+
+        String dayTime = LocalDate.now().minusDays(1).format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+
+        LambdaQueryWrapper<RewardServiceLog> rewardServiceLogLambdaQueryWrapper = new LambdaQueryWrapper<>();
+        rewardServiceLogLambdaQueryWrapper.eq(RewardServiceLog::getDayTime,dayTime);
+        rewardServiceLogLambdaQueryWrapper.eq(RewardServiceLog::getWalletAddress,rewardServiceQry.getWalletAddress());
+
+        RewardServiceLog rewardServiceLog = rewardServiceLogMapper.selectOne(rewardServiceLogLambdaQueryWrapper);
+
+        if (Objects.isNull(rewardServiceLog)){
+            rewardServiceResultDTO.setResult(Boolean.TRUE);
+            return SingleResponse.of(rewardServiceResultDTO);
+        }
+
+        if (new BigDecimal(rewardServiceLog.getEcoNumber()).compareTo(BigDecimal.ZERO) > 0){
+            rewardServiceResultDTO.setResult(Boolean.FALSE);
+        }
+
+        return SingleResponse.of(rewardServiceResultDTO);
     }
 }

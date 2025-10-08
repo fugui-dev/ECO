@@ -30,6 +30,7 @@ import org.springframework.util.CollectionUtils;
 
 import javax.annotation.Resource;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -71,6 +72,8 @@ public class AccountServiceImpl implements AccountService {
             existingEcoAccount.setNumber("0");
             existingEcoAccount.setServiceNumber("0");
             existingEcoAccount.setServiceLockNumber("0");
+            existingEcoAccount.setStaticRewardPrice("0");
+            existingEcoAccount.setDynamicRewardPrice("0");
             existingEcoAccount.setType(AccountType.ECO.getCode());
             existingEcoAccount.setCreateTime(System.currentTimeMillis());
             existingEcoAccount.setUpdateTime(System.currentTimeMillis());
@@ -98,6 +101,8 @@ public class AccountServiceImpl implements AccountService {
             existingEsgAccount.setNumber("0");
             existingEsgAccount.setServiceNumber("0");
             existingEsgAccount.setServiceLockNumber("0");
+            existingEsgAccount.setStaticRewardPrice("0");
+            existingEsgAccount.setDynamicRewardPrice("0");
             existingEsgAccount.setType(AccountType.ESG.getCode());
             existingEsgAccount.setCreateTime(System.currentTimeMillis());
             existingEsgAccount.setUpdateTime(System.currentTimeMillis());
@@ -148,9 +153,21 @@ public class AccountServiceImpl implements AccountService {
             return SingleResponse.buildFailure("账户不存在");
         }
 
+        LambdaQueryWrapper<SystemConfig> lambdaQueryWrapper = new LambdaQueryWrapper<>();
+        lambdaQueryWrapper.eq(SystemConfig::getName,SystemConfigEnum.ECO_PRICE.getCode());
+
+        SystemConfig systemConfig = systemConfigMapper.selectOne(lambdaQueryWrapper);
+        if (Objects.isNull(systemConfig)){
+            return SingleResponse.buildFailure("ECO价格未设置");
+        }
+
         String beforeNumber = account.getNumber();
 
         String beforeStaticReward = account.getStaticReward();
+
+        BigDecimal price = new BigDecimal(accountStaticNumberCmd.getNumber()).multiply(new BigDecimal(systemConfig.getValue()));
+
+        account.setStaticRewardPrice(String.valueOf(new BigDecimal(account.getStaticRewardPrice()).add(price)));
 
         account.setNumber(String.valueOf(new BigDecimal(account.getNumber()).add(new BigDecimal(accountStaticNumberCmd.getNumber()))));
         account.setStaticReward(String.valueOf(new BigDecimal(account.getStaticReward()).add(new BigDecimal(accountStaticNumberCmd.getNumber()))));
@@ -204,9 +221,21 @@ public class AccountServiceImpl implements AccountService {
             return SingleResponse.buildFailure("账户不存在");
         }
 
+        LambdaQueryWrapper<SystemConfig> lambdaQueryWrapper = new LambdaQueryWrapper<>();
+        lambdaQueryWrapper.eq(SystemConfig::getName,SystemConfigEnum.ECO_PRICE.getCode());
+
+        SystemConfig systemConfig = systemConfigMapper.selectOne(lambdaQueryWrapper);
+        if (Objects.isNull(systemConfig)){
+            return SingleResponse.buildFailure("ECO价格未设置");
+        }
+
         String beforeNumber = account.getNumber();
 
         String beforeDynamicReward = account.getDynamicReward();
+
+        BigDecimal price = new BigDecimal(accountDynamicNumberCmd.getNumber()).multiply(new BigDecimal(systemConfig.getValue()));
+
+        account.setDynamicRewardPrice(String.valueOf(new BigDecimal(account.getDynamicRewardPrice()).add(price)));
 
         account.setNumber(String.valueOf(new BigDecimal(account.getNumber()).add(new BigDecimal(accountDynamicNumberCmd.getNumber()))));
         account.setDynamicReward(String.valueOf(new BigDecimal(account.getDynamicReward()).add(new BigDecimal(accountDynamicNumberCmd.getNumber()))));
@@ -961,7 +990,7 @@ public class AccountServiceImpl implements AccountService {
         BigDecimal deductNumber = new BigDecimal(accountDeductCmd.getNumber());
 
         if (balance.compareTo(deductNumber) < 0) {
-            return SingleResponse.buildFailure(account.getType() + "账户积分不足");
+            return SingleResponse.buildFailure(account.getType() + "账户余额不足");
         }
 
 
@@ -985,7 +1014,7 @@ public class AccountServiceImpl implements AccountService {
 
         int updateCount = accountMapper.updateById(account);
         if (updateCount == 0) {
-            throw new OptimisticLockingFailureException("扣除积分失败");
+            throw new OptimisticLockingFailureException("扣除余额失败");
         }
 
 
@@ -1026,7 +1055,7 @@ public class AccountServiceImpl implements AccountService {
 
         int updateCount = accountMapper.updateById(account);
         if (updateCount == 0) {
-            throw new OptimisticLockingFailureException("扣除积分失败");
+            throw new OptimisticLockingFailureException("扣除余额失败");
         }
 
 
@@ -1050,7 +1079,7 @@ public class AccountServiceImpl implements AccountService {
         BigDecimal serviceNumber = new BigDecimal(accountWithdrawServiceCmd.getNumber());
 
         if (balance.compareTo(serviceNumber) < 0) {
-            return SingleResponse.buildFailure(account.getType() + "账户积分不足");
+            return SingleResponse.buildFailure(account.getType() + "账户余额不足");
         }
 
 
@@ -1091,7 +1120,7 @@ public class AccountServiceImpl implements AccountService {
 
         int updateCount = accountMapper.updateById(account);
         if (updateCount == 0) {
-            throw new OptimisticLockingFailureException("扣除积分失败");
+            throw new OptimisticLockingFailureException("扣除余额失败");
         }
 
 
@@ -1259,6 +1288,56 @@ public class AccountServiceImpl implements AccountService {
 
             }
         }
+
+        return SingleResponse.buildSuccess();
+    }
+
+    @Override
+    @Retryable(value = OptimisticLockingFailureException.class, maxAttempts = 3, backoff = @Backoff(delay = 100))
+    @Transactional(isolation = Isolation.REPEATABLE_READ, rollbackFor = Exception.class)
+    public SingleResponse<Void> rewardService(AccountDeductCmd accountDeductCmd) {
+
+        LambdaQueryWrapper<Account> queryWrapper = new LambdaQueryWrapper<>();
+        queryWrapper.eq(Account::getWalletAddress, accountDeductCmd.getWalletAddress());
+        queryWrapper.eq(Account::getType, accountDeductCmd.getAccountType());
+        queryWrapper.last("FOR UPDATE");
+
+        Account account = accountMapper.selectOne(queryWrapper);
+        if (account == null) {
+            return SingleResponse.buildFailure("账户不存在");
+        }
+
+        BigDecimal balance = new BigDecimal(account.getNumber());
+
+        if (balance.compareTo(new BigDecimal(accountDeductCmd.getNumber())) < 0) {
+            return SingleResponse.buildFailure("账户余额不足");
+        }
+
+        String beforeNumber = account.getNumber();
+
+        account.setNumber(String.valueOf(new BigDecimal(account.getNumber()).subtract(new BigDecimal(accountDeductCmd.getNumber()))));
+
+        account.setUpdateTime(System.currentTimeMillis());
+        int updateCount = accountMapper.updateById(account);
+
+        if (updateCount == 0) {
+            throw new OptimisticLockingFailureException("乐观锁异常");
+        }
+
+        AccountTransaction accountTransaction = new AccountTransaction();
+        accountTransaction.setWalletAddress(accountDeductCmd.getWalletAddress());
+        accountTransaction.setAccountId(account.getId());
+        accountTransaction.setBeforeNumber(beforeNumber);
+        accountTransaction.setTransactionTime(System.currentTimeMillis());
+        accountTransaction.setNumber(accountDeductCmd.getNumber());
+        accountTransaction.setAfterNumber(account.getNumber());
+        accountTransaction.setAccountType(account.getType());
+        accountTransaction.setStatus(AccountTransactionStatusEnum.SUCCESS.getCode());
+        accountTransaction.setTransactionType(AccountTransactionType.DEDUCT_REWARD_SERVICE.getCode());
+        accountTransaction.setOrder(accountDeductCmd.getOrder());
+
+        accountTransactionMapper.insert(accountTransaction);
+
 
         return SingleResponse.buildSuccess();
     }

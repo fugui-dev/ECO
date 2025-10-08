@@ -8,6 +8,8 @@ import com.example.eco.bean.cmd.RecommendQry;
 import com.example.eco.bean.dto.RecommendDTO;
 import com.example.eco.bean.dto.RecommendRecordDTO;
 import com.example.eco.core.service.RecommendService;
+import org.springframework.util.Assert;
+import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -44,6 +46,14 @@ public class RecommendController {
      */
     @PostMapping("/create")
     SingleResponse<Void> recommend(@RequestBody RecommendCreateCmd recommendCreateCmd) {
+        if (!StringUtils.hasLength(recommendCreateCmd.getRecommendCode())){
+            return SingleResponse.buildFailure("推荐码不能为空");
+        }
+
+        if (!StringUtils.hasLength(recommendCreateCmd.getRecommendWalletAddress())){
+            return SingleResponse.buildFailure("推荐钱包不能为空");
+        }
+
         return recommendService.recommend(recommendCreateCmd);
     }
 

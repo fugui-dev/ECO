@@ -72,14 +72,24 @@ public class PurchaseMinerProject {
 
 
     /**
-     * ESG数量
+     * 花费ESG数量
      */
     private String esgNumber;
 
     /**
-     * ECO数量
+     * 花费ECO数量
      */
     private String ecoNumber;
+
+    /**
+     * 产生奖励数量
+     */
+    private String reward;
+
+    /**
+     * 产生奖励的总价值
+     */
+    private String rewardPrice;
 
     /**
      * 失败原因

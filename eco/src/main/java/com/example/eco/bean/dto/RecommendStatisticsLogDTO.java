@@ -48,5 +48,10 @@ public class RecommendStatisticsLogDTO {
      */
     private String newComputingPower;
 
+    /**
+     * 大区地址
+     */
+    private String maxWalletAddress;
+
 
 }

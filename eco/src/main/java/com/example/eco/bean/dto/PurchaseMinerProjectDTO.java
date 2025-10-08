@@ -74,6 +74,11 @@ public class PurchaseMinerProjectDTO {
     private String yesterdayTotalReward;
 
     /**
+     * 昨天总ECO奖励
+     */
+    private String yesterdayTotalRewardPrice;
+
+    /**
      * 失败原因
      */
     private String reason;
@@ -87,4 +92,15 @@ public class PurchaseMinerProjectDTO {
      * 完成时间
      */
     private Long finishTime;
+
+
+    /**
+     * 产生奖励数量
+     */
+    private String reward;
+
+    /**
+     * 产生奖励的总价值
+     */
+    private String rewardPrice;
 }

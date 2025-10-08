@@ -5,9 +5,12 @@ import com.example.eco.bean.SingleResponse;
 import com.example.eco.bean.cmd.PurchaseMinerProjectPageQry;
 import com.example.eco.bean.cmd.PurchaseMinerProjectRewardQry;
 import com.example.eco.bean.cmd.PurchaseMinerProjectsCreateCmd;
+import com.example.eco.bean.cmd.RewardServiceQry;
 import com.example.eco.bean.dto.PurchaseMinerProjectDTO;
 import com.example.eco.bean.dto.PurchaseMinerProjectRewardDTO;
 import com.example.eco.bean.dto.PurchaseMinerProjectStatisticsDTO;
+import com.example.eco.bean.dto.RewardServiceResultDTO;
+import com.example.eco.common.PurchaseMinerType;
 import com.example.eco.core.service.PurchaseMinerProjectService;
 import org.springframework.web.bind.annotation.*;
 
@@ -35,6 +38,10 @@ public class PurchaseMinerProjectController {
      */
     @PostMapping("/create")
     SingleResponse<Void> create(@RequestBody PurchaseMinerProjectsCreateCmd purchaseMinerProjectsCreateCmd) {
+
+        if (purchaseMinerProjectsCreateCmd.getType().equals(PurchaseMinerType.AIRDROP.getCode())){
+            return SingleResponse.buildFailure("支付类型错误");
+        }
         return purchaseMinerProjectService.create(purchaseMinerProjectsCreateCmd);
     }
 
@@ -55,5 +62,14 @@ public class PurchaseMinerProjectController {
         return purchaseMinerProjectService.reward(purchaseMinerProjectRewardQry);
     }
 
+
+
+    /**
+     * 检查昨日奖励服务费
+     */
+    @PostMapping("/check/reward/service")
+    SingleResponse<RewardServiceResultDTO> checkRewardService(@RequestBody RewardServiceQry rewardServiceQry){
+        return purchaseMinerProjectService.checkRewardService(rewardServiceQry);
+    }
 
 }

@@ -8,6 +8,7 @@ import com.example.eco.bean.dto.RecommendComputingPowerDTO;
 import com.example.eco.bean.dto.RecommendStatisticsLogDTO;
 import com.example.eco.common.PendOrderStatus;
 import com.example.eco.core.service.RecommendStatisticsLogService;
+import com.example.eco.core.service.impl.ComputingPowerServiceImplV2;
 import com.example.eco.model.entity.*;
 import com.example.eco.model.mapper.RecommendMapper;
 import com.example.eco.model.mapper.RecommendStatisticsLogMapper;
@@ -25,6 +26,7 @@ import org.springframework.util.StringUtils;
 import javax.annotation.Resource;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
@@ -43,6 +45,8 @@ public class RecommendStatisticsLogServiceImpl implements RecommendStatisticsLog
     private RedissonClient redissonClient;
     @Resource
     private RewardLevelConfigMapper rewardLevelConfigMapper;
+    @Resource
+    private ComputingPowerServiceImplV2 computingPowerServiceV2;
 
 
     private static final String RECOMMEND_STATISTICS_LOCK_KEY = "recommend_statistics_lock:";
@@ -309,9 +313,11 @@ public class RecommendStatisticsLogServiceImpl implements RecommendStatisticsLog
 
         LambdaQueryWrapper<RecommendStatisticsLog> queryWrapper = new LambdaQueryWrapper<>();
         queryWrapper.eq(StringUtils.hasLength(recommendStatisticsLogListQry.getWalletAddress()), RecommendStatisticsLog::getWalletAddress, recommendStatisticsLogListQry.getWalletAddress());
+        if (StringUtils.hasLength(recommendStatisticsLogListQry.getDayTime())){
+            queryWrapper.le(RecommendStatisticsLog::getDayTime,recommendStatisticsLogListQry.getDayTime());
+        }
 
         List<RecommendStatisticsLog> recommendStatisticsLogs = recommendStatisticsLogMapper.selectList(queryWrapper);
-
         Map<String, List<RecommendStatisticsLog>> recommendStatisticsLogMap = recommendStatisticsLogs.stream().collect(Collectors.groupingBy(RecommendStatisticsLog::getWalletAddress));
 
         List<RecommendStatisticsLogDTO> recommendStatisticsLogDTOS = new ArrayList<>();
@@ -420,14 +426,28 @@ public class RecommendStatisticsLogServiceImpl implements RecommendStatisticsLog
 
         Recommend recommend = recommendMapper.selectOne(queryWrapper);
         if (Objects.isNull(recommend)) {
+            recommendStatisticsLog.setMinComputingPower("0");
+            recommendStatisticsLog.setMaxComputingPower("0");
+            recommendStatisticsLog.setNewComputingPower("0");
             return;
         }
 
         LambdaQueryWrapper<Recommend> directQueryWrapper = new LambdaQueryWrapper<>();
+        if (StringUtils.hasLength(dayTime)){
+            Long endTime = LocalDate.parse(dayTime).plusDays(1).atStartOfDay()
+                    .atZone(ZoneId.systemDefault())  // 明确使用系统时区
+                    .toInstant()
+                    .toEpochMilli();
+
+            directQueryWrapper.le(Recommend::getCreateTime,endTime);
+        }
         directQueryWrapper.eq(Recommend::getRecommendWalletAddress, recommendStatisticsLog.getWalletAddress());
 
         List<Recommend> directRecommends = recommendMapper.selectList(directQueryWrapper);
         if (CollectionUtils.isEmpty(directRecommends)) {
+            recommendStatisticsLog.setMinComputingPower("0");
+            recommendStatisticsLog.setMaxComputingPower("0");
+            recommendStatisticsLog.setNewComputingPower("0");
             return;
         }
 
@@ -440,7 +460,17 @@ public class RecommendStatisticsLogServiceImpl implements RecommendStatisticsLog
 
         log.info("totalRecommendComputingPowerMap : {}",totalRecommendComputingPowerMap);
 
-        String maxWalletAddress = totalRecommendComputingPowerMap.entrySet().stream()
+        Map<String,BigDecimal> directRecommendComputingPowerMap = new HashMap<>();
+
+        for (Recommend directRecommend : directRecommends) {
+
+            BigDecimal computingPower = totalRecommendComputingPowerMap.get(directRecommend.getWalletAddress());
+            if (Objects.nonNull(computingPower)){
+                directRecommendComputingPowerMap.put(directRecommend.getWalletAddress(),computingPower);
+            }
+        }
+
+        String maxWalletAddress = directRecommendComputingPowerMap.entrySet().stream()
                 .max(Map.Entry.comparingByValue())
                 .map(Map.Entry::getKey)
                 .orElse(null);
@@ -470,19 +500,23 @@ public class RecommendStatisticsLogServiceImpl implements RecommendStatisticsLog
                 continue; // 跳过最大算力的直推用户
             }
 
-            BigDecimal computedPower = calculateSubordinates(recommend.getLevel(),
-                    directRecommend.getWalletAddress(),
-                    levelRateMap,
-                    computedPowerMap,
-                    null,
-                    isLevel);
+            // 使用新的阶梯计算服务计算小区算力
+            SingleResponse<BigDecimal> computedPowerResponse = computingPowerServiceV2.calculateUserMinPower(
+                recommendStatisticsLog.getWalletAddress(),
+                dayTime,
+                levelRateMap,
+                isLevel
+            );
+            BigDecimal computedPower = computedPowerResponse.isSuccess() ? computedPowerResponse.getData() : BigDecimal.ZERO;
 
-            BigDecimal newComputedPower = calculateSubordinates(recommend.getLevel(),
-                    directRecommend.getWalletAddress(),
-                    levelRateMap,
-                    new HashMap<>(),
-                    dayTime,
-                    isLevel);
+            // 使用新的阶梯计算服务计算新增算力
+            SingleResponse<BigDecimal> newComputedPowerResponse = computingPowerServiceV2.calculateUserNewPower(
+                recommendStatisticsLog.getWalletAddress(),
+                dayTime,
+                levelRateMap,
+                isLevel
+            );
+            BigDecimal newComputedPower = newComputedPowerResponse.isSuccess() ? newComputedPowerResponse.getData() : BigDecimal.ZERO;
 
             newComputedPowerList.add(newComputedPower);
 
@@ -504,6 +538,7 @@ public class RecommendStatisticsLogServiceImpl implements RecommendStatisticsLog
 
             recommendStatisticsLog.setMinComputingPower(minComputingPower.toString());
             recommendStatisticsLog.setMaxComputingPower(maxComputedPower);
+            recommendStatisticsLog.setMaxWalletAddress(maxWalletAddress);
         }
 
         if (CollectionUtils.isEmpty(newComputedPowerList)){
@@ -514,7 +549,11 @@ public class RecommendStatisticsLogServiceImpl implements RecommendStatisticsLog
                     .reduce(BigDecimal::add)
                     .orElse(BigDecimal.ZERO);
 
-            recommendStatisticsLog.setNewComputingPower(newComputingPower.toString());
+            if (newComputingPower.compareTo(BigDecimal.ZERO) < 0){
+                recommendStatisticsLog.setNewComputingPower("0");
+            }else {
+                recommendStatisticsLog.setNewComputingPower(newComputingPower.toString());
+            }
         }
 
     }
@@ -546,6 +585,7 @@ public class RecommendStatisticsLogServiceImpl implements RecommendStatisticsLog
                                             Map<Integer, BigDecimal> levelRateMap,
                                             Map<String, BigDecimal> computedPowerMap,
                                             String dayTime,
+                                            Boolean isNew,
                                             Boolean isLevel) {
         // 1. 查询直接下级
         BigDecimal currentPower = computedPowerMap.get(walletAddress);
@@ -559,7 +599,13 @@ public class RecommendStatisticsLogServiceImpl implements RecommendStatisticsLog
             recommendStatisticsLogLambdaQueryWrapper.eq(RecommendStatisticsLog::getWalletAddress, walletAddress);
             
             if (StringUtils.hasLength(dayTime)){
-                recommendStatisticsLogLambdaQueryWrapper.eq(RecommendStatisticsLog::getDayTime, dayTime);
+
+                if (isNew){
+                    recommendStatisticsLogLambdaQueryWrapper.eq(RecommendStatisticsLog::getDayTime, dayTime);
+                    recommendStatisticsLogLambdaQueryWrapper.gt(RecommendStatisticsLog::getTotalComputingPower,"0");
+                }else {
+                    recommendStatisticsLogLambdaQueryWrapper.le(RecommendStatisticsLog::getDayTime, dayTime);
+                }
             }
 
             List<RecommendStatisticsLog> recommendStatisticsLogList = recommendStatisticsLogMapper.selectList(recommendStatisticsLogLambdaQueryWrapper);
@@ -590,7 +636,7 @@ public class RecommendStatisticsLogServiceImpl implements RecommendStatisticsLog
 
             BigDecimal levelRate = BigDecimal.ZERO;
             //是否按层级计算
-            if (isLevel){
+            if (isLevel && !levelRateMap.isEmpty()){
 
                 // 计算当前下级相对于父级的层级差
                 Integer relativeLevel = parentLevel - level;
@@ -603,7 +649,7 @@ public class RecommendStatisticsLogServiceImpl implements RecommendStatisticsLog
             }
 
             // 4. 递归查询当前下级的子级算力
-            BigDecimal grandchildrenPower = calculateSubordinates(level, subordinateAddress, levelRateMap, computedPowerMap, dayTime, isLevel);
+            BigDecimal grandchildrenPower = calculateSubordinates(level, subordinateAddress, levelRateMap, computedPowerMap, dayTime, isNew, isLevel);
 
             // 5. 计算当前层级的加权算力
 

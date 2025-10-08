@@ -115,4 +115,10 @@ public interface AccountService {
      * 释放提现服务费
      */
     SingleResponse<Void> releaseLockWithdrawServiceNumber(AccountReleaseLockWithdrawServiceCmd accountReleaseLockWithdrawServiceCmd);
+
+
+    /**
+     * 扣除奖励服务费
+     */
+    SingleResponse<Void> rewardService(AccountDeductCmd accountDeductCmd);
 }

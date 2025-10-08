@@ -7,6 +7,8 @@ public enum SystemConfigEnum {
 
     ECO_PRICE("ECO_PRICE", "ECO价格"),
 
+    ESG_PRICE("ESG_PRICE", "ESG价格"),
+
     ECO_TOTAL_NUMBER("ECO_TOTAL_NUMBER", "ECO总发行量"),
 
     INCREASE_MULTIPLIER("INCREASE_MULTIPLIER","矿机增加倍数"),
@@ -43,7 +45,9 @@ public enum SystemConfigEnum {
 
     ESG_CONTRACT_ADDRESS("ESG_CONTRACT_ADDRESS","ESG合约地址"),
 
-    ESG_ADDRESS("ESG_ADDRESS","ESG代币地址");
+    ESG_ADDRESS("ESG_ADDRESS","ESG代币地址"),
+
+    REWARD_SERVICE("REWARD_SERVICE","奖励服务费");
 
     private String code;
 

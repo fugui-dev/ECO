@@ -2,13 +2,11 @@ package com.example.eco.core.service;
 
 import com.example.eco.bean.MultiResponse;
 import com.example.eco.bean.SingleResponse;
-import com.example.eco.bean.cmd.PurchaseMinerProjectPageQry;
-import com.example.eco.bean.cmd.PurchaseMinerProjectRewardCmd;
-import com.example.eco.bean.cmd.PurchaseMinerProjectRewardQry;
-import com.example.eco.bean.cmd.PurchaseMinerProjectsCreateCmd;
+import com.example.eco.bean.cmd.*;
 import com.example.eco.bean.dto.PurchaseMinerProjectDTO;
 import com.example.eco.bean.dto.PurchaseMinerProjectRewardDTO;
 import com.example.eco.bean.dto.PurchaseMinerProjectStatisticsDTO;
+import com.example.eco.bean.dto.RewardServiceResultDTO;
 
 public interface PurchaseMinerProjectService {
 
@@ -32,6 +30,12 @@ public interface PurchaseMinerProjectService {
      * 根据天数查询奖励数据
      */
     SingleResponse<PurchaseMinerProjectRewardDTO> reward(PurchaseMinerProjectRewardQry purchaseMinerProjectRewardQry);
+
+
+    /**
+     * 检查昨日奖励服务费
+     */
+    SingleResponse<RewardServiceResultDTO> checkRewardService(RewardServiceQry rewardServiceQry);
 
 
 }

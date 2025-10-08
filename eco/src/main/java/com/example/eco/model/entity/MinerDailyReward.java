@@ -8,18 +8,20 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-/**
- * 推荐
- */
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@TableName("recommend")
-public class Recommend {
+@TableName("miner_daily_reward")
+public class MinerDailyReward {
 
     @TableId(type = IdType.AUTO)
     private Integer id;
+
+    /**
+     * 矿机ID
+     */
+    private Integer minerId;
 
     /**
      * 钱包地址
@@ -27,25 +29,29 @@ public class Recommend {
     private String walletAddress;
 
     /**
-     * 推荐人钱包地址
+     * 矿机项目ID
      */
-    private String recommendWalletAddress;
+    private Integer minerProjectId;
 
     /**
-     * 领导钱包地址
+     * 矿机算力
      */
-    private String leaderWalletAddress;
+    private String computingPower;
 
     /**
-     * 推荐码
+     * 总奖励数量
      */
-    private String recommendCode;
-
+    private String totalReward;
 
     /**
-     * 等级
+     * 总奖励数量价格
      */
-    private Integer level;
+    private String totalRewardPrice;
+
+    /**
+     * 奖励日期
+     */
+    private String dayTime;
 
     /**
      * 创建时间
@@ -56,11 +62,4 @@ public class Recommend {
      * 更新时间
      */
     private Long updateTime;
-
-    /**
-     * 状态
-     */
-    private String status;
-
-
 }

@@ -6,6 +6,7 @@ import com.example.eco.bean.cmd.TotalComputingPowerCmd;
 import com.example.eco.common.PurchaseMinerProjectStatus;
 import com.example.eco.common.SystemConfigEnum;
 import com.example.eco.core.service.RecommendStatisticsLogService;
+import com.example.eco.core.service.impl.ComputingPowerServiceImplV2;
 import com.example.eco.model.entity.PurchaseMinerProject;
 import com.example.eco.model.entity.PurchaseMinerProjectReward;
 import com.example.eco.model.entity.SystemConfig;
@@ -33,6 +34,8 @@ public class PurchaseMinerProjectScheduled {
     @Resource
     private RecommendStatisticsLogService recommendStatisticsLogService;
     @Resource
+    private ComputingPowerServiceImplV2 computingPowerServiceV2;
+    @Resource
     private PurchaseMinerProjectRewardMapper purchaseMinerProjectRewardMapper;
     @Resource
     private SystemConfigMapper systemConfigMapper;
@@ -49,19 +52,13 @@ public class PurchaseMinerProjectScheduled {
 
         for (PurchaseMinerProject purchaseMinerProject : purchaseMinerProjectList) {
 
-            BigDecimal computingPower = new BigDecimal(purchaseMinerProject.getActualComputingPower())
-                    .subtract(new BigDecimal(purchaseMinerProject.getComputingPower()));
-
             purchaseMinerProject.setActualComputingPower(purchaseMinerProject.getComputingPower());
             purchaseMinerProject.setUpdateTime(System.currentTimeMillis());
 
-            TotalComputingPowerCmd totalComputingPowerCmd = new TotalComputingPowerCmd();
-            totalComputingPowerCmd.setWalletAddress(purchaseMinerProject.getWalletAddress());
-            totalComputingPowerCmd.setComputingPower(computingPower.toString());
+            // 矿机加速到期，清除用户算力缓存，让下次查询时重新计算
+            computingPowerServiceV2.invalidateUserCache(purchaseMinerProject.getWalletAddress());
 
             try {
-
-                recommendStatisticsLogService.statistics(totalComputingPowerCmd);
 
                 purchaseMinerProjectMapper.updateById(purchaseMinerProject);
             }catch (Exception e){
@@ -70,7 +67,7 @@ public class PurchaseMinerProjectScheduled {
         }
     }
 
-    @Scheduled(cron = "0 0/3 * * * ?")
+//    @Scheduled(cron = "0 0/3 * * * ?")
     public void stop() {
 
         LambdaQueryWrapper<SystemConfig> systemConfigLambdaQueryWrapper = new LambdaQueryWrapper<>();
@@ -112,11 +109,8 @@ public class PurchaseMinerProjectScheduled {
                 purchaseMinerProject.setStatus(PurchaseMinerProjectStatus.STOP.getCode());
                 purchaseMinerProject.setUpdateTime(System.currentTimeMillis());
 
-                TotalComputingPowerCmd totalComputingPowerCmd = new TotalComputingPowerCmd();
-                totalComputingPowerCmd.setWalletAddress(purchaseMinerProject.getWalletAddress());
-                totalComputingPowerCmd.setComputingPower(new BigDecimal(purchaseMinerProject.getComputingPower()).negate().toString());
-
-                recommendStatisticsLogService.statistics(totalComputingPowerCmd);
+                // 矿机停用，清除用户算力缓存，让下次查询时重新计算
+                computingPowerServiceV2.invalidateUserCache(purchaseMinerProject.getWalletAddress());
 
                 purchaseMinerProjectMapper.updateById(purchaseMinerProject);
             }

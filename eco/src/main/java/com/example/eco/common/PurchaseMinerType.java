@@ -9,7 +9,9 @@ public enum PurchaseMinerType {
 
     ECO("ECO", "100%ECO购买"),
 
-    ECO_ESG("ECO_ESG", "50%ESC+50%ECO购买");
+    ECO_ESG("ECO_ESG", "50%ESC+50%ECO购买"),
+
+    AIRDROP("AIRDROP","空投");
 
     private String code;
 

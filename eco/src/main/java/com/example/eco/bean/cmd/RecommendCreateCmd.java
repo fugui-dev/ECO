@@ -6,6 +6,11 @@ import lombok.Data;
 public class RecommendCreateCmd {
 
     /**
+     * 推荐码
+     */
+    private String recommendCode;
+
+    /**
      * 推荐人钱包地址
      */
     private String walletAddress;

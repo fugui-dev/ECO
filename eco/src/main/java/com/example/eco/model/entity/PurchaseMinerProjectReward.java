@@ -72,6 +72,11 @@ public class PurchaseMinerProjectReward {
     private String reward;
 
     /**
+     * 奖励价值
+     */
+    private String rewardPrice;
+
+    /**
      * 类型
      */
     private String type;

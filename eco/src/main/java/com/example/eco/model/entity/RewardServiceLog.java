@@ -1,6 +1,7 @@
 package com.example.eco.model.entity;
 
 import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.AllArgsConstructor;
@@ -8,15 +9,12 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-/**
- * 推荐
- */
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@TableName("recommend")
-public class Recommend {
+@TableName("reward_service_log")
+public class RewardServiceLog {
 
     @TableId(type = IdType.AUTO)
     private Integer id;
@@ -27,40 +25,34 @@ public class Recommend {
     private String walletAddress;
 
     /**
-     * 推荐人钱包地址
+     * 日期
      */
-    private String recommendWalletAddress;
+    private String dayTime;
 
     /**
-     * 领导钱包地址
+     * 奖励总数
      */
-    private String leaderWalletAddress;
+    private String reward;
 
     /**
-     * 推荐码
+     * ECO手续费
      */
-    private String recommendCode;
-
-
-    /**
-     * 等级
-     */
-    private Integer level;
+    private String ecoNumber;
 
     /**
-     * 创建时间
+     * ESG手续费
      */
-    private Long createTime;
+    private String esgNumber;
 
     /**
-     * 更新时间
+     * 订单号
      */
-    private Long updateTime;
+    @TableField(value = "`order`")
+    private String order;
 
-    /**
-     * 状态
-     */
+
     private String status;
 
 
+    private String reason;
 }

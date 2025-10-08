@@ -90,9 +90,19 @@ public class Account {
     private String staticReward;
 
     /**
+     * 静态收益价值
+     */
+    private String staticRewardPrice;
+
+    /**
      * 动态收益
      */
     private String dynamicReward;
+
+    /**
+     * 动态收益价值
+     */
+    private String dynamicRewardPrice;
 
     @Version
     private Long version;

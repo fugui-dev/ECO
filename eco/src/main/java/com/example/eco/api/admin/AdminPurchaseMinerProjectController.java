@@ -4,7 +4,9 @@ import com.example.eco.bean.MultiResponse;
 import com.example.eco.bean.SingleResponse;
 import com.example.eco.bean.cmd.PurchaseMinerProjectPageQry;
 import com.example.eco.bean.cmd.PurchaseMinerProjectRewardCmd;
+import com.example.eco.bean.cmd.PurchaseMinerProjectsCreateCmd;
 import com.example.eco.bean.dto.PurchaseMinerProjectDTO;
+import com.example.eco.common.PurchaseMinerType;
 import com.example.eco.core.cmd.RewardConstructor;
 import com.example.eco.core.service.PurchaseMinerProjectService;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -15,7 +17,7 @@ import org.springframework.web.bind.annotation.RestController;
 import javax.annotation.Resource;
 
 @RestController
-@RequestMapping("/v1/purchase/miner/project")
+@RequestMapping("/v1/admin/purchase/miner/project")
 public class AdminPurchaseMinerProjectController {
 
     @Resource
@@ -36,5 +38,15 @@ public class AdminPurchaseMinerProjectController {
     SingleResponse<Void> reward(@RequestBody PurchaseMinerProjectRewardCmd purchaseMinerProjectRewardCmd){
         rewardConstructor.reward(purchaseMinerProjectRewardCmd);
         return SingleResponse.buildSuccess();
+    }
+
+    /**
+     * 创建购买矿机项目
+     */
+    @PostMapping("/create")
+    SingleResponse<Void> create(@RequestBody PurchaseMinerProjectsCreateCmd purchaseMinerProjectsCreateCmd) {
+
+        purchaseMinerProjectsCreateCmd.setType(PurchaseMinerType.AIRDROP.getCode());
+        return purchaseMinerProjectService.create(purchaseMinerProjectsCreateCmd);
     }
 }

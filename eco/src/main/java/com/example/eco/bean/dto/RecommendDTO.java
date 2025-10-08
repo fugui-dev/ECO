@@ -23,6 +23,11 @@ public class RecommendDTO {
     private String leaderWalletAddress;
 
     /**
+     * 推荐码
+     */
+    private String recommendCode;
+
+    /**
      * 等级
      */
     private Integer level;

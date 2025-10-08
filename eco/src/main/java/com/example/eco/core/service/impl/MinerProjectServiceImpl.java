@@ -160,7 +160,7 @@ public class MinerProjectServiceImpl implements MinerProjectService {
         BigDecimal amount = new BigDecimal(minerProjectStatisticsLog.getAmount()).add(minerProjectStatisticsLogCmd.getAmount());
 
         BigDecimal esgNumber = new BigDecimal(minerProjectStatisticsLog.getEsgNumber()).add(minerProjectStatisticsLogCmd.getEsgNumber());
-
+        minerProjectStatisticsLog.setMinerProjectId(minerProjectStatisticsLogCmd.getMinerProjectId());
         minerProjectStatisticsLog.setEsgNumber(esgNumber.toString());
         minerProjectStatisticsLog.setAmount(amount.toString());
 
