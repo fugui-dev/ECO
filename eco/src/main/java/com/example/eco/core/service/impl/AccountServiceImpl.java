@@ -143,15 +143,17 @@ public class AccountServiceImpl implements AccountService {
     @Transactional(isolation = Isolation.REPEATABLE_READ, rollbackFor = Exception.class)
     public SingleResponse<Void> addStaticNumber(AccountStaticNumberCmd accountStaticNumberCmd) {
 
-        LambdaQueryWrapper<Account> queryWrapper = new LambdaQueryWrapper<>();
-        queryWrapper.eq(Account::getWalletAddress, accountStaticNumberCmd.getWalletAddress());
-        queryWrapper.eq(Account::getType, accountStaticNumberCmd.getType());
-        queryWrapper.last("FOR UPDATE");
+//        LambdaQueryWrapper<Account> queryWrapper = new LambdaQueryWrapper<>();
+//        queryWrapper.eq(Account::getWalletAddress, accountStaticNumberCmd.getWalletAddress());
+//        queryWrapper.eq(Account::getType, accountStaticNumberCmd.getType());
+//        queryWrapper.last("FOR UPDATE");
+//
+//        Account account = accountMapper.selectOne(queryWrapper);
+//        if (account == null) {
+//            return SingleResponse.buildFailure("账户不存在");
+//        }
 
-        Account account = accountMapper.selectOne(queryWrapper);
-        if (account == null) {
-            return SingleResponse.buildFailure("账户不存在");
-        }
+        Account account = getOrCreate(accountStaticNumberCmd.getWalletAddress(), accountStaticNumberCmd.getType());
 
         LambdaQueryWrapper<SystemConfig> lambdaQueryWrapper = new LambdaQueryWrapper<>();
         lambdaQueryWrapper.eq(SystemConfig::getName,SystemConfigEnum.ECO_PRICE.getCode());
@@ -211,15 +213,17 @@ public class AccountServiceImpl implements AccountService {
     @Retryable(value = OptimisticLockingFailureException.class, maxAttempts = 3, backoff = @Backoff(delay = 100))
     @Transactional(isolation = Isolation.REPEATABLE_READ, rollbackFor = Exception.class)
     public SingleResponse<Void> addDynamicNumber(AccountDynamicNumberCmd accountDynamicNumberCmd) {
-        LambdaQueryWrapper<Account> queryWrapper = new LambdaQueryWrapper<>();
-        queryWrapper.eq(Account::getWalletAddress, accountDynamicNumberCmd.getWalletAddress());
-        queryWrapper.eq(Account::getType, accountDynamicNumberCmd.getType());
-        queryWrapper.last("FOR UPDATE");
+//        LambdaQueryWrapper<Account> queryWrapper = new LambdaQueryWrapper<>();
+//        queryWrapper.eq(Account::getWalletAddress, accountDynamicNumberCmd.getWalletAddress());
+//        queryWrapper.eq(Account::getType, accountDynamicNumberCmd.getType());
+//        queryWrapper.last("FOR UPDATE");
+//
+//        Account account = accountMapper.selectOne(queryWrapper);
+//        if (account == null) {
+//            return SingleResponse.buildFailure("账户不存在");
+//        }
 
-        Account account = accountMapper.selectOne(queryWrapper);
-        if (account == null) {
-            return SingleResponse.buildFailure("账户不存在");
-        }
+        Account account = getOrCreate(accountDynamicNumberCmd.getWalletAddress(), accountDynamicNumberCmd.getType());
 
         LambdaQueryWrapper<SystemConfig> lambdaQueryWrapper = new LambdaQueryWrapper<>();
         lambdaQueryWrapper.eq(SystemConfig::getName,SystemConfigEnum.ECO_PRICE.getCode());
@@ -279,15 +283,17 @@ public class AccountServiceImpl implements AccountService {
     @Retryable(value = OptimisticLockingFailureException.class, maxAttempts = 3, backoff = @Backoff(delay = 100))
     @Transactional(isolation = Isolation.REPEATABLE_READ, rollbackFor = Exception.class)
     public SingleResponse<Void> buyNumber(AccountBuyNumberCmd accountBuyNumberCmd) {
-        LambdaQueryWrapper<Account> queryWrapper = new LambdaQueryWrapper<>();
-        queryWrapper.eq(Account::getWalletAddress, accountBuyNumberCmd.getWalletAddress());
-        queryWrapper.eq(Account::getType, accountBuyNumberCmd.getType());
-        queryWrapper.last("FOR UPDATE");
+//        LambdaQueryWrapper<Account> queryWrapper = new LambdaQueryWrapper<>();
+//        queryWrapper.eq(Account::getWalletAddress, accountBuyNumberCmd.getWalletAddress());
+//        queryWrapper.eq(Account::getType, accountBuyNumberCmd.getType());
+//        queryWrapper.last("FOR UPDATE");
+//
+//        Account account = accountMapper.selectOne(queryWrapper);
+//        if (account == null) {
+//            return SingleResponse.buildFailure("账户不存在");
+//        }
 
-        Account account = accountMapper.selectOne(queryWrapper);
-        if (account == null) {
-            return SingleResponse.buildFailure("账户不存在");
-        }
+        Account account = getOrCreate(accountBuyNumberCmd.getWalletAddress(), accountBuyNumberCmd.getType());
 
         String beforeBuyLockNumber = account.getBuyLockNumber();
         account.setBuyLockNumber(String.valueOf(new BigDecimal(account.getBuyLockNumber()).add(new BigDecimal(accountBuyNumberCmd.getNumber()))));
@@ -439,15 +445,17 @@ public class AccountServiceImpl implements AccountService {
     @Retryable(value = OptimisticLockingFailureException.class, maxAttempts = 3, backoff = @Backoff(delay = 100))
     @Transactional(isolation = Isolation.REPEATABLE_READ, rollbackFor = Exception.class)
     public SingleResponse<Void> sellNumber(AccountSellNumberCmd accountSellNumberCmd) {
-        LambdaQueryWrapper<Account> queryWrapper = new LambdaQueryWrapper<>();
-        queryWrapper.eq(Account::getWalletAddress, accountSellNumberCmd.getWalletAddress());
-        queryWrapper.eq(Account::getType, accountSellNumberCmd.getType());
-        queryWrapper.last("FOR UPDATE");
+//        LambdaQueryWrapper<Account> queryWrapper = new LambdaQueryWrapper<>();
+//        queryWrapper.eq(Account::getWalletAddress, accountSellNumberCmd.getWalletAddress());
+//        queryWrapper.eq(Account::getType, accountSellNumberCmd.getType());
+//        queryWrapper.last("FOR UPDATE");
+//
+//        Account account = accountMapper.selectOne(queryWrapper);
+//        if (account == null) {
+//            return SingleResponse.buildFailure("账户不存在");
+//        }
 
-        Account account = accountMapper.selectOne(queryWrapper);
-        if (account == null) {
-            return SingleResponse.buildFailure("账户不存在");
-        }
+        Account account = getOrCreate(accountSellNumberCmd.getWalletAddress(), accountSellNumberCmd.getType());
 
         BigDecimal balance = new BigDecimal(account.getNumber()).subtract(new BigDecimal(account.getBuyNumber()));
         if (balance.compareTo(new BigDecimal(accountSellNumberCmd.getNumber())) < 0) {
@@ -621,15 +629,8 @@ public class AccountServiceImpl implements AccountService {
     @Retryable(value = OptimisticLockingFailureException.class, maxAttempts = 3, backoff = @Backoff(delay = 100))
     @Transactional(isolation = Isolation.REPEATABLE_READ, rollbackFor = Exception.class)
     public SingleResponse<Void> chargeNumber(AccountChargeNumberCmd accountChargeNumberCmd) {
-        LambdaQueryWrapper<Account> queryWrapper = new LambdaQueryWrapper<>();
-        queryWrapper.eq(Account::getWalletAddress, accountChargeNumberCmd.getWalletAddress());
-        queryWrapper.eq(Account::getType, accountChargeNumberCmd.getType());
-        queryWrapper.last("FOR UPDATE");
 
-        Account account = accountMapper.selectOne(queryWrapper);
-        if (account == null) {
-            return SingleResponse.buildFailure("账户不存在");
-        }
+        Account account = getOrCreate(accountChargeNumberCmd.getWalletAddress(), accountChargeNumberCmd.getType());
 
         String beforeChargeLockNumber = account.getChargeLockNumber();
 
@@ -793,15 +794,17 @@ public class AccountServiceImpl implements AccountService {
     @Retryable(value = OptimisticLockingFailureException.class, maxAttempts = 3, backoff = @Backoff(delay = 100))
     @Transactional(isolation = Isolation.REPEATABLE_READ, rollbackFor = Exception.class)
     public SingleResponse<Void> withdrawNumber(AccountWithdrawNumberCmd accountWithdrawNumberCmd) {
-        LambdaQueryWrapper<Account> queryWrapper = new LambdaQueryWrapper<>();
-        queryWrapper.eq(Account::getWalletAddress, accountWithdrawNumberCmd.getWalletAddress());
-        queryWrapper.eq(Account::getType, accountWithdrawNumberCmd.getType());
-        queryWrapper.last("FOR UPDATE");
+//        LambdaQueryWrapper<Account> queryWrapper = new LambdaQueryWrapper<>();
+//        queryWrapper.eq(Account::getWalletAddress, accountWithdrawNumberCmd.getWalletAddress());
+//        queryWrapper.eq(Account::getType, accountWithdrawNumberCmd.getType());
+//        queryWrapper.last("FOR UPDATE");
+//
+//        Account account = accountMapper.selectOne(queryWrapper);
+//        if (account == null) {
+//            return SingleResponse.buildFailure("账户不存在");
+//        }
 
-        Account account = accountMapper.selectOne(queryWrapper);
-        if (account == null) {
-            return SingleResponse.buildFailure("账户不存在");
-        }
+        Account account = getOrCreate(accountWithdrawNumberCmd.getWalletAddress(), accountWithdrawNumberCmd.getType());
 
         String number = account.getNumber();
         if (new BigDecimal(number).compareTo(new BigDecimal(accountWithdrawNumberCmd.getNumber())) < 0) {
@@ -976,14 +979,16 @@ public class AccountServiceImpl implements AccountService {
     @Transactional(isolation = Isolation.REPEATABLE_READ, rollbackFor = Exception.class)
     public SingleResponse<Void> purchaseMinerProjectNumber(AccountDeductCmd accountDeductCmd) {
 
-        LambdaQueryWrapper<Account> queryWrapper = new LambdaQueryWrapper<>();
-        queryWrapper.eq(Account::getWalletAddress, accountDeductCmd.getWalletAddress());
-        queryWrapper.eq(Account::getType, accountDeductCmd.getAccountType());
+//        LambdaQueryWrapper<Account> queryWrapper = new LambdaQueryWrapper<>();
+//        queryWrapper.eq(Account::getWalletAddress, accountDeductCmd.getWalletAddress());
+//        queryWrapper.eq(Account::getType, accountDeductCmd.getAccountType());
+//
+//        Account account = accountMapper.selectOne(queryWrapper);
+//        if (account == null) {
+//            return SingleResponse.buildFailure(account.getType() + "账户不存在");
+//        }
 
-        Account account = accountMapper.selectOne(queryWrapper);
-        if (account == null) {
-            return SingleResponse.buildFailure(account.getType() + "账户不存在");
-        }
+        Account account = getOrCreate(accountDeductCmd.getWalletAddress(), accountDeductCmd.getAccountType());
 
         BigDecimal balance = new BigDecimal(account.getNumber());
 
@@ -1066,14 +1071,16 @@ public class AccountServiceImpl implements AccountService {
     @Retryable(value = OptimisticLockingFailureException.class, maxAttempts = 3, backoff = @Backoff(delay = 100))
     @Transactional(isolation = Isolation.REPEATABLE_READ, rollbackFor = Exception.class)
     public SingleResponse<Void> withdrawServiceNumber(AccountWithdrawServiceCmd accountWithdrawServiceCmd) {
-        LambdaQueryWrapper<Account> queryWrapper = new LambdaQueryWrapper<>();
-        queryWrapper.eq(Account::getWalletAddress, accountWithdrawServiceCmd.getWalletAddress());
-        queryWrapper.eq(Account::getType, AccountType.ESG.getCode());
+//        LambdaQueryWrapper<Account> queryWrapper = new LambdaQueryWrapper<>();
+//        queryWrapper.eq(Account::getWalletAddress, accountWithdrawServiceCmd.getWalletAddress());
+//        queryWrapper.eq(Account::getType, AccountType.ESG.getCode());
+//
+//        Account account = accountMapper.selectOne(queryWrapper);
+//        if (account == null) {
+//            return SingleResponse.buildFailure(account.getType() + "账户不存在");
+//        }
 
-        Account account = accountMapper.selectOne(queryWrapper);
-        if (account == null) {
-            return SingleResponse.buildFailure(account.getType() + "账户不存在");
-        }
+        Account account = getOrCreate(accountWithdrawServiceCmd.getWalletAddress(),  AccountType.ESG.getCode());
 
         BigDecimal balance = new BigDecimal(account.getNumber());
         BigDecimal serviceNumber = new BigDecimal(accountWithdrawServiceCmd.getNumber());
@@ -1297,15 +1304,17 @@ public class AccountServiceImpl implements AccountService {
     @Transactional(isolation = Isolation.REPEATABLE_READ, rollbackFor = Exception.class)
     public SingleResponse<Void> rewardService(AccountDeductCmd accountDeductCmd) {
 
-        LambdaQueryWrapper<Account> queryWrapper = new LambdaQueryWrapper<>();
-        queryWrapper.eq(Account::getWalletAddress, accountDeductCmd.getWalletAddress());
-        queryWrapper.eq(Account::getType, accountDeductCmd.getAccountType());
-        queryWrapper.last("FOR UPDATE");
+//        LambdaQueryWrapper<Account> queryWrapper = new LambdaQueryWrapper<>();
+//        queryWrapper.eq(Account::getWalletAddress, accountDeductCmd.getWalletAddress());
+//        queryWrapper.eq(Account::getType, accountDeductCmd.getAccountType());
+//        queryWrapper.last("FOR UPDATE");
+//
+//        Account account = accountMapper.selectOne(queryWrapper);
+//        if (account == null) {
+//            return SingleResponse.buildFailure("账户不存在");
+//        }
 
-        Account account = accountMapper.selectOne(queryWrapper);
-        if (account == null) {
-            return SingleResponse.buildFailure("账户不存在");
-        }
+        Account account = getOrCreate(accountDeductCmd.getWalletAddress(), accountDeductCmd.getAccountType());
 
         BigDecimal balance = new BigDecimal(account.getNumber());
 
@@ -1340,5 +1349,43 @@ public class AccountServiceImpl implements AccountService {
 
 
         return SingleResponse.buildSuccess();
+    }
+
+
+    private Account getOrCreate(String walletAddress, String type){
+
+        LambdaQueryWrapper<Account> queryWrapper = new LambdaQueryWrapper<>();
+        queryWrapper.eq(Account::getWalletAddress, walletAddress);
+        queryWrapper.eq(Account::getType, type);
+        queryWrapper.last("FOR UPDATE");
+
+        Account account = accountMapper.selectOne(queryWrapper);
+        if (account == null) {
+
+            account = new Account();
+            account.setWalletAddress(walletAddress);
+            account.setSellNumber("0");
+            account.setSellLockNumber("0");
+            account.setChargeNumber("0");
+            account.setChargeLockNumber("0");
+            account.setWithdrawNumber("0");
+            account.setWithdrawLockNumber("0");
+            account.setBuyNumber("0");
+            account.setBuyLockNumber("0");
+            account.setDynamicReward("0");
+            account.setStaticReward("0");
+            account.setNumber("0");
+            account.setServiceNumber("0");
+            account.setServiceLockNumber("0");
+            account.setStaticRewardPrice("0");
+            account.setDynamicRewardPrice("0");
+            account.setType(type);
+            account.setCreateTime(System.currentTimeMillis());
+            account.setUpdateTime(System.currentTimeMillis());
+
+            accountMapper.insert(account);
+        }
+
+        return account;
     }
 }
