@@ -2,6 +2,8 @@ package com.example.eco.bean.cmd;
 
 import lombok.Data;
 
+import java.util.List;
+
 @Data
 public class PurchaseMinerProjectsCreateCmd {
 
@@ -20,4 +22,5 @@ public class PurchaseMinerProjectsCreateCmd {
      * 购买方式类型
      */
     private String type;
+
 }
