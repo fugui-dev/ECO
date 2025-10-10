@@ -456,6 +456,95 @@ public class ComputingPowerServiceImpl implements ComputingPowerService {
                 return SingleResponse.of(BigDecimal.ZERO);
             }
 
+            // 获取用户层级信息
+            LambdaQueryWrapper<Recommend> userQuery = new LambdaQueryWrapper<>();
+            userQuery.eq(Recommend::getWalletAddress, walletAddress);
+            Recommend userRecommend = recommendMapper.selectOne(userQuery);
+            Integer userLevel = userRecommend != null ? userRecommend.getLevel() : 0;
+
+            // 递归计算新增算力 - 包括自己和所有子级今天新增的算力
+            Map<String, BigDecimal> computedPowerMap = new HashMap<>();
+            BigDecimal totalNewPower = calculateNewPowerWithLevel(
+                userLevel, 
+                walletAddress, 
+                dayTime, 
+                levelRateMap, 
+                computedPowerMap, 
+                isLevel
+            );
+
+            log.debug("用户{}新增算力(递归阶梯计算): {}", walletAddress, totalNewPower);
+            return SingleResponse.of(totalNewPower);
+
+        } catch (Exception e) {
+            log.error("计算用户{}新增算力失败(递归阶梯计算)", walletAddress, e);
+            return SingleResponse.buildFailure("计算新增算力失败: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 递归计算新增算力 - 支持阶梯计算
+     */
+    private BigDecimal calculateNewPowerWithLevel(Integer parentLevel, String walletAddress, String dayTime, 
+                                                 Map<Integer, BigDecimal> levelRateMap, 
+                                                 Map<String, BigDecimal> cache, Boolean isLevel) {
+        // 检查缓存
+        if (cache.containsKey(walletAddress)) {
+            return cache.get(walletAddress);
+        }
+
+        // 计算当前用户今天新增的算力
+        BigDecimal currentNewPower = calculateUserSelfNewPower(walletAddress, dayTime);
+
+        // 查询直接下级
+        LambdaQueryWrapper<Recommend> queryWrapper = new LambdaQueryWrapper<>();
+        queryWrapper.eq(Recommend::getRecommendWalletAddress, walletAddress);
+        List<Recommend> directSubordinates = recommendMapper.selectList(queryWrapper);
+
+        // 递归计算每个下级的新增算力
+        BigDecimal subordinateNewPower = BigDecimal.ZERO;
+        for (Recommend subordinate : directSubordinates) {
+            String subordinateAddress = subordinate.getWalletAddress();
+            Integer subordinateLevel = subordinate.getLevel();
+            
+            // 计算下级新增算力
+            BigDecimal subNewPower = calculateNewPowerWithLevel(
+                subordinateLevel, 
+                subordinateAddress, 
+                dayTime, 
+                levelRateMap, 
+                cache, 
+                isLevel
+            );
+            
+            // 应用阶梯计算
+            if (isLevel && levelRateMap != null && !levelRateMap.isEmpty()) {
+                // 计算当前下级相对于父级的层级差
+                Integer relativeLevel = subordinateLevel - parentLevel;
+                BigDecimal levelRate = levelRateMap.get(relativeLevel);
+                
+                if (levelRate != null && levelRate.compareTo(BigDecimal.ZERO) > 0) {
+                    subNewPower = subNewPower.multiply(levelRate);
+                }
+            }
+            
+            subordinateNewPower = subordinateNewPower.add(subNewPower);
+        }
+
+        // 总新增算力 = 自身新增算力 + 下级新增算力
+        BigDecimal totalNewPower = currentNewPower.add(subordinateNewPower);
+        
+        // 缓存结果
+        cache.put(walletAddress, totalNewPower);
+        
+        return totalNewPower;
+    }
+
+    /**
+     * 计算用户自身今天新增的算力
+     */
+    private BigDecimal calculateUserSelfNewPower(String walletAddress, String dayTime) {
+        try {
             // 查询当日新增的矿机
             long startTime = LocalDate.parse(dayTime).atStartOfDay().atZone(ZoneId.systemDefault()).toInstant().toEpochMilli();
 
@@ -470,50 +559,17 @@ public class ComputingPowerServiceImpl implements ComputingPowerService {
             List<PurchaseMinerProject> newMiners = purchaseMinerProjectMapper.selectList(queryWrapper);
             
             if (CollectionUtils.isEmpty(newMiners)) {
-                return SingleResponse.of(BigDecimal.ZERO);
+                return BigDecimal.ZERO;
             }
 
-            // 计算新增算力 - 支持阶梯计算
-            BigDecimal newPower = BigDecimal.ZERO;
-            
-            if (isLevel && levelRateMap != null && !levelRateMap.isEmpty()) {
-                // 获取用户层级信息
-                LambdaQueryWrapper<Recommend> userQuery = new LambdaQueryWrapper<>();
-                userQuery.eq(Recommend::getWalletAddress, walletAddress);
-                Recommend userRecommend = recommendMapper.selectOne(userQuery);
-                Integer userLevel = userRecommend != null ? userRecommend.getLevel() : 0;
-                
-                // 获取推荐人层级信息
-                Integer recommenderLevel = 0;
-                if (userRecommend != null && userRecommend.getRecommendWalletAddress() != null) {
-                    LambdaQueryWrapper<Recommend> recommenderQuery = new LambdaQueryWrapper<>();
-                    recommenderQuery.eq(Recommend::getWalletAddress, userRecommend.getRecommendWalletAddress());
-                    Recommend recommender = recommendMapper.selectOne(recommenderQuery);
-                    recommenderLevel = recommender != null ? recommender.getLevel() : 0;
-                }
-                
-                // 计算层级差：当前用户相对于推荐人的层级差
-                Integer relativeLevel = userLevel - recommenderLevel;
-                
-                // 根据层级差计算新增算力
-                for (PurchaseMinerProject miner : newMiners) {
-                    BigDecimal basePower = new BigDecimal(miner.getActualComputingPower());
-                    BigDecimal levelRate = levelRateMap.getOrDefault(relativeLevel, BigDecimal.ONE);
-                    newPower = newPower.add(basePower.multiply(levelRate));
-                }
-            } else {
-                // 不按层级计算，直接累加
-                newPower = newMiners.stream()
-                        .map(miner -> new BigDecimal(miner.getActualComputingPower()))
-                        .reduce(BigDecimal.ZERO, BigDecimal::add);
-            }
-
-            log.debug("用户{}新增算力(阶梯计算): {}", walletAddress, newPower);
-            return SingleResponse.of(newPower);
-
+            // 计算自身新增算力
+            return newMiners.stream()
+                    .map(miner -> new BigDecimal(miner.getActualComputingPower()))
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+                    
         } catch (Exception e) {
-            log.error("计算用户{}新增算力失败(阶梯计算)", walletAddress, e);
-            return SingleResponse.buildFailure("计算新增算力失败: " + e.getMessage());
+            log.error("计算用户{}自身新增算力失败", walletAddress, e);
+            return BigDecimal.ZERO;
         }
     }
 
