@@ -2,7 +2,9 @@ package com.example.eco.api.user;
 
 import com.alibaba.excel.util.StringUtils;
 import com.example.eco.bean.MultiResponse;
+import com.example.eco.bean.SingleResponse;
 import com.example.eco.bean.cmd.AccountPageQry;
+import com.example.eco.bean.cmd.AccountTransferCmd;
 import com.example.eco.bean.dto.AccountDTO;
 import com.example.eco.core.service.AccountService;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -26,5 +28,13 @@ public class AccountController {
     MultiResponse<AccountDTO> list(@RequestBody AccountPageQry accountPageQry) {
 
         return accountService.list(accountPageQry);
+    }
+
+    /**
+     * ECO账户转账
+     */
+    @PostMapping("/transfer")
+    SingleResponse<Void> transferEco(@RequestBody  AccountTransferCmd accountTransferCmd){
+        return accountService.transferEco(accountTransferCmd);
     }
 }

@@ -60,7 +60,11 @@ public enum AccountTransactionType {
 
     DEDUCT_DYNAMIC_REWARD("DEDUCT_DYNAMIC_REWARD", "扣除动态奖励"),
 
-    DEDUCT_REWARD_SERVICE("DEDUCT_REWARD_SERVICE", "扣除奖励服务费");
+    DEDUCT_REWARD_SERVICE("DEDUCT_REWARD_SERVICE", "扣除奖励服务费"),
+
+    TRANSFER_OUT("TRANSFER_OUT", "转出"),
+
+    TRANSFER_IN("TRANSFER_IN", "转入");
 
     private String code;
 

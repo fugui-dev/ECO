@@ -109,30 +109,19 @@ public class PurchaseMinerProjectServiceImpl implements PurchaseMinerProjectServ
         purchaseMinerProject.setRewardPrice("0");
         purchaseMinerProject.setCreateTime(System.currentTimeMillis());
 
-        LambdaQueryWrapper<SystemConfig> increaseQueryWrapper = new LambdaQueryWrapper<>();
-        increaseQueryWrapper.eq(SystemConfig::getName, SystemConfigEnum.INCREASE_MULTIPLIER.getCode());
-
-        SystemConfig increaseSystemConfig = systemConfigMapper.selectOne(increaseQueryWrapper);
-        if (Objects.nonNull(increaseSystemConfig)) {
-
-
-            LambdaQueryWrapper<SystemConfig> effectiveQueryWrapper = new LambdaQueryWrapper<>();
-            effectiveQueryWrapper.eq(SystemConfig::getName, SystemConfigEnum.EFFECTIVE_DAY.getCode());
-
-            SystemConfig effectiveSystemConfig = systemConfigMapper.selectOne(effectiveQueryWrapper);
-            if (Objects.nonNull(effectiveSystemConfig)){
-
-                BigDecimal increase = new BigDecimal(increaseSystemConfig.getValue());
-
-                BigDecimal actualComputingPower = new BigDecimal(minerProject.getComputingPower()).multiply(increase);
-
-                LocalDateTime effectiveDate = LocalDateTime.now().plusDays(Long.parseLong(effectiveSystemConfig.getValue()));
-
-                Long effectiveTime = effectiveDate.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli();
-
-                purchaseMinerProject.setActualComputingPower(actualComputingPower.toString());
-                purchaseMinerProject.setAccelerateExpireTime(effectiveTime);
-            }
+        // 计算动态补偿算力 - 从数据库获取倍数配置，使用1.003^(n-1)公式
+        BigDecimal actualComputingPower = calculateDynamicCompensationPower(minerProject, purchaseMinerProject.getCreateTime());
+        
+        if (actualComputingPower.compareTo(new BigDecimal(minerProject.getComputingPower())) > 0) {
+            // 设置补偿算力
+            purchaseMinerProject.setActualComputingPower(actualComputingPower.toString());
+            
+            // 设置加速到期时间（从购买时开始，有效期从配置获取）
+            Long effectiveTime = calculateEffectiveTime();
+            purchaseMinerProject.setAccelerateExpireTime(effectiveTime);
+        } else {
+            // 如果没有补偿，使用原始算力
+            purchaseMinerProject.setActualComputingPower(minerProject.getComputingPower());
         }
 
 
@@ -317,6 +306,131 @@ public class PurchaseMinerProjectServiceImpl implements PurchaseMinerProjectServ
         return SingleResponse.buildSuccess();
     }
 
+
+    /**
+     * 计算动态补偿算力
+     * 补偿算力 = 原始算力 * baseMultiplier^(n-1)
+     * 其中 n = 矿机创建时间到购买时间的天数
+     * baseMultiplier = 从数据库配置 INCREASE_MULTIPLIER 获取
+     * 从购买时开始补偿，即 n >= 1 时就有补偿
+     */
+    private BigDecimal calculateDynamicCompensationPower(MinerProject minerProject, Long purchaseTime) {
+        try {
+            // 获取矿机创建时间
+            Long minerCreateTime = minerProject.getCreateTime();
+            if (minerCreateTime == null) {
+                // 如果矿机创建时间为空，返回原始算力
+                return new BigDecimal(minerProject.getComputingPower());
+            }
+            
+            // 从数据库获取倍数配置
+            LambdaQueryWrapper<SystemConfig> increaseQueryWrapper = new LambdaQueryWrapper<>();
+            increaseQueryWrapper.eq(SystemConfig::getName, SystemConfigEnum.INCREASE_MULTIPLIER.getCode());
+            SystemConfig increaseSystemConfig = systemConfigMapper.selectOne(increaseQueryWrapper);
+            
+            if (increaseSystemConfig == null || increaseSystemConfig.getValue() == null) {
+                // 如果没有配置，返回原始算力
+                return new BigDecimal(minerProject.getComputingPower());
+            }
+            
+            BigDecimal baseMultiplier = new BigDecimal(increaseSystemConfig.getValue());
+            
+            // 计算天数差
+            long daysDifference = calculateDaysDifference(minerCreateTime, purchaseTime);
+            
+            // 从购买时开始补偿，即 n >= 1
+            if (daysDifference < 1) {
+                // 当天购买，无补偿
+                return new BigDecimal(minerProject.getComputingPower());
+            }
+            
+            // 计算补偿倍数：baseMultiplier^(n-1)
+            int exponent = (int) (daysDifference - 1); // n-1
+            
+            // 使用BigDecimal进行幂运算
+            BigDecimal compensationMultiplier = baseMultiplier.pow(exponent);
+            
+            // 计算补偿算力
+            BigDecimal originalPower = new BigDecimal(minerProject.getComputingPower());
+            BigDecimal actualPower = originalPower.multiply(compensationMultiplier);
+            
+            log.info("矿机{}动态补偿计算: 创建时间={}, 购买时间={}, 天数差={}, 基础倍数={}, 补偿倍数={}, 原始算力={}, 实际算力={}", 
+                    minerProject.getId(), 
+                    new java.util.Date(minerCreateTime), 
+                    new java.util.Date(purchaseTime), 
+                    daysDifference, 
+                    baseMultiplier,
+                    compensationMultiplier, 
+                    originalPower, 
+                    actualPower);
+            
+            return actualPower;
+            
+        } catch (Exception e) {
+            log.error("计算动态补偿算力失败", e);
+            // 计算失败时返回原始算力
+            return new BigDecimal(minerProject.getComputingPower());
+        }
+    }
+    
+    /**
+     * 计算两个时间戳之间的天数差
+     */
+    private long calculateDaysDifference(Long startTime, Long endTime) {
+        try {
+            // 将时间戳转换为LocalDate
+            LocalDate startDate = LocalDateTime.ofInstant(
+                java.time.Instant.ofEpochMilli(startTime), 
+                ZoneId.systemDefault()
+            ).toLocalDate();
+            
+            LocalDate endDate = LocalDateTime.ofInstant(
+                java.time.Instant.ofEpochMilli(endTime), 
+                ZoneId.systemDefault()
+            ).toLocalDate();
+            
+            // 计算天数差
+            return java.time.temporal.ChronoUnit.DAYS.between(startDate, endDate);
+            
+        } catch (Exception e) {
+            log.error("计算天数差失败: startTime={}, endTime={}", startTime, endTime, e);
+            return 0;
+        }
+    }
+    
+    /**
+     * 计算补偿算力有效期
+     * 从购买时开始，有效期从数据库配置 EFFECTIVE_DAY 获取
+     */
+    private Long calculateEffectiveTime() {
+        try {
+            // 从数据库获取有效期配置
+            LambdaQueryWrapper<SystemConfig> effectiveQueryWrapper = new LambdaQueryWrapper<>();
+            effectiveQueryWrapper.eq(SystemConfig::getName, SystemConfigEnum.EFFECTIVE_DAY.getCode());
+            SystemConfig effectiveSystemConfig = systemConfigMapper.selectOne(effectiveQueryWrapper);
+            
+            if (effectiveSystemConfig == null || effectiveSystemConfig.getValue() == null) {
+                // 如果没有配置，默认1天有效期
+                LocalDateTime effectiveDate = LocalDateTime.now().plusDays(1);
+                return effectiveDate.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli();
+            }
+            
+            // 从购买时开始，加上配置的有效天数
+            long effectiveDays = Long.parseLong(effectiveSystemConfig.getValue());
+            LocalDateTime effectiveDate = LocalDateTime.now().plusDays(effectiveDays);
+            Long effectiveTime = effectiveDate.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli();
+            
+            log.info("补偿算力有效期计算: 有效天数={}, 到期时间={}", effectiveDays, new java.util.Date(effectiveTime));
+            
+            return effectiveTime;
+            
+        } catch (Exception e) {
+            log.error("计算补偿算力有效期失败", e);
+            // 计算失败时默认1天有效期
+            LocalDateTime effectiveDate = LocalDateTime.now().plusDays(1);
+            return effectiveDate.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli();
+        }
+    }
 
     /**
      * 检查限额

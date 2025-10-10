@@ -121,4 +121,9 @@ public interface AccountService {
      * 扣除奖励服务费
      */
     SingleResponse<Void> rewardService(AccountDeductCmd accountDeductCmd);
+
+    /**
+     * ECO账户转账
+     */
+    SingleResponse<Void> transferEco(AccountTransferCmd accountTransferCmd);
 }

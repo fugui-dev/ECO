@@ -457,7 +457,10 @@ public class AccountServiceImpl implements AccountService {
 
         Account account = getOrCreate(accountSellNumberCmd.getWalletAddress(), accountSellNumberCmd.getType());
 
-        BigDecimal balance = new BigDecimal(account.getNumber()).subtract(new BigDecimal(account.getBuyNumber()));
+        BigDecimal balance = new BigDecimal(account.getStaticReward())
+                .add(new BigDecimal(account.getDynamicReward()))
+                .subtract(new BigDecimal(account.getSellLockNumber()))
+                .subtract(new BigDecimal(account.getSellNumber()));
         if (balance.compareTo(new BigDecimal(accountSellNumberCmd.getNumber())) < 0) {
             return SingleResponse.buildFailure("账户余额不足");
         }
@@ -1387,5 +1390,111 @@ public class AccountServiceImpl implements AccountService {
         }
 
         return account;
+    }
+
+    @Override
+    @Retryable(value = OptimisticLockingFailureException.class, maxAttempts = 3, backoff = @Backoff(delay = 100))
+    @Transactional(isolation = Isolation.REPEATABLE_READ, rollbackFor = Exception.class)
+    public SingleResponse<Void> transferEco(AccountTransferCmd accountTransferCmd) {
+        // 参数验证（在事务外进行，避免无效参数触发回滚）
+        if (accountTransferCmd.getFromWalletAddress() == null || accountTransferCmd.getFromWalletAddress().trim().isEmpty()) {
+            return SingleResponse.buildFailure("转出钱包地址不能为空");
+        }
+        if (accountTransferCmd.getToWalletAddress() == null || accountTransferCmd.getToWalletAddress().trim().isEmpty()) {
+            return SingleResponse.buildFailure("转入钱包地址不能为空");
+        }
+        if (accountTransferCmd.getAmount() == null || accountTransferCmd.getAmount().trim().isEmpty()) {
+            return SingleResponse.buildFailure("转账金额不能为空");
+        }
+        if (accountTransferCmd.getFromWalletAddress().equals(accountTransferCmd.getToWalletAddress())) {
+            return SingleResponse.buildFailure("转出和转入钱包地址不能相同");
+        }
+
+        BigDecimal transferAmount;
+        try {
+            transferAmount = new BigDecimal(accountTransferCmd.getAmount());
+            if (transferAmount.compareTo(BigDecimal.ZERO) <= 0) {
+                return SingleResponse.buildFailure("转账金额必须大于0");
+            }
+        } catch (NumberFormatException e) {
+            return SingleResponse.buildFailure("转账金额格式错误");
+        }
+
+        try {
+
+            // 获取或创建转出账户（ECO类型）
+            Account fromAccount = getOrCreate(accountTransferCmd.getFromWalletAddress(), AccountType.ECO.getCode());
+            
+            // 检查转出账户余额
+            BigDecimal fromBalance = new BigDecimal(fromAccount.getNumber());
+            if (fromBalance.compareTo(transferAmount) < 0) {
+                return SingleResponse.buildFailure("转出账户ECO余额不足");
+            }
+
+            // 获取或创建转入账户（ECO类型）
+            Account toAccount = getOrCreate(accountTransferCmd.getToWalletAddress(), AccountType.ECO.getCode());
+
+            // 生成订单号
+            String order = "TR" + System.currentTimeMillis();
+
+            // 执行转账操作
+            // 1. 扣除转出账户余额
+            String fromBeforeNumber = fromAccount.getNumber();
+            fromAccount.setNumber(String.valueOf(fromBalance.subtract(transferAmount)));
+            fromAccount.setUpdateTime(System.currentTimeMillis());
+            
+            int fromUpdateCount = accountMapper.updateById(fromAccount);
+            if (fromUpdateCount == 0) {
+                throw new OptimisticLockingFailureException("更新转出账户失败");
+            }
+
+            // 2. 增加转入账户余额
+            String toBeforeNumber = toAccount.getNumber();
+            BigDecimal toBalance = new BigDecimal(toAccount.getNumber());
+            toAccount.setNumber(String.valueOf(toBalance.add(transferAmount)));
+            toAccount.setUpdateTime(System.currentTimeMillis());
+            
+            int toUpdateCount = accountMapper.updateById(toAccount);
+            if (toUpdateCount == 0) {
+                throw new OptimisticLockingFailureException("更新转入账户失败");
+            }
+
+            // 3. 记录转出交易
+            AccountTransaction fromTransaction = new AccountTransaction();
+            fromTransaction.setWalletAddress(accountTransferCmd.getFromWalletAddress());
+            fromTransaction.setAccountId(fromAccount.getId());
+            fromTransaction.setBeforeNumber(fromBeforeNumber);
+            fromTransaction.setTransactionTime(System.currentTimeMillis());
+            fromTransaction.setNumber(accountTransferCmd.getAmount());
+            fromTransaction.setAfterNumber(fromAccount.getNumber());
+            fromTransaction.setAccountType(AccountType.ECO.getCode());
+            fromTransaction.setStatus(AccountTransactionStatusEnum.SUCCESS.getCode());
+            fromTransaction.setTransactionType(AccountTransactionType.TRANSFER_OUT.getCode());
+            fromTransaction.setOrder(order);
+            fromTransaction.setRemark(accountTransferCmd.getRemark());
+            accountTransactionMapper.insert(fromTransaction);
+
+            // 4. 记录转入交易
+            AccountTransaction toTransaction = new AccountTransaction();
+            toTransaction.setWalletAddress(accountTransferCmd.getToWalletAddress());
+            toTransaction.setAccountId(toAccount.getId());
+            toTransaction.setBeforeNumber(toBeforeNumber);
+            toTransaction.setTransactionTime(System.currentTimeMillis());
+            toTransaction.setNumber(accountTransferCmd.getAmount());
+            toTransaction.setAfterNumber(toAccount.getNumber());
+            toTransaction.setAccountType(AccountType.ECO.getCode());
+            toTransaction.setStatus(AccountTransactionStatusEnum.SUCCESS.getCode());
+            toTransaction.setTransactionType(AccountTransactionType.TRANSFER_IN.getCode());
+            toTransaction.setOrder(order);
+            toTransaction.setRemark(accountTransferCmd.getRemark());
+            accountTransactionMapper.insert(toTransaction);
+
+            return SingleResponse.buildSuccess();
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            // 重新抛出异常以触发事务回滚
+            throw new RuntimeException("转账失败: " + e.getMessage(), e);
+        }
     }
 }
