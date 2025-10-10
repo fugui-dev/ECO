@@ -19,4 +19,10 @@ public class PurchaseMinerProjectPageQry extends PageQuery {
      * 状态
      */
     private String status;
+
+
+    private Long startTime;
+
+
+    private Long endTime;
 }

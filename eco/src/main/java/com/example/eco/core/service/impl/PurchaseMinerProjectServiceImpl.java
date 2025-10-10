@@ -31,12 +31,14 @@ import org.springframework.util.StringUtils;
 import javax.annotation.Resource;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.text.SimpleDateFormat;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
@@ -316,12 +318,6 @@ public class PurchaseMinerProjectServiceImpl implements PurchaseMinerProjectServ
      */
     private BigDecimal calculateDynamicCompensationPower(MinerProject minerProject, Long purchaseTime) {
         try {
-            // 获取矿机创建时间
-            Long minerCreateTime = minerProject.getCreateTime();
-            if (minerCreateTime == null) {
-                // 如果矿机创建时间为空，返回原始算力
-                return new BigDecimal(minerProject.getComputingPower());
-            }
             
             // 从数据库获取倍数配置
             LambdaQueryWrapper<SystemConfig> increaseQueryWrapper = new LambdaQueryWrapper<>();
@@ -332,11 +328,25 @@ public class PurchaseMinerProjectServiceImpl implements PurchaseMinerProjectServ
                 // 如果没有配置，返回原始算力
                 return new BigDecimal(minerProject.getComputingPower());
             }
-            
+
+
+            LambdaQueryWrapper<SystemConfig> increaseStartTimeQueryWrapper = new LambdaQueryWrapper<>();
+            increaseStartTimeQueryWrapper.eq(SystemConfig::getName, SystemConfigEnum.INCREASE_MULTIPLIER_START_TIME.getCode());
+            SystemConfig increaseStartTimeSystemConfig = systemConfigMapper.selectOne(increaseQueryWrapper);
+
+            if (increaseStartTimeSystemConfig == null || increaseStartTimeSystemConfig.getValue() == null) {
+                // 如果没有配置，返回原始算力
+                return new BigDecimal(minerProject.getComputingPower());
+            }
+
+
             BigDecimal baseMultiplier = new BigDecimal(increaseSystemConfig.getValue());
+
+            SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+            Date date = sdf.parse(increaseStartTimeSystemConfig.getValue());
             
             // 计算天数差
-            long daysDifference = calculateDaysDifference(minerCreateTime, purchaseTime);
+            long daysDifference = calculateDaysDifference(date.getTime(), purchaseTime);
             
             // 从购买时开始补偿，即 n >= 1
             if (daysDifference < 1) {
@@ -352,19 +362,9 @@ public class PurchaseMinerProjectServiceImpl implements PurchaseMinerProjectServ
             
             // 计算补偿算力
             BigDecimal originalPower = new BigDecimal(minerProject.getComputingPower());
-            BigDecimal actualPower = originalPower.multiply(compensationMultiplier);
-            
-            log.info("矿机{}动态补偿计算: 创建时间={}, 购买时间={}, 天数差={}, 基础倍数={}, 补偿倍数={}, 原始算力={}, 实际算力={}", 
-                    minerProject.getId(), 
-                    new java.util.Date(minerCreateTime), 
-                    new java.util.Date(purchaseTime), 
-                    daysDifference, 
-                    baseMultiplier,
-                    compensationMultiplier, 
-                    originalPower, 
-                    actualPower);
-            
-            return actualPower;
+
+
+            return originalPower.multiply(compensationMultiplier);
             
         } catch (Exception e) {
             log.error("计算动态补偿算力失败", e);
@@ -468,6 +468,10 @@ public class PurchaseMinerProjectServiceImpl implements PurchaseMinerProjectServ
         lambdaQueryWrapper.eq(StringUtils.hasLength(purchaseMinerProjectPageQry.getWalletAddress()),PurchaseMinerProject::getWalletAddress, purchaseMinerProjectPageQry.getWalletAddress());
         lambdaQueryWrapper.eq(StringUtils.hasLength(purchaseMinerProjectPageQry.getType()),PurchaseMinerProject::getType, purchaseMinerProjectPageQry.getType());
         lambdaQueryWrapper.eq(StringUtils.hasLength(purchaseMinerProjectPageQry.getStatus()),PurchaseMinerProject::getStatus, purchaseMinerProjectPageQry.getStatus());
+
+        if (Objects.nonNull(purchaseMinerProjectPageQry.getStartTime()) && Objects.nonNull(purchaseMinerProjectPageQry.getEndTime())) {
+            lambdaQueryWrapper.between(PurchaseMinerProject::getCreateTime, purchaseMinerProjectPageQry.getStartTime(), purchaseMinerProjectPageQry.getEndTime());
+        }
 
         Page<PurchaseMinerProject> purchaseMinerProjectPage = purchaseMinerProjectMapper.selectPage(Page.of(purchaseMinerProjectPageQry.getPageNum(), purchaseMinerProjectPageQry.getPageSize()), lambdaQueryWrapper);
 

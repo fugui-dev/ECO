@@ -72,16 +72,26 @@ public class RewardScheduled {
     @Scheduled(cron = "0 0 0 * * ?")
     @SneakyThrows
     public void reward(){
-        log.info("reward 开始执行");
+        log.info("=== 定时奖励发放任务开始执行 ===");
 
         String dayTime = LocalDate.now().minusDays(1).format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+        log.info("【定时任务】发放日期: {}", dayTime);
 
         PurchaseMinerProjectRewardCmd purchaseMinerProjectRewardCmd = new PurchaseMinerProjectRewardCmd();
         purchaseMinerProjectRewardCmd.setDayTime(dayTime);
 
-        rewardConstructor.reward(purchaseMinerProjectRewardCmd);
+        try {
+            SingleResponse<?> result = rewardConstructor.reward(purchaseMinerProjectRewardCmd);
+            if (result.isSuccess()) {
+                log.info("【定时任务】奖励发放成功，日期: {}", dayTime);
+            } else {
+                log.error("【定时任务】奖励发放失败，日期: {}, 错误: {}", dayTime, result.getErrMessage());
+            }
+        } catch (Exception e) {
+            log.error("【定时任务】奖励发放异常，日期: {}", dayTime, e);
+        }
 
-        log.info("reward 执行结束");
+        log.info("=== 定时奖励发放任务执行结束 ===");
     }
     
     /**

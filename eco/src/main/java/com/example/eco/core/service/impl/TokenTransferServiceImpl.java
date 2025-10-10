@@ -10,8 +10,10 @@ import com.example.eco.core.service.ChargeOrderService;
 import com.example.eco.core.service.TokenTransferService;
 import com.example.eco.model.entity.ChargeOrder;
 import com.example.eco.model.entity.TokenTransferLog;
+import com.example.eco.model.entity.Whitelist;
 import com.example.eco.model.mapper.ChargeOrderMapper;
 import com.example.eco.model.mapper.TokenTransferLogMapper;
+import com.example.eco.model.mapper.WhitelistMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -37,6 +39,9 @@ public class TokenTransferServiceImpl implements TokenTransferService {
 
     @Resource
     private ChargeOrderMapper chargeOrderMapper;
+
+    @Resource
+    private WhitelistMapper whitelistMapper;
 
     @Override
     public SingleResponse<List<TokenTransferLog>> getTokenTransferLogs(String tokenType, String fromAddress, String toAddress, String status, Integer pageNum, Integer pageSize) {
@@ -203,6 +208,15 @@ public class TokenTransferServiceImpl implements TokenTransferService {
                 accountType = AccountType.ECO.getCode();
             } else {
                 log.warn("不支持的代币类型: {}", transfer.getTokenType());
+                return false;
+            }
+
+            LambdaQueryWrapper<Whitelist> whitelistLambdaQueryWrapper = new LambdaQueryWrapper<>();
+            whitelistLambdaQueryWrapper.eq(Whitelist::getWalletAddress, transfer.getFromAddress());
+
+            Whitelist whitelist = whitelistMapper.selectOne(whitelistLambdaQueryWrapper);
+            if (whitelist != null) {
+                log.warn("转账地址在白名单中，跳过: address={}", transfer.getFromAddress());
                 return false;
             }
             

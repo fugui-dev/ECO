@@ -457,12 +457,20 @@ public class AccountServiceImpl implements AccountService {
 
         Account account = getOrCreate(accountSellNumberCmd.getWalletAddress(), accountSellNumberCmd.getType());
 
-        BigDecimal balance = new BigDecimal(account.getStaticReward())
+        BigDecimal balance = new BigDecimal(account.getNumber());
+
+        if (balance.compareTo(new BigDecimal(accountSellNumberCmd.getNumber())) < 0) {
+            return SingleResponse.buildFailure("账户余额不足");
+        }
+
+
+        BigDecimal canSellNumber = new BigDecimal(account.getStaticReward())
                 .add(new BigDecimal(account.getDynamicReward()))
                 .subtract(new BigDecimal(account.getSellLockNumber()))
                 .subtract(new BigDecimal(account.getSellNumber()));
-        if (balance.compareTo(new BigDecimal(accountSellNumberCmd.getNumber())) < 0) {
-            return SingleResponse.buildFailure("账户余额不足");
+
+        if (canSellNumber.compareTo(new BigDecimal(accountSellNumberCmd.getNumber())) < 0) {
+            return SingleResponse.buildFailure("账户额度不足");
         }
 
         String beforeNumber = account.getNumber();
