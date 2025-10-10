@@ -1582,7 +1582,7 @@ public class RewardConstructor {
             if (accountEsgNumber.compareTo(rewardService) >=0){
                 esgNumber = rewardService;
             }else {
-                esgNumber = rewardService.subtract(accountEsgNumber);
+                esgNumber = accountEsgNumber;
                 ecoNumber = rewardService.subtract(esgNumber);
             }
 

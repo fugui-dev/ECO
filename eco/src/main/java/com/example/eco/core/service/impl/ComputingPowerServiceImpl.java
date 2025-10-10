@@ -457,8 +457,8 @@ public class ComputingPowerServiceImpl implements ComputingPowerService {
             }
 
             // 查询当日新增的矿机
-            long startTime = LocalDate.parse(dayTime).atStartOfDay()
-                    .atZone(ZoneId.systemDefault()).toInstant().toEpochMilli();
+            long startTime = LocalDate.parse(dayTime).atStartOfDay().atZone(ZoneId.systemDefault()).toInstant().toEpochMilli();
+
             long endTime = startTime + 24 * 60 * 60 * 1000 - 1;
 
             LambdaQueryWrapper<PurchaseMinerProject> queryWrapper = new LambdaQueryWrapper<>();
