@@ -30,4 +30,10 @@ public interface ChargeOrderService {
      * 定时检查充值订单状态
      */
     SingleResponse<Void> checkChargeOrder();
+
+
+    /**
+     * 定时处理充值失败订单
+     */
+    SingleResponse<Void> dealwithFailChargeOrder();
 }

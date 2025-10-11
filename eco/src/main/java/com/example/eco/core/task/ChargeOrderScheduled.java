@@ -27,6 +27,8 @@ public class ChargeOrderScheduled {
 
         try {
             chargeOrderService.checkChargeOrder();
+
+            chargeOrderService.dealwithFailChargeOrder();
         }
         catch (Exception e){
             e.printStackTrace();

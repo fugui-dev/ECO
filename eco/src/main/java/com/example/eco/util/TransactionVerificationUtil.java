@@ -1,5 +1,8 @@
 package com.example.eco.util;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.example.eco.model.entity.TokenTransferLog;
+import com.example.eco.model.mapper.TokenTransferLogMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.web3j.protocol.Web3j;
@@ -7,6 +10,7 @@ import org.web3j.protocol.core.methods.response.*;
 import org.web3j.protocol.http.HttpService;
 
 import javax.annotation.Resource;
+import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.util.List;
 
@@ -18,91 +22,49 @@ import java.util.List;
 public class TransactionVerificationUtil {
 
     @Resource
-    private Web3j web3j;
+    private TokenTransferLogMapper tokenTransferLogMapper;
     
     /**
      * 验证链上交易（包含接收方地址验证）
      * @param transactionHash 交易哈希
      * @param expectedAmount 期望的交易数量（代币单位，如：10000）
      * @param tokenType 代币类型 (ECO/ESG)
-     * @param expectedToAddress 期望的接收方地址（可选）
-     * @param expectedTokenAddress 代币合约地址
      * @return 验证结果
      */
-    public Boolean verifyTransaction(String transactionHash, String expectedAmount, String tokenType, String expectedToAddress,String expectedTokenAddress) {
+    public Boolean verifyTransaction(String transactionHash, String expectedAmount, String tokenType, String withdrawAddress) {
         try {
             log.info("开始验证交易: {}, 期望数量: {}, 代币类型: {}", transactionHash, expectedAmount, tokenType);
-            
-            // 1. 获取交易详情
-            EthTransaction transactionResponse = web3j.ethGetTransactionByHash(transactionHash).send();
-            if (transactionResponse.hasError()) {
-                log.error("获取交易详情失败: {}", transactionResponse.getError().getMessage());
-                return null;
-            }
-            
-            if (!transactionResponse.getTransaction().isPresent()) {
-                log.error("交易不存在: {}", transactionHash);
-                return null;
-            }
-            
-            Transaction transaction = transactionResponse.getTransaction().get();
-            
-            // 2. 获取交易回执
-            EthGetTransactionReceipt receiptResponse = web3j.ethGetTransactionReceipt(transactionHash).send();
-            if (receiptResponse.hasError()) {
-                log.error("获取交易回执失败: {}", receiptResponse.getError().getMessage());
+
+            LambdaQueryWrapper<TokenTransferLog> lambdaQueryWrapper = new LambdaQueryWrapper<>();
+            lambdaQueryWrapper.eq(TokenTransferLog::getHash, transactionHash);
+            TokenTransferLog tokenTransferLog = tokenTransferLogMapper.selectOne(lambdaQueryWrapper);
+
+            if (tokenTransferLog == null) {
+                log.error("交易记录不存在: {}", transactionHash);
                 return Boolean.FALSE;
             }
-            
-            if (!receiptResponse.getTransactionReceipt().isPresent()) {
-                log.error("交易回执不存在: {}", transactionHash);
+
+            if (!"SUCCESS".equalsIgnoreCase(tokenTransferLog.getStatus())) {
+                log.error("交易状态不成功: {}, 状态: {}", transactionHash, tokenTransferLog.getStatus());
                 return Boolean.FALSE;
             }
-            
-            TransactionReceipt receipt = receiptResponse.getTransactionReceipt().get();
-            
-            // 3. 验证交易状态
-            if (!receipt.isStatusOK()) {
-                log.error("交易失败: {}", transactionHash);
+
+            if (new BigDecimal(expectedAmount).compareTo(new BigDecimal(tokenTransferLog.getTransferValue())) != 0) {
+                log.error("交易数量不匹配. 期望: {} , 实际: {} ", expectedAmount,  tokenTransferLog.getTransferValue());
                 return Boolean.FALSE;
             }
-            
-            // 对于ERC20代币，需要检查to地址是否为代币合约地址
-            if (!expectedTokenAddress.equalsIgnoreCase(transaction.getTo())) {
-                log.error("代币地址不匹配. 期望: {}, 实际: {}", expectedTokenAddress, transaction.getTo());
+
+            if (!tokenType.equals(tokenTransferLog.getTokenType())){
+                log.error("代币类型不匹配. 期望: {} , 实际: {} ", tokenType,  tokenTransferLog.getTokenType());
                 return Boolean.FALSE;
             }
-            
-            // 5. 验证接收方地址（如果提供了期望地址）
-            if (expectedToAddress != null && !expectedToAddress.trim().isEmpty()) {
-                String actualToAddress = getTokenTransferToAddress(receipt, expectedTokenAddress);
-                if (actualToAddress == null) {
-                    log.error("无法从交易日志中解析代币转账接收方地址");
+
+            if (withdrawAddress != null && !withdrawAddress.trim().isEmpty()) {
+                if (!withdrawAddress.equalsIgnoreCase(tokenTransferLog.getFromAddress())) {
+                    log.error("代币转账接收方地址不匹配. 期望: {}, 实际: {}", withdrawAddress, tokenTransferLog.getFromAddress());
                     return Boolean.FALSE;
                 }
-                
-                if (!expectedToAddress.equalsIgnoreCase(actualToAddress)) {
-                    log.error("代币转账接收方地址不匹配. 期望: {}, 实际: {}", expectedToAddress, actualToAddress);
-                    return Boolean.FALSE;
-                }
-                
-                log.info("代币转账接收方地址验证通过: {}", actualToAddress);
-            }
-            
-            // 6. 验证交易数量
-            // 对于ERC20代币转账，需要从交易回执的日志中解析数量
-            String actualAmount = getTokenTransferAmount(receipt, expectedTokenAddress);
-            if (actualAmount == null) {
-                log.error("无法从交易日志中解析代币转账数量");
-                return Boolean.FALSE;
-            }
-            
-            // 将期望的代币数量转换为Wei单位进行比较
-            String expectedAmountWei = convertToWei(expectedAmount);
-            
-            if (!isAmountEqual(actualAmount, expectedAmountWei)) {
-                log.error("交易数量不匹配. 期望: {} ({} Wei), 实际: {} Wei", expectedAmount, expectedAmountWei, actualAmount);
-                return Boolean.FALSE;
+                log.info("代币转账接收方地址验证通过: {}", tokenTransferLog.getFromAddress());
             }
             
             log.info("交易验证成功: {}", transactionHash);
@@ -261,62 +223,6 @@ public class TransactionVerificationUtil {
         } catch (NumberFormatException e) {
             log.error("数量格式错误: actual={}, expected={}", actualAmount, expectedAmount);
             return false;
-        }
-    }
-
-
-
-    public static void main(String[] args) throws Exception {
-        // 测试参数
-        String transactionHash = "0x506ba777446fd91af057f55f66db28ec4c0025c2f711566859fa1816df7dc627";
-        String expectedAmount = "10000"; // 10000 ECO
-        String tokenType = "ECO";
-        String expectedToAddress = "0x8BA9B3B8FE0847741E98cC6dF20e69DE12142c46"; // 期望的接收方地址
-        
-        // 使用转换方法将代币数量转换为Wei
-        String expectedAmountWei = convertToWei(expectedAmount);
-        
-        System.out.println("开始测试交易验证...");
-        System.out.println("交易哈希: " + transactionHash);
-        System.out.println("期望数量: " + expectedAmount + " " + tokenType + " (" + expectedAmountWei + " Wei)");
-        System.out.println("代币类型: " + tokenType);
-//        System.out.println("ECO代币地址: " + TokenAddress.ECO_TOKEN_ADDRESS);
-        
-        // 测试不同的网络
-        String[] networks = {
-            "BSC测试网", "https://bsc-testnet.infura.io/v3/4c223b9e87754809a5d8f819a261fdb7",
-            "BSC主网", "https://bsc-dataseed.binance.org/",
-            "以太坊主网", "https://mainnet.infura.io/v3/4c223b9e87754809a5d8f819a261fdb7",
-            "以太坊测试网", "https://sepolia.infura.io/v3/4c223b9e87754809a5d8f819a261fdb7"
-        };
-        for (int i = 0; i < networks.length; i += 2) {
-            String networkName = networks[i];
-            String rpcUrl = networks[i + 1];
-            
-            System.out.println("\n=== 测试 " + networkName + " ===");
-            System.out.println("RPC URL: " + rpcUrl);
-            
-            try {
-                // 创建Web3j实例
-                Web3j web3j = Web3j.build(new HttpService(rpcUrl));
-                
-                // 创建工具类实例
-                TransactionVerificationUtil util = new TransactionVerificationUtil();
-                util.web3j = web3j; // 手动注入Web3j实例
-                
-                // 执行验证（包含接收方地址验证）
-                boolean result = util.verifyTransaction(transactionHash, expectedAmount, tokenType, expectedToAddress,"");
-                
-                System.out.println("验证结果: " + (result ? "成功" : "失败"));
-                
-                if (result) {
-                    System.out.println("✅ 交易在 " + networkName + " 上找到并验证成功！");
-                    break; // 找到后停止测试其他网络
-                }
-                
-            } catch (Exception e) {
-                System.out.println("❌ " + networkName + " 测试失败: " + e.getMessage());
-            }
         }
     }
 }

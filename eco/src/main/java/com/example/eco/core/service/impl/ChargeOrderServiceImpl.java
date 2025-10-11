@@ -15,20 +15,26 @@ import com.example.eco.core.service.ChargeOrderService;
 import com.example.eco.model.entity.ChargeOrder;
 import com.example.eco.model.entity.EtherScanAccountTransaction;
 import com.example.eco.model.entity.SystemConfig;
+import com.example.eco.model.entity.TokenTransferLog;
 import com.example.eco.model.mapper.ChargeOrderMapper;
 import com.example.eco.model.mapper.EtherScanAccountTransactionMapper;
 import com.example.eco.model.mapper.SystemConfigMapper;
+import com.example.eco.model.mapper.TokenTransferLogMapper;
 import com.example.eco.util.TransactionVerificationUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.CollectionUtils;
 
 import javax.annotation.Resource;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -44,7 +50,7 @@ public class ChargeOrderServiceImpl implements ChargeOrderService {
     private TransactionVerificationUtil transactionVerificationUtil;
 
     @Resource
-    private SystemConfigMapper systemConfigMapper;
+    private TokenTransferLogMapper tokenTransferLogMapper;
 
 
     @Override
@@ -65,7 +71,7 @@ public class ChargeOrderServiceImpl implements ChargeOrderService {
             if (!response.isSuccess()) {
                 return response;
             }
-        }catch (Exception e){
+        } catch (Exception e) {
             e.printStackTrace();
             throw new RuntimeException("创建充值订单异常");
         }
@@ -94,7 +100,7 @@ public class ChargeOrderServiceImpl implements ChargeOrderService {
         queryWrapper.eq(ChargeOrder::getHash, chargeOrderUpdateCmd.getHash());
 
         ChargeOrder chargeOrder = chargeOrderMapper.selectOne(queryWrapper);
-        if (Objects.isNull(chargeOrder)){
+        if (Objects.isNull(chargeOrder)) {
             return SingleResponse.buildFailure("充值订单不存在");
         }
 
@@ -117,11 +123,11 @@ public class ChargeOrderServiceImpl implements ChargeOrderService {
                 if (!response.isSuccess()) {
                     return response;
                 }
-            }catch (Exception e){
+            } catch (Exception e) {
                 e.printStackTrace();
                 throw new RuntimeException("更新充值订单失败");
             }
-        }else {
+        } else {
 
             chargeOrder.setStatus(ChargeOrderStatus.FAILED.getCode());
             chargeOrder.setFinishTime(System.currentTimeMillis());
@@ -135,10 +141,10 @@ public class ChargeOrderServiceImpl implements ChargeOrderService {
                 SingleResponse<Void> response = accountService.rollbackLockChargeNumber(rollbackLockChargeNumberCmd);
 
                 if (!response.isSuccess()) {
-                    log.info("更新充值订单失败{}",response.getErrMessage());
+                    log.info("更新充值订单失败{}", response.getErrMessage());
                     throw new RuntimeException("更新充值订单失败");
                 }
-            }catch (Exception e){
+            } catch (Exception e) {
                 e.printStackTrace();
                 throw new RuntimeException("更新充值订单失败");
             }
@@ -175,67 +181,35 @@ public class ChargeOrderServiceImpl implements ChargeOrderService {
     @Override
     public SingleResponse<Void> checkChargeOrder() {
 
-        LambdaQueryWrapper<SystemConfig> ecoContractAddressQuery = new LambdaQueryWrapper<>();
-        ecoContractAddressQuery.eq(SystemConfig::getName, SystemConfigEnum.ECO_CONTRACT_ADDRESS.getCode());
-
-        SystemConfig ecoContractAddress = systemConfigMapper.selectOne(ecoContractAddressQuery);
-
-        LambdaQueryWrapper<SystemConfig> ecoAddressQuery = new LambdaQueryWrapper<>();
-        ecoAddressQuery.eq(SystemConfig::getName, SystemConfigEnum.ECO_ADDRESS.getCode());
-
-        SystemConfig ecoAddress = systemConfigMapper.selectOne(ecoAddressQuery);
-
-        LambdaQueryWrapper<SystemConfig> esgContractAddressQuery = new LambdaQueryWrapper<>();
-        esgContractAddressQuery.eq(SystemConfig::getName, SystemConfigEnum.ESG_CONTRACT_ADDRESS.getCode());
-
-        SystemConfig esgContractAddress = systemConfigMapper.selectOne(esgContractAddressQuery);
-
-
-        LambdaQueryWrapper<SystemConfig> esgAddressQuery = new LambdaQueryWrapper<>();
-        esgAddressQuery.eq(SystemConfig::getName, SystemConfigEnum.ESG_ADDRESS.getCode());
-
-        SystemConfig esgAddress = systemConfigMapper.selectOne(esgAddressQuery);
 
         LambdaQueryWrapper<ChargeOrder> queryWrapper = new LambdaQueryWrapper<>();
         queryWrapper.eq(ChargeOrder::getStatus, ChargeOrderStatus.PENDING.getCode());
 
         List<ChargeOrder> chargeOrderList = chargeOrderMapper.selectList(queryWrapper);
 
-        for (ChargeOrder chargeOrder : chargeOrderList){
+        for (ChargeOrder chargeOrder : chargeOrderList) {
 
-            if (StringUtils.isEmpty(chargeOrder.getHash())){
+            if (StringUtils.isEmpty(chargeOrder.getHash())) {
                 continue;
             }
 
-            Boolean transaction = null;
+            Boolean transaction = transactionVerificationUtil.verifyTransaction(chargeOrder.getHash(),
+                    chargeOrder.getNumber(),
+                    chargeOrder.getType(),
+                    chargeOrder.getWalletAddress());
 
-            if (chargeOrder.getType().equals(AccountType.ECO.getCode())){
 
-                transaction = transactionVerificationUtil.verifyTransaction(chargeOrder.getHash(),
-                        chargeOrder.getNumber(),
-                        chargeOrder.getType(),
-                        ecoAddress.getValue(),
-                        ecoContractAddress.getValue());
-            }else {
-
-                transaction = transactionVerificationUtil.verifyTransaction(chargeOrder.getHash(),
-                        chargeOrder.getNumber(),
-                        chargeOrder.getType(),
-                        esgAddress.getValue(),
-                        esgContractAddress.getValue());
-            }
-
-            if (Objects.isNull(transaction)){
+            if (Objects.isNull(transaction)) {
                 continue;
             }
 
-            if (transaction){
+            if (transaction) {
 
                 ChargeOrderUpdateCmd chargeOrderUpdateCmd = new ChargeOrderUpdateCmd();
                 chargeOrderUpdateCmd.setHash(chargeOrder.getHash());
                 chargeOrderUpdateCmd.setStatus(ChargeOrderStatus.SUCCESS.getCode());
                 this.update(chargeOrderUpdateCmd);
-            }else {
+            } else {
                 ChargeOrderUpdateCmd chargeOrderUpdateCmd = new ChargeOrderUpdateCmd();
                 chargeOrderUpdateCmd.setHash(chargeOrder.getHash());
                 chargeOrderUpdateCmd.setStatus(ChargeOrderStatus.FAILED.getCode());
@@ -243,6 +217,70 @@ public class ChargeOrderServiceImpl implements ChargeOrderService {
             }
 
         }
+        return SingleResponse.buildSuccess();
+    }
+
+    @Transactional(rollbackFor = Exception.class)
+    public SingleResponse<Void> dealwithFailChargeOrder() {
+        // 1. 一次性查询所有需要处理的订单
+        LambdaQueryWrapper<ChargeOrder> queryWrapper = new LambdaQueryWrapper<>();
+        queryWrapper.eq(ChargeOrder::getStatus, ChargeOrderStatus.FAILED.getCode())
+                .isNotNull(ChargeOrder::getHash); // 提前过滤空hash
+
+        List<ChargeOrder> chargeOrderList = chargeOrderMapper.selectList(queryWrapper);
+
+        if (CollectionUtils.isEmpty(chargeOrderList)) {
+            return SingleResponse.buildSuccess();
+        }
+
+        // 2. 批量查询相关的TokenTransferLog
+        List<String> hashes = chargeOrderList.stream()
+                .map(ChargeOrder::getHash)
+                .filter(StringUtils::isNotEmpty)
+                .collect(Collectors.toList());
+
+        if (CollectionUtils.isEmpty(hashes)) {
+            return SingleResponse.buildSuccess();
+        }
+
+        LambdaQueryWrapper<TokenTransferLog> logQueryWrapper = new LambdaQueryWrapper<>();
+        logQueryWrapper.in(TokenTransferLog::getHash, hashes)
+                .eq(TokenTransferLog::getStatus, "SUCCESS"); // 数据库层面过滤
+
+        List<TokenTransferLog> successLogs = tokenTransferLogMapper.selectList(logQueryWrapper);
+
+        // 3. 构建hash到log的映射
+        Map<String, TokenTransferLog> successLogMap = successLogs.stream()
+                .collect(Collectors.toMap(TokenTransferLog::getHash, Function.identity()));
+
+        List<Integer> deleteOrderIds = new ArrayList<>();
+        List<TokenTransferLog> logsToUpdate = new ArrayList<>();
+
+        // 4. 处理逻辑
+        for (ChargeOrder chargeOrder : chargeOrderList) {
+            TokenTransferLog log = successLogMap.get(chargeOrder.getHash());
+            if (log != null) {
+                log.setChecked(Boolean.FALSE);
+                logsToUpdate.add(log);
+                deleteOrderIds.add(chargeOrder.getId());
+            }
+        }
+
+        // 5. 批量更新和删除
+        if (!logsToUpdate.isEmpty()) {
+            // 如果mybatis-plus支持批量更新，使用批量方法
+            for (TokenTransferLog log : logsToUpdate) {
+                tokenTransferLogMapper.updateById(log);
+            }
+            // 或者使用批量更新：tokenTransferLogService.updateBatchById(logsToUpdate);
+        }
+
+        if (!deleteOrderIds.isEmpty()) {
+            LambdaQueryWrapper<ChargeOrder> deleteWrapper = new LambdaQueryWrapper<>();
+            deleteWrapper.in(ChargeOrder::getId, deleteOrderIds);
+            chargeOrderMapper.delete(deleteWrapper);
+        }
+
         return SingleResponse.buildSuccess();
     }
 }
