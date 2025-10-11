@@ -37,6 +37,7 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
@@ -311,7 +312,7 @@ public class PurchaseMinerProjectServiceImpl implements PurchaseMinerProjectServ
 
     /**
      * 计算动态补偿算力
-     * 补偿算力 = 原始算力 * baseMultiplier^(n-1)
+     * 补偿算力 = 原始算力 * baseMultiplier^(n)
      * 其中 n = 矿机创建时间到购买时间的天数
      * baseMultiplier = 从数据库配置 INCREASE_MULTIPLIER 获取
      * 从购买时开始补偿，即 n >= 1 时就有补偿
@@ -332,7 +333,7 @@ public class PurchaseMinerProjectServiceImpl implements PurchaseMinerProjectServ
 
             LambdaQueryWrapper<SystemConfig> increaseStartTimeQueryWrapper = new LambdaQueryWrapper<>();
             increaseStartTimeQueryWrapper.eq(SystemConfig::getName, SystemConfigEnum.INCREASE_MULTIPLIER_START_TIME.getCode());
-            SystemConfig increaseStartTimeSystemConfig = systemConfigMapper.selectOne(increaseQueryWrapper);
+            SystemConfig increaseStartTimeSystemConfig = systemConfigMapper.selectOne(increaseStartTimeQueryWrapper);
 
             if (increaseStartTimeSystemConfig == null || increaseStartTimeSystemConfig.getValue() == null) {
                 // 如果没有配置，返回原始算力
@@ -355,7 +356,7 @@ public class PurchaseMinerProjectServiceImpl implements PurchaseMinerProjectServ
             }
             
             // 计算补偿倍数：baseMultiplier^(n-1)
-            int exponent = (int) (daysDifference - 1); // n-1
+            int exponent = (int) (daysDifference); // n-1
             
             // 使用BigDecimal进行幂运算
             BigDecimal compensationMultiplier = baseMultiplier.pow(exponent);
@@ -390,7 +391,7 @@ public class PurchaseMinerProjectServiceImpl implements PurchaseMinerProjectServ
             ).toLocalDate();
             
             // 计算天数差
-            return java.time.temporal.ChronoUnit.DAYS.between(startDate, endDate);
+            return ChronoUnit.DAYS.between(startDate, endDate);
             
         } catch (Exception e) {
             log.error("计算天数差失败: startTime={}, endTime={}", startTime, endTime, e);
