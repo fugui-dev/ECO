@@ -456,28 +456,70 @@ public class ComputingPowerServiceImpl implements ComputingPowerService {
                 return SingleResponse.of(BigDecimal.ZERO);
             }
 
+            // 查询直接下级
+            LambdaQueryWrapper<Recommend> queryWrapper = new LambdaQueryWrapper<>();
+            queryWrapper.eq(Recommend::getRecommendWalletAddress, walletAddress);
+            
+            List<Recommend> directRecommends = recommendMapper.selectList(queryWrapper);
+            
+            if (CollectionUtils.isEmpty(directRecommends) || directRecommends.size() < 2) {
+                return SingleResponse.of(BigDecimal.ZERO);
+            }
+
             // 获取用户层级信息
             LambdaQueryWrapper<Recommend> userQuery = new LambdaQueryWrapper<>();
             userQuery.eq(Recommend::getWalletAddress, walletAddress);
             Recommend userRecommend = recommendMapper.selectOne(userQuery);
             Integer userLevel = userRecommend != null ? userRecommend.getLevel() : 0;
 
-            // 递归计算新增算力 - 包括自己和所有子级今天新增的算力
-            Map<String, BigDecimal> computedPowerMap = new HashMap<>();
-            BigDecimal totalNewPower = calculateNewPowerWithLevel(
-                userLevel, 
-                walletAddress, 
-                dayTime, 
-                levelRateMap, 
-                computedPowerMap, 
-                isLevel
-            );
+            // 计算每个直接下级的总算力（用于找出最大算力用户）
+            Map<String, BigDecimal> directPowerMap = new HashMap<>();
+            for (Recommend directRecommend : directRecommends) {
+                SingleResponse<BigDecimal> totalPowerResponse = calculateUserTotalPower(directRecommend.getWalletAddress(), dayTime);
+                if (totalPowerResponse.isSuccess()) {
+                    directPowerMap.put(directRecommend.getWalletAddress(), totalPowerResponse.getData());
+                }
+            }
 
-            log.debug("用户{}新增算力(递归阶梯计算): {}", walletAddress, totalNewPower);
+            // 找到最大算力的用户
+            String maxWalletAddress = directPowerMap.entrySet().stream()
+                    .max(Map.Entry.comparingByValue())
+                    .map(Map.Entry::getKey)
+                    .orElse(null);
+
+            if (maxWalletAddress == null) {
+                return SingleResponse.of(BigDecimal.ZERO);
+            }
+
+            // 计算除最大算力用户外的其他直推下级的新增算力总和
+            BigDecimal totalNewPower = BigDecimal.ZERO;
+            for (Recommend directRecommend : directRecommends) {
+                String subordinateAddress = directRecommend.getWalletAddress();
+                
+                // 跳过最大算力用户
+                if (subordinateAddress.equals(maxWalletAddress)) {
+                    continue;
+                }
+                
+                // 递归计算该下级及其所有子级的新增算力
+                Map<String, BigDecimal> computedPowerMap = new HashMap<>();
+                BigDecimal subordinateNewPower = calculateNewPowerWithLevel(
+                    userLevel, 
+                    subordinateAddress, 
+                    dayTime, 
+                    levelRateMap, 
+                    computedPowerMap, 
+                    isLevel
+                );
+                
+                totalNewPower = totalNewPower.add(subordinateNewPower);
+            }
+
+            log.debug("用户{}新增算力(仿照小区算力逻辑): 最大用户={}, 新增算力={}", walletAddress, maxWalletAddress, totalNewPower);
             return SingleResponse.of(totalNewPower);
 
         } catch (Exception e) {
-            log.error("计算用户{}新增算力失败(递归阶梯计算)", walletAddress, e);
+            log.error("计算用户{}新增算力失败(仿照小区算力逻辑)", walletAddress, e);
             return SingleResponse.buildFailure("计算新增算力失败: " + e.getMessage());
         }
     }
