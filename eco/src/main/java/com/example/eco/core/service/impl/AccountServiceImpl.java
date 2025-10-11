@@ -1403,7 +1403,7 @@ public class AccountServiceImpl implements AccountService {
     @Override
     @Retryable(value = OptimisticLockingFailureException.class, maxAttempts = 3, backoff = @Backoff(delay = 100))
     @Transactional(isolation = Isolation.REPEATABLE_READ, rollbackFor = Exception.class)
-    public SingleResponse<Void> transferEco(AccountTransferCmd accountTransferCmd) {
+    public SingleResponse<Void> transfer(AccountTransferCmd accountTransferCmd) {
         // 参数验证（在事务外进行，避免无效参数触发回滚）
         if (accountTransferCmd.getFromWalletAddress() == null || accountTransferCmd.getFromWalletAddress().trim().isEmpty()) {
             return SingleResponse.buildFailure("转出钱包地址不能为空");
@@ -1418,6 +1418,11 @@ public class AccountServiceImpl implements AccountService {
             return SingleResponse.buildFailure("转出和转入钱包地址不能相同");
         }
 
+        if (accountTransferCmd.getAccountType() == null || accountTransferCmd.getAccountType().trim().isEmpty()) {
+            return SingleResponse.buildFailure("账户类型不能为空");
+        }
+
+
         BigDecimal transferAmount;
         try {
             transferAmount = new BigDecimal(accountTransferCmd.getAmount());
@@ -1431,7 +1436,7 @@ public class AccountServiceImpl implements AccountService {
         try {
 
             // 获取或创建转出账户（ECO类型）
-            Account fromAccount = getOrCreate(accountTransferCmd.getFromWalletAddress(), AccountType.ECO.getCode());
+            Account fromAccount = getOrCreate(accountTransferCmd.getFromWalletAddress(), accountTransferCmd.getAccountType());
             
             // 检查转出账户余额
             BigDecimal fromBalance = new BigDecimal(fromAccount.getNumber());
@@ -1440,7 +1445,7 @@ public class AccountServiceImpl implements AccountService {
             }
 
             // 获取或创建转入账户（ECO类型）
-            Account toAccount = getOrCreate(accountTransferCmd.getToWalletAddress(), AccountType.ECO.getCode());
+            Account toAccount = getOrCreate(accountTransferCmd.getToWalletAddress(), accountTransferCmd.getAccountType());
 
             // 生成订单号
             String order = "TR" + System.currentTimeMillis();
@@ -1475,7 +1480,7 @@ public class AccountServiceImpl implements AccountService {
             fromTransaction.setTransactionTime(System.currentTimeMillis());
             fromTransaction.setNumber(accountTransferCmd.getAmount());
             fromTransaction.setAfterNumber(fromAccount.getNumber());
-            fromTransaction.setAccountType(AccountType.ECO.getCode());
+            fromTransaction.setAccountType(accountTransferCmd.getAccountType());
             fromTransaction.setStatus(AccountTransactionStatusEnum.SUCCESS.getCode());
             fromTransaction.setTransactionType(AccountTransactionType.TRANSFER_OUT.getCode());
             fromTransaction.setOrder(order);
@@ -1490,7 +1495,7 @@ public class AccountServiceImpl implements AccountService {
             toTransaction.setTransactionTime(System.currentTimeMillis());
             toTransaction.setNumber(accountTransferCmd.getAmount());
             toTransaction.setAfterNumber(toAccount.getNumber());
-            toTransaction.setAccountType(AccountType.ECO.getCode());
+            toTransaction.setAccountType(accountTransferCmd.getAccountType());
             toTransaction.setStatus(AccountTransactionStatusEnum.SUCCESS.getCode());
             toTransaction.setTransactionType(AccountTransactionType.TRANSFER_IN.getCode());
             toTransaction.setOrder(order);

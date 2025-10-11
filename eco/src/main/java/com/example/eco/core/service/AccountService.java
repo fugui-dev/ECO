@@ -125,5 +125,5 @@ public interface AccountService {
     /**
      * ECO账户转账
      */
-    SingleResponse<Void> transferEco(AccountTransferCmd accountTransferCmd);
+    SingleResponse<Void> transfer(AccountTransferCmd accountTransferCmd);
 }

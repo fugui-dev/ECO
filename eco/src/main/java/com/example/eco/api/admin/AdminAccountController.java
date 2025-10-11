@@ -32,7 +32,7 @@ public class AdminAccountController {
      * ECO账户转账
      */
     @PostMapping("/transfer")
-    SingleResponse<Void> transferEco(@RequestBody AccountTransferCmd accountTransferCmd){
-        return accountService.transferEco(accountTransferCmd);
+    SingleResponse<Void> transfer(@RequestBody AccountTransferCmd accountTransferCmd){
+        return accountService.transfer(accountTransferCmd);
     }
 }

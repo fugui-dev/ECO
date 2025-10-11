@@ -18,6 +18,12 @@ public class AccountTransferCmd {
      */
     private String toWalletAddress;
 
+
+    /**
+     * 账户类型
+     */
+    private String accountType;
+
     /**
      * 转账数量
      */
