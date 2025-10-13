@@ -28,6 +28,12 @@ public class PendOrderDTO {
      */
     private String typeName;
 
+
+    /**
+     * 交易hash
+     */
+    private String hash;
+
     /**
      * 挂单数量
      */

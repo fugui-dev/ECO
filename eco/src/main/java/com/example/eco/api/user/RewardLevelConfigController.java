@@ -1,5 +1,6 @@
 package com.example.eco.api.user;
 
+import com.example.eco.annotation.NoJwtAuth;
 import com.example.eco.bean.MultiResponse;
 import com.example.eco.bean.SingleResponse;
 import com.example.eco.bean.cmd.RewardLevelConfigCreateCmd;

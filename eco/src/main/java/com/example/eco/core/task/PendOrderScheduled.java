@@ -36,13 +36,13 @@ public class PendOrderScheduled {
     @Resource
     private TransactionVerificationUtil transactionVerificationUtil;
 
-    @Scheduled(cron = "0 0/3 * * * ?")
+//    @Scheduled(cron = "0 0/3 * * * ?")
     public void complete() {
 
         Long time = System.currentTimeMillis() - (30 * 60 * 1000);
 
         LambdaQueryWrapper<PendOrder> lambdaQueryWrapper = new LambdaQueryWrapper<>();
-        lambdaQueryWrapper.eq(PendOrder::getStatus, PendOrderStatus.LOCK.getCode());
+        lambdaQueryWrapper.eq(PendOrder::getStatus, PendOrderStatus.APPLY.getCode());
         lambdaQueryWrapper.le(PendOrder::getPlaceOrderTime, time);
 
         List<PendOrder> pendOrderList = pendOrderMapper.selectList(lambdaQueryWrapper);

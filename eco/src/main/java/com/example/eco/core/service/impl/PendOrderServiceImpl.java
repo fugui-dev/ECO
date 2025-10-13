@@ -107,6 +107,10 @@ public class PendOrderServiceImpl implements PendOrderService {
                 return SingleResponse.buildFailure("挂单状态不允许取消");
             }
 
+            if (!pendOrder.getWalletAddress().equals(pendOrderDeleteCmd.getWalletAddress())) {
+                return SingleResponse.buildFailure("只能删除自己的锁单");
+            }
+
             RollbackLockSellNumberCmd rollbackLockSellNumberCmd = new RollbackLockSellNumberCmd();
             rollbackLockSellNumberCmd.setOrder(pendOrderDeleteCmd.getOrder());
             rollbackLockSellNumberCmd.setWalletAddress(pendOrder.getWalletAddress());
@@ -276,8 +280,8 @@ public class PendOrderServiceImpl implements PendOrderService {
                 return SingleResponse.buildFailure("只能确认自己的锁单");
             }
 
-            if (!pendOrder.getStatus().equals(PendOrderStatus.LOCK.getCode())) {
-                return SingleResponse.buildFailure("挂单状态不允许确认");
+            if (!pendOrder.getStatus().equals(PendOrderStatus.APPLY.getCode())) {
+                return SingleResponse.buildFailure("请等待上传支付凭证");
             }
 
 
@@ -339,14 +343,11 @@ public class PendOrderServiceImpl implements PendOrderService {
             return SingleResponse.buildFailure("挂单不存在");
         }
 
-        if (!pendOrder.getStatus().equals(PendOrderStatus.LOCK.getCode())) {
-            return SingleResponse.buildFailure("挂单状态不允许上传凭证");
-        }
-
         if (pendOrder.getStatus().equals(PendOrderStatus.COMPLETE.getCode())) {
             return SingleResponse.buildFailure("挂单已完成，不能上传凭证");
         }
 
+        pendOrder.setHash(pendOrderUploadVoucherCmd.getHash());
         pendOrder.setStatus(PendOrderStatus.APPLY.getCode());
         pendOrder.setImageList(pendOrderUploadVoucherCmd.getImageList());
         pendOrder.setUpdateTime(System.currentTimeMillis());

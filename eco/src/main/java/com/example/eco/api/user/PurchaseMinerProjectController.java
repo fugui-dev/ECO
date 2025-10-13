@@ -1,5 +1,6 @@
 package com.example.eco.api.user;
 
+import com.example.eco.annotation.NoJwtAuth;
 import com.example.eco.bean.MultiResponse;
 import com.example.eco.bean.SingleResponse;
 import com.example.eco.bean.cmd.PurchaseMinerProjectPageQry;
@@ -12,10 +13,12 @@ import com.example.eco.bean.dto.PurchaseMinerProjectStatisticsDTO;
 import com.example.eco.bean.dto.RewardServiceResultDTO;
 import com.example.eco.common.PurchaseMinerType;
 import com.example.eco.core.service.PurchaseMinerProjectService;
+import com.example.eco.util.UserContextUtil;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.Resource;
-
+@Slf4j
 @RestController
 @RequestMapping("/v1/user/purchase/miner/project")
 public class PurchaseMinerProjectController {
@@ -29,6 +32,16 @@ public class PurchaseMinerProjectController {
      */
     @PostMapping("/page")
     MultiResponse<PurchaseMinerProjectDTO> page(@RequestBody PurchaseMinerProjectPageQry purchaseMinerProjectPageQry) {
+
+        // 从JWT token中获取钱包地址
+        String walletAddress = UserContextUtil.getCurrentWalletAddress();
+        if (walletAddress == null) {
+            log.warn("获取当前用户钱包地址失败");
+            return MultiResponse.buildFailure("400","用户未登录");
+        }
+
+        purchaseMinerProjectPageQry.setWalletAddress(walletAddress);
+
         return purchaseMinerProjectService.page(purchaseMinerProjectPageQry);
     }
 
@@ -42,6 +55,16 @@ public class PurchaseMinerProjectController {
         if (purchaseMinerProjectsCreateCmd.getType().equals(PurchaseMinerType.AIRDROP.getCode())){
             return SingleResponse.buildFailure("支付类型错误");
         }
+
+        // 从JWT token中获取钱包地址
+        String walletAddress = UserContextUtil.getCurrentWalletAddress();
+        if (walletAddress == null) {
+            log.warn("获取当前用户钱包地址失败");
+            return SingleResponse.buildFailure("用户未登录");
+        }
+
+        purchaseMinerProjectsCreateCmd.setWalletAddress(walletAddress);
+
         return purchaseMinerProjectService.create(purchaseMinerProjectsCreateCmd);
     }
 

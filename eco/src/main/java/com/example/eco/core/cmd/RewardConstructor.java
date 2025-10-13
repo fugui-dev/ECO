@@ -311,7 +311,7 @@ public class RewardConstructor {
             log.info("新增算力{}未达到新增矿机挖矿数量要求{}，不增加挖矿数量", moreComputingPower, minerAddNumberRequirement);
         } else {
             // 新增挖矿数量的倍数 = 新增算力 / 新增矿机挖矿数量要求 （取余）
-            BigDecimal times = moreComputingPower.divide(minerAddNumberRequirement, 0, RoundingMode.HALF_DOWN);
+            BigDecimal times = moreComputingPower.divide(minerAddNumberRequirement, 0, RoundingMode.DOWN);
 
             LambdaQueryWrapper<MinerConfig> minerAddNumberQueryWrapper = new LambdaQueryWrapper<>();
             minerAddNumberQueryWrapper.eq(MinerConfig::getName, MinerConfigEnum.MINER_ADD_NUMBER.getCode());

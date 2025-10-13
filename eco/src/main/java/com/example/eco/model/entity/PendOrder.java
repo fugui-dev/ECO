@@ -76,6 +76,10 @@ public class PendOrder {
      */
     private String imageList;
 
+    /**
+     * 交易hash
+     */
+    private String hash;
 
     /**
      * 备注

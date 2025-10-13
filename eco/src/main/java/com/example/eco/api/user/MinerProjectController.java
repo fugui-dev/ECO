@@ -1,5 +1,6 @@
 package com.example.eco.api.user;
 
+import com.example.eco.annotation.NoJwtAuth;
 import com.example.eco.bean.MultiResponse;
 import com.example.eco.bean.cmd.MinerProjectPageQry;
 import com.example.eco.bean.dto.MinerProjectDTO;
