@@ -35,7 +35,9 @@ public class AccountTransactionServiceImpl implements AccountTransactionService 
 
         List<String> transactionTypeList = Arrays.asList(
                AccountTransactionType.ADD_NUMBER.getCode(),
-                AccountTransactionType.DEDUCT_NUMBER.getCode()
+                AccountTransactionType.DEDUCT_NUMBER.getCode(),
+                AccountTransactionType.TRANSFER_OUT.getCode(),
+                AccountTransactionType.TRANSFER_IN.getCode()
         );
 
         LambdaQueryWrapper<AccountTransaction> queryWrapper = new LambdaQueryWrapper<>();
