@@ -6,5 +6,5 @@ import lombok.Data;
 @Data
 public class MinerProjectPageQry extends PageQuery {
 
-
+    private Integer status;
 }

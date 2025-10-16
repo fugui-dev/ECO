@@ -11,7 +11,13 @@ public enum MinerConfigEnum {
 
     MINER_ADD_NUMBER("MINER_ADD_NUMBER", "新增矿机挖矿数量"),
 
+    BUY_MINER_ECO_RATE("BUY_MINER_ECO_RATE","购买矿机eco占比"),
+
+    BUY_MINER_ESG_RATE("BUY_MINER_ESG_RATE","购买矿机esg占比"),
+
     MINER_REQUIREMENT("MINER_REQUIREMENT", "矿机挖矿算力要求");
+
+
 
     private String code;
 

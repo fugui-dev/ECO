@@ -21,4 +21,7 @@ public class MinerProjectUpdateCmd {
      * 矿机限额
      */
     private String quota;
+
+
+    private Integer status;
 }

@@ -29,16 +29,16 @@ public class PendOrderController {
      */
     @PostMapping("/page")
     MultiResponse<PendOrderDTO> page(@RequestBody PendOrderPageQry pendOrderPageQry){
-        // 从JWT token中获取钱包地址
-        String walletAddress = UserContextUtil.getCurrentWalletAddress();
-        if (walletAddress == null) {
-            log.warn("获取当前用户钱包地址失败");
-            return MultiResponse.buildFailure("400","用户未登录");
-        }
-        
-        // 设置钱包地址到查询条件中
-        pendOrderPageQry.setWalletAddress(walletAddress);
-        log.info("分页查询挂单: walletAddress={}", walletAddress);
+//        // 从JWT token中获取钱包地址
+//        String walletAddress = UserContextUtil.getCurrentWalletAddress();
+//        if (walletAddress == null) {
+//            log.warn("获取当前用户钱包地址失败");
+//            return MultiResponse.buildFailure("400","用户未登录");
+//        }
+//
+//        // 设置钱包地址到查询条件中
+//        pendOrderPageQry.setWalletAddress(walletAddress);
+//        log.info("分页查询挂单: walletAddress={}", walletAddress);
         
         return pendOrderService.page(pendOrderPageQry);
     }

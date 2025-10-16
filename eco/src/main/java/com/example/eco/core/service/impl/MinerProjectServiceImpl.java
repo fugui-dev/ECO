@@ -52,6 +52,7 @@ public class MinerProjectServiceImpl implements MinerProjectService {
         existingProject = new MinerProject();
         existingProject.setComputingPower(minerProjectCreateCmd.getComputingPower());
         existingProject.setPrice(minerProjectCreateCmd.getPrice());
+        existingProject.setStatus(1);
         existingProject.setQuota(minerProjectCreateCmd.getQuota());
         existingProject.setCreateTime(System.currentTimeMillis());
         minerProjectMapper.insert(existingProject);
@@ -69,6 +70,7 @@ public class MinerProjectServiceImpl implements MinerProjectService {
         minerProject.setComputingPower(minerProjectUpdateCmd.getComputingPower());
         minerProject.setPrice(minerProjectUpdateCmd.getPrice());
         minerProject.setQuota(minerProjectUpdateCmd.getQuota());
+        minerProject.setStatus(minerProjectUpdateCmd.getStatus());
         minerProject.setUpdateTime(System.currentTimeMillis());
         minerProjectMapper.updateById(minerProject);
         return SingleResponse.buildSuccess();
@@ -84,7 +86,7 @@ public class MinerProjectServiceImpl implements MinerProjectService {
     public MultiResponse<MinerProjectDTO> page(MinerProjectPageQry minerProjectPageQry) {
 
         LambdaQueryWrapper<MinerProject> lambdaQueryWrapper = new LambdaQueryWrapper<>();
-
+        lambdaQueryWrapper.eq(Objects.nonNull(minerProjectPageQry.getStatus()),MinerProject::getStatus,minerProjectPageQry.getStatus());
         Page<MinerProject> minerProjectPage = minerProjectMapper.selectPage(Page.of(minerProjectPageQry.getPageNum(), minerProjectPageQry.getPageSize()), lambdaQueryWrapper);
         if (CollectionUtils.isEmpty(minerProjectPage.getRecords())) {
             return MultiResponse.buildSuccess();
@@ -107,6 +109,7 @@ public class MinerProjectServiceImpl implements MinerProjectService {
             minerProjectDTO.setId(minerProject.getId());
             minerProjectDTO.setPrice(minerProject.getPrice());
             minerProjectDTO.setQuota(minerProject.getQuota());
+            minerProjectDTO.setStatus(minerProject.getStatus());
 //            Long days = TimeUnit.MILLISECONDS.toDays(System.currentTimeMillis() - minerProject.getCreateTime());
 //            Double computingPower = Double.parseDouble(minerProject.getComputingPower()) * Math.pow(Double.parseDouble(systemConfig.getValue()), days);
 

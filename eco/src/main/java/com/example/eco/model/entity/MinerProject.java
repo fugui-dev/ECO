@@ -37,6 +37,9 @@ public class MinerProject {
     private String quota;
 
 
+    private Integer status;
+
+
     private Long createTime;
 
 

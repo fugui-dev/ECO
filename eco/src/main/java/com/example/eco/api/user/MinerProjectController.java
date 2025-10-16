@@ -25,6 +25,7 @@ public class MinerProjectController {
      */
     @PostMapping("/page")
     MultiResponse<MinerProjectDTO> page(@RequestBody MinerProjectPageQry minerProjectPageQry){
+        minerProjectPageQry.setStatus(1);
         return minerProjectService.page(minerProjectPageQry);
     }
 }

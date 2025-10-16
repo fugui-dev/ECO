@@ -74,6 +74,8 @@ public class PurchaseMinerProjectServiceImpl implements PurchaseMinerProjectServ
     private MinerDailyRewardMapper minerDailyRewardMapper;
     @Resource
     private RewardServiceLogMapper rewardServiceLogMapper;
+    @Resource
+    private MinerConfigMapper minerConfigMapper;
 
 
     @Override
@@ -221,16 +223,34 @@ public class PurchaseMinerProjectServiceImpl implements PurchaseMinerProjectServ
                 return SingleResponse.buildFailure("未设置ECO价格");
             }
 
+            LambdaQueryWrapper<MinerConfig> minerEcoConfigLambdaQueryWrapper = new LambdaQueryWrapper<>();
+            minerEcoConfigLambdaQueryWrapper.eq(MinerConfig::getName,MinerConfigEnum.BUY_MINER_ECO_RATE.getCode());
+
+            MinerConfig minerEcoConfig = minerConfigMapper.selectOne(minerEcoConfigLambdaQueryWrapper);
+
+            if (Objects.isNull(minerEcoConfig)) {
+                return SingleResponse.buildFailure("未设置ECO比例");
+            }
+
+            LambdaQueryWrapper<MinerConfig> minerEsgConfigLambdaQueryWrapper = new LambdaQueryWrapper<>();
+            minerEsgConfigLambdaQueryWrapper.eq(MinerConfig::getName,MinerConfigEnum.BUY_MINER_ESG_RATE.getCode());
+
+            MinerConfig minerEsgConfig = minerConfigMapper.selectOne(minerEsgConfigLambdaQueryWrapper);
+
+            if (Objects.isNull(minerEsgConfig)) {
+                return SingleResponse.buildFailure("未设置ESG比例");
+            }
+
 //            BigDecimal halfPrice = new BigDecimal(minerProject.getPrice()).divide(new BigDecimal(2), 4, RoundingMode.HALF_DOWN);
 
 
-            BigDecimal ecoNumber = new BigDecimal(minerProject.getPrice()).divide(new BigDecimal(systemConfig.getValue()), 4, RoundingMode.HALF_DOWN);
+            BigDecimal totalEcoNumber = new BigDecimal(minerProject.getPrice()).divide(new BigDecimal(systemConfig.getValue()), 4, RoundingMode.HALF_DOWN);
 
-            BigDecimal esgNumber = ecoNumber.divide(BigDecimal.valueOf(2));
+            BigDecimal esgNumber = totalEcoNumber.multiply(new BigDecimal(minerEsgConfig.getValue()));
 
-            ecoNumber = esgNumber;
+            BigDecimal ecoNumber = totalEcoNumber.multiply(new BigDecimal(minerEcoConfig.getValue()));;
 
-            amount = amount.add(esgNumber.multiply(esgPrice));
+//            amount = amount.add(esgNumber.multiply(esgPrice));
 
             purchaseMinerProject.setEsgNumber(esgNumber.toString());
             purchaseMinerProject.setEcoNumber(ecoNumber.toString());
@@ -489,8 +509,10 @@ public class PurchaseMinerProjectServiceImpl implements PurchaseMinerProjectServ
             BeanUtils.copyProperties(purchaseMinerProject, purchaseMinerProjectDTO);
             purchaseMinerProjectDTO.setTypeName(PurchaseMinerType.of(purchaseMinerProject.getType()).getName());
             purchaseMinerProjectDTO.setStatusName(PurchaseMinerProjectStatus.of(purchaseMinerProject.getStatus()).getName());
-
-
+            purchaseMinerProjectDTO.setActualComputingPower(new BigDecimal(purchaseMinerProject.getActualComputingPower())
+                    .setScale(2,RoundingMode.DOWN).toString());
+            purchaseMinerProjectDTO.setTotalReward(new BigDecimal(purchaseMinerProject.getReward())
+                    .setScale(2,RoundingMode.DOWN).toString());
 //            LambdaQueryWrapper<PurchaseMinerProjectReward> queryWrapper = new LambdaQueryWrapper<>();
 //            queryWrapper.eq(PurchaseMinerProjectReward::getPurchaseMinerProjectId, purchaseMinerProject.getId());
 //
@@ -518,8 +540,10 @@ public class PurchaseMinerProjectServiceImpl implements PurchaseMinerProjectServ
                 purchaseMinerProjectDTO.setYesterdayTotalRewardPrice("0");
                 purchaseMinerProjectDTO.setYesterdayTotalReward("0");
             }else {
-                purchaseMinerProjectDTO.setYesterdayTotalReward(minerDailyReward.getTotalReward());
-                purchaseMinerProjectDTO.setYesterdayTotalRewardPrice(minerDailyReward.getTotalRewardPrice());
+                purchaseMinerProjectDTO.setYesterdayTotalReward(new BigDecimal(minerDailyReward.getTotalReward())
+                        .setScale(2,RoundingMode.DOWN).toString());
+                purchaseMinerProjectDTO.setYesterdayTotalRewardPrice(new BigDecimal(minerDailyReward.getTotalRewardPrice())
+                        .setScale(2,RoundingMode.DOWN).toString());
             }
 
             purchaseMinerProjectDTOS.add(purchaseMinerProjectDTO);
@@ -615,13 +639,17 @@ public class PurchaseMinerProjectServiceImpl implements PurchaseMinerProjectServ
 
         BigDecimal progress = totalEcoNumber.divide(totalNumber, 4, RoundingMode.HALF_UP);
 
-        purchaseMinerProjectStatisticsDTO.setTotalComputingPower(totalComputingPower.toString());
+        purchaseMinerProjectStatisticsDTO.setTotalComputingPower(totalComputingPower
+                .setScale(2,RoundingMode.DOWN).toString());
         purchaseMinerProjectStatisticsDTO.setTotalPurchaseMinerProjectCount(totalPurchaseMinerProjectCount);
         purchaseMinerProjectStatisticsDTO.setProgress(progress.toString());
         purchaseMinerProjectStatisticsDTO.setPrice(priceSystemConfig.getValue());
-        purchaseMinerProjectStatisticsDTO.setTotalEcoNumber(totalEcoNumber.toString());
-        purchaseMinerProjectStatisticsDTO.setYesterdayTotalEcoNumber(yesterdayTotalEcoNumber.toString());
-        purchaseMinerProjectStatisticsDTO.setYesterdayTotalComputingPower(yesterdayTotalComputingPower.toString());
+        purchaseMinerProjectStatisticsDTO.setTotalEcoNumber(totalEcoNumber
+                .setScale(2,RoundingMode.DOWN).toString());
+        purchaseMinerProjectStatisticsDTO.setYesterdayTotalEcoNumber(yesterdayTotalEcoNumber
+                .setScale(2,RoundingMode.DOWN).toString());
+        purchaseMinerProjectStatisticsDTO.setYesterdayTotalComputingPower(yesterdayTotalComputingPower
+                .setScale(2,RoundingMode.DOWN).toString());
         purchaseMinerProjectStatisticsDTO.setYesterdayTotalPurchaseMinerProjectCount(yesterdayTotalPurchaseMinerProjectCount);
 
         return SingleResponse.of(purchaseMinerProjectStatisticsDTO);

@@ -29,6 +29,9 @@ public class MinerProjectDTO {
      */
     private String amount;
 
+
+    private Integer status;
+
     /**
      * 是否达到ESG限额
      */
