@@ -7,13 +7,17 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.example.eco.bean.MultiResponse;
 import com.example.eco.bean.SingleResponse;
 import com.example.eco.bean.cmd.*;
+import com.example.eco.bean.dto.PendOrderAppealDTO;
 import com.example.eco.bean.dto.PendOrderDTO;
 import com.example.eco.common.AccountType;
 import com.example.eco.common.BusinessException;
+import com.example.eco.common.PendOrderAppealStatus;
 import com.example.eco.common.PendOrderStatus;
 import com.example.eco.core.service.AccountService;
 import com.example.eco.core.service.PendOrderService;
 import com.example.eco.model.entity.PendOrder;
+import com.example.eco.model.entity.PendOrderAppeal;
+import com.example.eco.model.mapper.PendOrderAppealMapper;
 import com.example.eco.model.mapper.PendOrderMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.redisson.api.RLock;
@@ -45,6 +49,9 @@ public class PendOrderServiceImpl implements PendOrderService {
     @Resource
     private RedissonClient redissonClient;
 
+    @Resource
+    private PendOrderAppealMapper pendOrderAppealMapper;
+
     private static final String PEND_ORDER_LOCK_KEY = "pend_order_lock:";
 
 
@@ -66,7 +73,7 @@ public class PendOrderServiceImpl implements PendOrderService {
                 return response;
             }
 
-        }catch (Exception e){
+        } catch (Exception e) {
             e.printStackTrace();
             throw new RuntimeException("创建挂单异常");
         }
@@ -117,10 +124,10 @@ public class PendOrderServiceImpl implements PendOrderService {
 
             try {
                 SingleResponse<Void> response = accountService.rollbackLockSellNumber(rollbackLockSellNumberCmd);
-                if (!response.isSuccess()){
+                if (!response.isSuccess()) {
                     return response;
                 }
-            }catch (Exception e){
+            } catch (Exception e) {
                 e.printStackTrace();
                 throw new RuntimeException("删除挂单异常: " + e.getMessage());
             }
@@ -172,9 +179,9 @@ public class PendOrderServiceImpl implements PendOrderService {
             try {
                 SingleResponse<Void> response = accountService.buyNumber(accountBuyNumberCmd);
                 if (!response.isSuccess()) {
-                    return  response;
+                    return response;
                 }
-            }catch (Exception e){
+            } catch (Exception e) {
                 e.printStackTrace();
                 throw new RuntimeException("锁单异常: " + e.getMessage());
             }
@@ -234,7 +241,7 @@ public class PendOrderServiceImpl implements PendOrderService {
                 if (!response.isSuccess()) {
                     return response;
                 }
-            }catch (Exception e){
+            } catch (Exception e) {
                 e.printStackTrace();
                 throw new RuntimeException("取消锁单异常: " + e.getMessage());
             }
@@ -295,7 +302,7 @@ public class PendOrderServiceImpl implements PendOrderService {
                 if (!buyResponse.isSuccess()) {
                     return buyResponse;
                 }
-            }catch (Exception e){
+            } catch (Exception e) {
                 e.printStackTrace();
                 throw new RuntimeException("确认挂单异常: " + e.getMessage());
             }
@@ -308,10 +315,10 @@ public class PendOrderServiceImpl implements PendOrderService {
             try {
                 SingleResponse<Void> sellResponse = accountService.releaseLockSellNumber(accountReleaseLockSellNumberCmd);
                 if (!sellResponse.isSuccess()) {
-                    log.info("确认挂单异常：{}",sellResponse.getErrMessage());
-                    throw new BusinessException("确认挂单异常："+ sellResponse.getErrMessage());
+                    log.info("确认挂单异常：{}", sellResponse.getErrMessage());
+                    throw new BusinessException("确认挂单异常：" + sellResponse.getErrMessage());
                 }
-            }catch (Exception e){
+            } catch (Exception e) {
                 e.printStackTrace();
                 throw new RuntimeException(e.getMessage());
             }
@@ -372,7 +379,7 @@ public class PendOrderServiceImpl implements PendOrderService {
         }
 
         List<PendOrderDTO> pendOrderDTOList = new ArrayList<>();
-        for (PendOrder pendOrder : pendOrderPage.getRecords()){
+        for (PendOrder pendOrder : pendOrderPage.getRecords()) {
 
             PendOrderDTO pendOrderDTO = new PendOrderDTO();
             BeanUtils.copyProperties(pendOrder, pendOrderDTO);
@@ -382,6 +389,207 @@ public class PendOrderServiceImpl implements PendOrderService {
         }
 
 
-        return MultiResponse.of(pendOrderDTOList, (int)pendOrderPage.getTotal());
+        return MultiResponse.of(pendOrderDTOList, (int) pendOrderPage.getTotal());
     }
+
+    @Override
+    public SingleResponse<Void> appealCreate(PendOrderAppealCreateCmd pendOrderAppealCreateCmd) {
+
+        LambdaQueryWrapper<PendOrder> queryWrapper = new LambdaQueryWrapper<>();
+        queryWrapper.eq(PendOrder::getOrder, pendOrderAppealCreateCmd.getOrder());
+        PendOrder pendOrder = pendOrderMapper.selectOne(queryWrapper);
+
+        if (pendOrder == null) {
+            return SingleResponse.buildFailure("挂单不存在");
+        }
+
+        if (!pendOrder.getWalletAddress().equals(pendOrderAppealCreateCmd.getWalletAddress())
+                && !pendOrder.getBuyerWalletAddress().equals(pendOrderAppealCreateCmd.getWalletAddress())) {
+            return SingleResponse.buildFailure("只能申诉自己的订单");
+        }
+
+        if (!pendOrder.getStatus().equals(PendOrderStatus.APPLY.getCode())
+                && !pendOrder.getStatus().equals(PendOrderStatus.LOCK.getCode())) {
+            return SingleResponse.buildFailure("当前状态不允许申诉");
+        }
+
+        PendOrderAppeal pendOrderAppeal = new PendOrderAppeal();
+        pendOrderAppeal.setOrder(pendOrderAppealCreateCmd.getOrder());
+        pendOrderAppeal.setWalletAddress(pendOrderAppealCreateCmd.getWalletAddress());
+        pendOrderAppeal.setContent(pendOrderAppealCreateCmd.getContent());
+        pendOrderAppeal.setStatus(PendOrderAppealStatus.WAIT.getCode());
+        pendOrderAppeal.setCreateTime(System.currentTimeMillis());
+
+        pendOrderAppealMapper.insert(pendOrderAppeal);
+
+        return SingleResponse.buildSuccess();
+    }
+
+    @Override
+    public SingleResponse<Void> appealDealWith(PendOrderAppealDealWithCmd pendOrderAppealDealWithCmd) {
+
+
+        LambdaQueryWrapper<PendOrderAppeal> queryWrapper = new LambdaQueryWrapper<>();
+        queryWrapper.eq(PendOrderAppeal::getId, pendOrderAppealDealWithCmd.getAppealId());
+        PendOrderAppeal pendOrderAppeal = pendOrderAppealMapper.selectOne(queryWrapper);
+
+        if (pendOrderAppeal == null) {
+            return SingleResponse.buildFailure("申诉不存在");
+        }
+
+        if (!pendOrderAppeal.getStatus().equals(PendOrderAppealStatus.WAIT.getCode())) {
+            return SingleResponse.buildFailure("申诉已处理");
+        }
+
+        LambdaQueryWrapper<PendOrder> pendOrderQueryWrapper = new LambdaQueryWrapper<>();
+        pendOrderQueryWrapper.eq(PendOrder::getOrder, pendOrderAppeal.getOrder());
+        PendOrder pendOrder = pendOrderMapper.selectOne(pendOrderQueryWrapper);
+
+        if (pendOrder == null) {
+            return SingleResponse.buildFailure("挂单不存在");
+        }
+
+        if (!pendOrder.getStatus().equals(PendOrderStatus.APPLY.getCode())
+                && !pendOrder.getStatus().equals(PendOrderStatus.LOCK.getCode())) {
+            return SingleResponse.buildFailure("当前状态不允许申诉处理");
+        }
+
+
+        RLock lock = redissonClient.getLock(PEND_ORDER_LOCK_KEY + pendOrder.getOrder());
+
+        try {
+            if (!lock.tryLock(3, 10, TimeUnit.SECONDS)) {
+                return SingleResponse.buildFailure("确认订单处理中，请稍后再试");
+            }
+
+            if (pendOrderAppealDealWithCmd.getStatus().equals(PendOrderAppealStatus.AGREE.getCode())) {
+
+                //卖家申诉 要买方回滚 订单删除
+                if (pendOrder.getWalletAddress().equals(pendOrderAppeal.getWalletAddress())){
+
+                    RollbackLockBuyNumberCmd rollbackLockBuyNumberCmd = new RollbackLockBuyNumberCmd();
+                    rollbackLockBuyNumberCmd.setOrder(pendOrder.getOrder());
+                    rollbackLockBuyNumberCmd.setWalletAddress(pendOrder.getBuyerWalletAddress());
+
+                    try {
+                        SingleResponse<Void> response = accountService.rollbackLockBuyNumber(rollbackLockBuyNumberCmd);
+                        if (!response.isSuccess()) {
+                            return response;
+                        }
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                        throw new RuntimeException("处理申诉异常: " + e.getMessage());
+                    }
+
+                    RollbackLockSellNumberCmd rollbackLockSellNumberCmd = new RollbackLockSellNumberCmd();
+                    rollbackLockSellNumberCmd.setOrder(pendOrder.getOrder());
+                    rollbackLockSellNumberCmd.setWalletAddress(pendOrder.getWalletAddress());
+
+                    try {
+                        SingleResponse<Void> response = accountService.rollbackLockSellNumber(rollbackLockSellNumberCmd);
+                        if (!response.isSuccess()) {
+                            throw new BusinessException("处理申诉异常：" + response.getErrMessage());
+                        }
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                        throw new RuntimeException("处理申诉异常: " + e.getMessage());
+                    }
+
+                    pendOrder.setStatus(PendOrderStatus.DELETE.getCode());
+                    pendOrder.setUpdateTime(System.currentTimeMillis());
+                    pendOrderMapper.updateById(pendOrder);
+
+                }
+
+                //买家申诉 要订单完成
+                if (pendOrder.getBuyerWalletAddress().equals(pendOrderAppeal.getWalletAddress())){
+
+                    //释放购买金额
+                    AccountReleaseLockBuyNumberCmd accountReleaseLockBuyNumberCmd = new AccountReleaseLockBuyNumberCmd();
+                    accountReleaseLockBuyNumberCmd.setOrder(pendOrder.getOrder());
+                    accountReleaseLockBuyNumberCmd.setWalletAddress(pendOrder.getBuyerWalletAddress());
+
+                    try {
+                        SingleResponse<Void> buyResponse = accountService.releaseLockBuyNumber(accountReleaseLockBuyNumberCmd);
+                        if (!buyResponse.isSuccess()) {
+                            return buyResponse;
+                        }
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                        throw new RuntimeException("处理申诉异常: " + e.getMessage());
+                    }
+
+                    //释放销售金额
+                    AccountReleaseLockSellNumberCmd accountReleaseLockSellNumberCmd = new AccountReleaseLockSellNumberCmd();
+                    accountReleaseLockSellNumberCmd.setOrder(pendOrder.getOrder());
+                    accountReleaseLockSellNumberCmd.setWalletAddress(pendOrder.getWalletAddress());
+
+                    try {
+                        SingleResponse<Void> sellResponse = accountService.releaseLockSellNumber(accountReleaseLockSellNumberCmd);
+                        if (!sellResponse.isSuccess()) {
+                            log.info("处理申诉异常：{}", sellResponse.getErrMessage());
+                            throw new BusinessException("处理申诉异常：" + sellResponse.getErrMessage());
+                        }
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                        throw new RuntimeException(e.getMessage());
+                    }
+
+                    pendOrder.setStatus(PendOrderStatus.COMPLETE.getCode());
+                    pendOrder.setConfirmTime(System.currentTimeMillis());
+                    pendOrder.setUpdateTime(System.currentTimeMillis());
+                    pendOrderMapper.updateById(pendOrder);
+                }
+
+                pendOrderAppeal.setStatus(pendOrderAppealDealWithCmd.getStatus());
+                pendOrderAppeal.setUpdateTime(System.currentTimeMillis());
+                pendOrderAppealMapper.updateById(pendOrderAppeal);
+                return SingleResponse.buildSuccess();
+
+            }else {
+                pendOrderAppeal.setStatus(pendOrderAppealDealWithCmd.getStatus());
+                pendOrderAppeal.setReason(pendOrderAppealDealWithCmd.getReason());
+                pendOrderAppeal.setUpdateTime(System.currentTimeMillis());
+                pendOrderAppealMapper.updateById(pendOrderAppeal);
+                return SingleResponse.buildSuccess();
+            }
+
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return SingleResponse.buildFailure("操作被中断");
+        } catch (Exception e) {
+            // 重新抛出异常以确保事务回滚
+            throw new RuntimeException("处理申诉异常: " + e.getMessage());
+        } finally {
+            if (lock.isLocked() && lock.isHeldByCurrentThread()) {
+                lock.unlock();
+            }
+        }
+    }
+
+    @Override
+    public MultiResponse<PendOrderAppealDTO> appealPage(PendOrderAppealPageQry pendOrderAppealPageQry) {
+
+        LambdaQueryWrapper<PendOrderAppeal> queryWrapper = new LambdaQueryWrapper<>();
+        queryWrapper.eq(StringUtils.isNotEmpty(pendOrderAppealPageQry.getWalletAddress()), PendOrderAppeal::getWalletAddress, pendOrderAppealPageQry.getWalletAddress());
+        queryWrapper.eq(StringUtils.isNotEmpty(pendOrderAppealPageQry.getStatus()), PendOrderAppeal::getStatus, pendOrderAppealPageQry.getStatus());
+        queryWrapper.eq(StringUtils.isNotEmpty(pendOrderAppealPageQry.getOrder()), PendOrderAppeal::getOrder, pendOrderAppealPageQry.getOrder());
+
+        Page<PendOrderAppeal> pendOrderAppealPage = pendOrderAppealMapper.selectPage(Page.of(pendOrderAppealPageQry.getPageNum(), pendOrderAppealPageQry.getPageSize()), queryWrapper);
+        if (CollectionUtils.isEmpty(pendOrderAppealPage.getRecords())) {
+            return MultiResponse.buildSuccess();
+        }
+
+        List<PendOrderAppealDTO> pendOrderAppealDTOList = new ArrayList<>();
+        for (PendOrderAppeal pendOrderAppeal : pendOrderAppealPage.getRecords()) {
+            PendOrderAppealDTO pendOrderAppealDTO = new PendOrderAppealDTO();
+            BeanUtils.copyProperties(pendOrderAppeal, pendOrderAppealDTO);
+            pendOrderAppealDTO.setStatusName(PendOrderAppealStatus.of(pendOrderAppeal.getStatus()).getName());
+            pendOrderAppealDTOList.add(pendOrderAppealDTO);
+        }
+
+        return MultiResponse.of(pendOrderAppealDTOList, (int) pendOrderAppealPage.getTotal());
+
+    }
+
 }

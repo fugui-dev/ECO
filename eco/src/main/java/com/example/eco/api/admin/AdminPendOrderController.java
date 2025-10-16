@@ -1,7 +1,11 @@
 package com.example.eco.api.admin;
 
 import com.example.eco.bean.MultiResponse;
+import com.example.eco.bean.SingleResponse;
+import com.example.eco.bean.cmd.PendOrderAppealDealWithCmd;
+import com.example.eco.bean.cmd.PendOrderAppealPageQry;
 import com.example.eco.bean.cmd.PendOrderPageQry;
+import com.example.eco.bean.dto.PendOrderAppealDTO;
 import com.example.eco.bean.dto.PendOrderDTO;
 import com.example.eco.core.service.PendOrderService;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -26,5 +30,20 @@ public class AdminPendOrderController {
         return pendOrderService.page(pendOrderPageQry);
     }
 
+    /**
+     * 处理申诉
+     */
+    @PostMapping("/appeal/deal/with")
+    SingleResponse<Void> appealDealWith(@RequestBody PendOrderAppealDealWithCmd pendOrderAppealDealWithCmd){
+        return pendOrderService.appealDealWith(pendOrderAppealDealWithCmd);
+    }
+
+    /**
+     * 分页查询申诉
+     */
+    @PostMapping("/appeal/page")
+    MultiResponse<PendOrderAppealDTO> appealPage(@RequestBody PendOrderAppealPageQry pendOrderAppealPageQry){
+        return pendOrderService.appealPage(pendOrderAppealPageQry);
+    }
 
 }

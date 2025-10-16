@@ -3,6 +3,7 @@ package com.example.eco.core.service;
 import com.example.eco.bean.MultiResponse;
 import com.example.eco.bean.SingleResponse;
 import com.example.eco.bean.cmd.*;
+import com.example.eco.bean.dto.PendOrderAppealDTO;
 import com.example.eco.bean.dto.PendOrderDTO;
 
 public interface PendOrderService {
@@ -49,4 +50,20 @@ public interface PendOrderService {
      * 分页查询挂单
      */
     MultiResponse<PendOrderDTO> page(PendOrderPageQry pendOrderPageQry);
+
+    /**
+     * 创建申诉
+     */
+    SingleResponse<Void> appealCreate(PendOrderAppealCreateCmd pendOrderAppealCreateCmd);
+
+
+    /**
+     * 处理申诉
+     */
+    SingleResponse<Void> appealDealWith(PendOrderAppealDealWithCmd pendOrderAppealDealWithCmd);
+
+    /**
+     * 分页查询申诉
+     */
+    MultiResponse<PendOrderAppealDTO> appealPage(PendOrderAppealPageQry pendOrderAppealPageQry);
 }
