@@ -7,9 +7,9 @@ public enum PendOrderAppealStatus {
 
     WAIT("WAIT", "待处理"),
 
-    AGREE("AGREE", "同意"),
+    AGREE("AGREE", "同意放款"),
 
-    REFUSE("REFUSE", "拒绝");
+    REFUSE("REFUSE", "取消交易");
 
     private String code;
 

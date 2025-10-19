@@ -75,8 +75,23 @@ public class RewardConstructor {
     public SingleResponse<PurchaseMinerProjectReward> reward(PurchaseMinerProjectRewardCmd purchaseMinerProjectRewardCmd) {
         log.info("=== 开始发放奖励，日期: {} ===", purchaseMinerProjectRewardCmd.getDayTime());
 
+        Long endTime = LocalDate.parse(purchaseMinerProjectRewardCmd.getDayTime()).plusDays(1).atStartOfDay()
+                .atZone(ZoneId.systemDefault())  // 明确使用系统时区
+                .toInstant()
+                .toEpochMilli();
+
+        LambdaQueryWrapper<PurchaseMinerProject> purchaseMinerProjectLambdaQueryWrapper = new LambdaQueryWrapper<>();
+        purchaseMinerProjectLambdaQueryWrapper.eq(PurchaseMinerProject::getStatus,PurchaseMinerProjectStatus.SUCCESS.getCode());
+        // 只查询指定日期及之前创建的矿机
+        purchaseMinerProjectLambdaQueryWrapper.le(PurchaseMinerProject::getCreateTime, endTime);
+        List<PurchaseMinerProject> purchaseMinerProjectList = purchaseMinerProjectMapper.selectList(purchaseMinerProjectLambdaQueryWrapper);
+
         // 使用新的算力计算服务获取总算力
-        BigDecimal totalComputingPower = ComputingPowerUtil.getTotalPower(purchaseMinerProjectRewardCmd.getDayTime());
+        BigDecimal totalComputingPower = purchaseMinerProjectList.stream()
+                .map(PurchaseMinerProject::getActualComputingPower)
+                .map(BigDecimal::new)
+                .reduce(BigDecimal::add).orElse(BigDecimal.ZERO);
+
         log.info("【总算力统计】总算力: {}", totalComputingPower);
 
         if (totalComputingPower.compareTo(BigDecimal.ZERO) <= 0) {
@@ -146,7 +161,7 @@ public class RewardConstructor {
         log.info("【奖励发放总结】计划发放: {}, 实际发放: {}, 舍去奖励: {}, 舍去比例: {}%", 
                 totalReward, totalActualReward, totalDiscardedReward, 
                 totalReward.compareTo(BigDecimal.ZERO) > 0 ? 
-                    totalDiscardedReward.divide(totalReward, 4, RoundingMode.HALF_UP).multiply(new BigDecimal(100)) : BigDecimal.ZERO);
+                    totalDiscardedReward.divide(totalReward, 8, RoundingMode.DOWN).multiply(new BigDecimal(100)) : BigDecimal.ZERO);
 
         // 添加统计数据
         addRewardStatisticsLog(purchaseMinerProjectRewardCmd.getDayTime(), rewardList);
@@ -459,7 +474,7 @@ public class RewardConstructor {
             
             if (reward != null) {
                 BigDecimal calculatedReward = new BigDecimal(purchaseMinerProject.getActualComputingPower())
-                    .divide(totalComputingPower, 8, RoundingMode.HALF_DOWN)
+                    .divide(totalComputingPower, 8, RoundingMode.DOWN)
                     .multiply(staticTotalReward);
                 BigDecimal actualReward = new BigDecimal(reward.getReward());
                 
@@ -500,7 +515,7 @@ public class RewardConstructor {
 
         BigDecimal computingPower = new BigDecimal(purchaseMinerProject.getActualComputingPower());
 
-        BigDecimal staticReward = computingPower.divide(totalComputingPower, 8, RoundingMode.HALF_DOWN).multiply(staticTotalReward);
+        BigDecimal staticReward = computingPower.divide(totalComputingPower, 8, RoundingMode.DOWN).multiply(staticTotalReward);
         
         log.info("用户{}静态奖励计算: 矿机算力={}, 总算力={}, 计算奖励={}", 
             purchaseMinerProject.getWalletAddress(), computingPower, totalComputingPower, staticReward);
@@ -744,7 +759,7 @@ public class RewardConstructor {
 
             // 计算动态推荐奖励
             BigDecimal calculatedReward = computingPower.getDirectRecommendPower()
-                .divide(totalDirectRecommendComputingPower, 8, RoundingMode.HALF_DOWN)
+                .divide(totalDirectRecommendComputingPower, 8, RoundingMode.DOWN)
                 .multiply(dynamicRewardRecommendTotalReward);
             totalRecommendRewardCalculated = totalRecommendRewardCalculated.add(calculatedReward);
             
@@ -784,7 +799,7 @@ public class RewardConstructor {
         //直推总算力
         BigDecimal directRecommendComputingPower = computingPower.getDirectRecommendPower();
 
-        BigDecimal recommendReward = directRecommendComputingPower.divide(totalDirectRecommendComputingPower, 8, RoundingMode.HALF_DOWN).multiply(dynamicRewardRecommendTotalReward);
+        BigDecimal recommendReward = directRecommendComputingPower.divide(totalDirectRecommendComputingPower, 8, RoundingMode.DOWN).multiply(dynamicRewardRecommendTotalReward);
         
         log.info("用户{}动态推荐奖励计算: 直推算力={}, 总直推算力={}, 计算奖励={}", 
             computingPower.getWalletAddress(), directRecommendComputingPower, totalDirectRecommendComputingPower, recommendReward);
@@ -1004,7 +1019,7 @@ public class RewardConstructor {
         }
         // 动态奖励
         BigDecimal baseReward = minComputingPower
-                .divide(totalMinComputingPower, 8, RoundingMode.HALF_DOWN)
+                .divide(totalMinComputingPower, 8, RoundingMode.DOWN)
                 .multiply(dynamicBaseTotalReward);
         
         log.info("用户{}动态小区奖励计算: 小区算力={}, 总小区算力={}, 计算奖励={}", 
@@ -1228,7 +1243,7 @@ public class RewardConstructor {
         
         // 动态奖励
         BigDecimal newReward = newComputingPower
-                .divide(totalNewComputingPower, 8, RoundingMode.HALF_DOWN)
+                .divide(totalNewComputingPower, 8, RoundingMode.DOWN)
                 .multiply(dynamicNewTotalReward);
         
         log.info("用户{}动态新增奖励计算: 新增算力={}, 总新增算力={}, 计算奖励={}", 
@@ -1423,7 +1438,7 @@ public class RewardConstructor {
                                      String walletAddress,
                                      String dayTime) {
         
-        log.debug("【奖励上限检查】开始检查用户{}的奖励上限，原奖励: {}", walletAddress, reward);
+        log.info("【奖励上限检查】开始检查用户{}的奖励上限，原奖励: {}", walletAddress, reward);
         
         // 获取ECO价格配置
         LambdaQueryWrapper<SystemConfig> systemConfigLambdaQueryWrapper = new LambdaQueryWrapper<>();
@@ -1436,7 +1451,7 @@ public class RewardConstructor {
         }
 
         BigDecimal price = new BigDecimal(systemConfig.getValue());
-        log.debug("【奖励上限检查】用户{}使用ECO价格: {}", walletAddress, price);
+        log.info("【奖励上限检查】用户{}使用ECO价格: {}", walletAddress, price);
 
         // 如果没有传入矿机列表，则查询用户的矿机
         if (CollectionUtils.isEmpty(purchaseMinerProjectList)) {
@@ -1451,7 +1466,7 @@ public class RewardConstructor {
             return BigDecimal.ZERO;
         }
 
-        log.debug("【奖励上限检查】用户{}有{}台可用矿机", walletAddress, purchaseMinerProjectList.size());
+        log.info("【奖励上限检查】用户{}有{}台可用矿机", walletAddress, purchaseMinerProjectList.size());
 
         BigDecimal actualReward = BigDecimal.ZERO;  // 实际发放的奖励数量
         BigDecimal remainingReward = reward;  // 剩余待分配的奖励
@@ -1461,13 +1476,13 @@ public class RewardConstructor {
         for (PurchaseMinerProject purchaseMinerProject : purchaseMinerProjectList) {
             // 如果剩余奖励为0，跳出循环
             if (remainingReward.compareTo(BigDecimal.ZERO) <= 0) {
-                log.debug("【奖励上限检查】用户{}剩余奖励为0，停止分配", walletAddress);
+                log.info("【奖励上限检查】用户{}剩余奖励为0，停止分配", walletAddress);
                 break;
             }
 
             // 跳过已停止的矿机
             if (PurchaseMinerProjectStatus.STOP.getCode().equals(purchaseMinerProject.getStatus())) {
-                log.debug("【奖励上限检查】用户{}的矿机{}已停止，跳过", walletAddress, purchaseMinerProject.getId());
+                log.info("【奖励上限检查】用户{}的矿机{}已停止，跳过", walletAddress, purchaseMinerProject.getId());
                 continue;
             }
 
@@ -1482,19 +1497,19 @@ public class RewardConstructor {
             // 计算这个矿机还能接受的最大价值
             BigDecimal availableValue = maxRewardValue.subtract(currentTotalValue);
             
-            log.debug("【奖励上限检查】用户{}矿机{} - 当前价值: {}, 上限: {}, 可用价值: {}", 
+            log.info("【奖励上限检查】用户{}矿机{} - 当前价值: {}, 上限: {}, 可用价值: {}",
                 walletAddress, purchaseMinerProject.getId(), currentTotalValue, maxRewardValue, availableValue);
             
             if (availableValue.compareTo(BigDecimal.ZERO) <= 0) {
                 // 矿机已经达到上限，跳过
-                log.warn("【奖励上限检查】用户{}的矿机{}已达到2倍奖励上限（当前价值: {}, 上限: {}），跳过奖励分配", 
+                log.info("【奖励上限检查】用户{}的矿机{}已达到2倍奖励上限（当前价值: {}, 上限: {}），跳过奖励分配",
                     walletAddress, purchaseMinerProject.getId(), currentTotalValue, maxRewardValue);
                 maxedOutMinerCount++;
                 continue;
             }
             
             // 计算这个矿机实际能接受的奖励数量
-            BigDecimal availableReward = availableValue.divide(price, 4, RoundingMode.HALF_UP);
+            BigDecimal availableReward = availableValue.divide(price, 8, RoundingMode.DOWN);
             
             // 实际分配给这个矿机的奖励数量（取较小值）
             BigDecimal actualRewardForThisMiner = remainingReward.min(availableReward);
@@ -1502,7 +1517,7 @@ public class RewardConstructor {
             // 计算实际分配的价值
             BigDecimal actualValueForThisMiner = actualRewardForThisMiner.multiply(price);
             
-            log.debug("【奖励上限检查】用户{}矿机{} - 可用奖励: {}, 分配奖励: {}, 分配价值: {}", 
+            log.info("【奖励上限检查】用户{}矿机{} - 可用奖励: {}, 分配奖励: {}, 分配价值: {}",
                 walletAddress, purchaseMinerProject.getId(), availableReward, actualRewardForThisMiner, actualValueForThisMiner);
             
             // 更新矿机信息
@@ -1516,7 +1531,7 @@ public class RewardConstructor {
             // 如果达到上限，停止矿机
             if (finalTotalValue.compareTo(maxRewardValue) >= 0) {
                 purchaseMinerProject.setStatus(PurchaseMinerProjectStatus.STOP.getCode());
-                log.warn("【奖励上限检查】用户{}的矿机{}达到2倍奖励上限（最终价值: {}, 上限: {}），停止奖励发放", 
+                log.info("【奖励上限检查】用户{}的矿机{}达到2倍奖励上限（最终价值: {}, 上限: {}），停止奖励发放",
                     walletAddress, purchaseMinerProject.getId(), finalTotalValue, maxRewardValue);
                 
                 // 更新算力统计（矿机停止，算力减少）
@@ -1563,7 +1578,7 @@ public class RewardConstructor {
         }
 
         if (remainingReward.compareTo(BigDecimal.ZERO) > 0) {
-            log.warn("【奖励上限检查】用户{}所有矿机都达到上限，舍弃剩余奖励: {}（原奖励: {}, 实际发放: {}）", 
+            log.info("【奖励上限检查】用户{}所有矿机都达到上限，舍弃剩余奖励: {}（原奖励: {}, 实际发放: {}）",
                 walletAddress, remainingReward, reward, actualReward);
         }
         

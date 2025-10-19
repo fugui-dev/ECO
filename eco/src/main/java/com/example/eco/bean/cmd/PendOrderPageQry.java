@@ -16,6 +16,9 @@ public class PendOrderPageQry extends PageQuery {
      */
     private String buyerWalletAddress;
 
+
+    private  String order;
+
     /**
      * 状态
      */

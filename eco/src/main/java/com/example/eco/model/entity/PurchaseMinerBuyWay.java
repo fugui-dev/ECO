@@ -1,6 +1,7 @@
 package com.example.eco.model.entity;
 
 import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.AllArgsConstructor;
@@ -8,50 +9,35 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-/**
- * 矿机项目
- */
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@TableName("miner_project")
-public class MinerProject {
+@TableName("purchase_miner_buy_way")
+public class PurchaseMinerBuyWay {
 
     @TableId(type = IdType.AUTO)
     private Integer id;
 
     /**
-     * 价格
+     * key名称
      */
-    private String price;
+    @TableField(value = "`name`")
+    private String name;
 
     /**
-     * 矿机算力
+     * key值
      */
-    private String computingPower;
-
-    /**
-     * 矿机限额
-     */
-    private String quota;
-
-    /**
-     * 是否开启ESG抢购模式
-     * 0-关闭，1-开启
-     */
-    private Integer esgRushMode;
-
-    /**
-     * ESG抢购数量限制
-     * 当esgRushMode=1时生效，表示每日ESG抢购数量限制
-     */
-    private Integer esgRushLimit;
+    @TableField(value = "`value`")
+    private String value;
 
 
     private Integer status;
 
 
+    /**
+     * 创建时间
+     */
     private Long createTime;
 
 

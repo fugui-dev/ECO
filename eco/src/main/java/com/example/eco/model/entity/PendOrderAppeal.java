@@ -25,6 +25,9 @@ public class PendOrderAppeal {
     @TableField(value = "`order`")
     private String order;
 
+
+    private Integer pendOrderId;
+
     /**
      * 钱包地址
      */

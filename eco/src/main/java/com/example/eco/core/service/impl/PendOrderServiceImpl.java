@@ -371,6 +371,7 @@ public class PendOrderServiceImpl implements PendOrderService {
         queryWrapper.eq(StringUtils.isNotEmpty(pendOrderPageQry.getStatus()), PendOrder::getStatus, pendOrderPageQry.getStatus());
         queryWrapper.eq(StringUtils.isNotEmpty(pendOrderPageQry.getType()), PendOrder::getType, pendOrderPageQry.getType());
         queryWrapper.eq(StringUtils.isNotEmpty(pendOrderPageQry.getBuyerWalletAddress()), PendOrder::getBuyerWalletAddress, pendOrderPageQry.getBuyerWalletAddress());
+        queryWrapper.eq(StringUtils.isNotEmpty(pendOrderPageQry.getOrder()),PendOrder::getOrder,pendOrderPageQry.getOrder());
 
         Page<PendOrder> pendOrderPage = pendOrderMapper.selectPage(Page.of(pendOrderPageQry.getPageNum(), pendOrderPageQry.getPageSize()), queryWrapper);
 
@@ -415,6 +416,7 @@ public class PendOrderServiceImpl implements PendOrderService {
 
         PendOrderAppeal pendOrderAppeal = new PendOrderAppeal();
         pendOrderAppeal.setOrder(pendOrderAppealCreateCmd.getOrder());
+        pendOrderAppeal.setPendOrderId(pendOrder.getId());
         pendOrderAppeal.setWalletAddress(pendOrderAppealCreateCmd.getWalletAddress());
         pendOrderAppeal.setContent(pendOrderAppealCreateCmd.getContent());
         pendOrderAppeal.setStatus(PendOrderAppealStatus.WAIT.getCode());
@@ -464,82 +466,118 @@ public class PendOrderServiceImpl implements PendOrderService {
 
             if (pendOrderAppealDealWithCmd.getStatus().equals(PendOrderAppealStatus.AGREE.getCode())) {
 
+                //释放购买金额
+                AccountReleaseLockBuyNumberCmd accountReleaseLockBuyNumberCmd = new AccountReleaseLockBuyNumberCmd();
+                accountReleaseLockBuyNumberCmd.setOrder(pendOrder.getOrder());
+                accountReleaseLockBuyNumberCmd.setWalletAddress(pendOrder.getBuyerWalletAddress());
+
+                try {
+                    SingleResponse<Void> buyResponse = accountService.releaseLockBuyNumber(accountReleaseLockBuyNumberCmd);
+                    if (!buyResponse.isSuccess()) {
+                        return buyResponse;
+                    }
+                } catch (Exception e) {
+                    e.printStackTrace();
+                    throw new RuntimeException("处理申诉异常: " + e.getMessage());
+                }
+
+                //释放销售金额
+                AccountReleaseLockSellNumberCmd accountReleaseLockSellNumberCmd = new AccountReleaseLockSellNumberCmd();
+                accountReleaseLockSellNumberCmd.setOrder(pendOrder.getOrder());
+                accountReleaseLockSellNumberCmd.setWalletAddress(pendOrder.getWalletAddress());
+
+                try {
+                    SingleResponse<Void> sellResponse = accountService.releaseLockSellNumber(accountReleaseLockSellNumberCmd);
+                    if (!sellResponse.isSuccess()) {
+                        log.info("处理申诉异常：{}", sellResponse.getErrMessage());
+                        throw new BusinessException("处理申诉异常：" + sellResponse.getErrMessage());
+                    }
+                } catch (Exception e) {
+                    e.printStackTrace();
+                    throw new RuntimeException(e.getMessage());
+                }
+
+                pendOrder.setStatus(PendOrderStatus.COMPLETE.getCode());
+                pendOrder.setConfirmTime(System.currentTimeMillis());
+                pendOrder.setUpdateTime(System.currentTimeMillis());
+                pendOrderMapper.updateById(pendOrder);
+
                 //卖家申诉 要买方回滚 订单删除
-                if (pendOrder.getWalletAddress().equals(pendOrderAppeal.getWalletAddress())){
-
-                    RollbackLockBuyNumberCmd rollbackLockBuyNumberCmd = new RollbackLockBuyNumberCmd();
-                    rollbackLockBuyNumberCmd.setOrder(pendOrder.getOrder());
-                    rollbackLockBuyNumberCmd.setWalletAddress(pendOrder.getBuyerWalletAddress());
-
-                    try {
-                        SingleResponse<Void> response = accountService.rollbackLockBuyNumber(rollbackLockBuyNumberCmd);
-                        if (!response.isSuccess()) {
-                            return response;
-                        }
-                    } catch (Exception e) {
-                        e.printStackTrace();
-                        throw new RuntimeException("处理申诉异常: " + e.getMessage());
-                    }
-
-                    RollbackLockSellNumberCmd rollbackLockSellNumberCmd = new RollbackLockSellNumberCmd();
-                    rollbackLockSellNumberCmd.setOrder(pendOrder.getOrder());
-                    rollbackLockSellNumberCmd.setWalletAddress(pendOrder.getWalletAddress());
-
-                    try {
-                        SingleResponse<Void> response = accountService.rollbackLockSellNumber(rollbackLockSellNumberCmd);
-                        if (!response.isSuccess()) {
-                            throw new BusinessException("处理申诉异常：" + response.getErrMessage());
-                        }
-                    } catch (Exception e) {
-                        e.printStackTrace();
-                        throw new RuntimeException("处理申诉异常: " + e.getMessage());
-                    }
-
-                    pendOrder.setStatus(PendOrderStatus.DELETE.getCode());
-                    pendOrder.setUpdateTime(System.currentTimeMillis());
-                    pendOrderMapper.updateById(pendOrder);
-
-                }
-
-                //买家申诉 要订单完成
-                if (pendOrder.getBuyerWalletAddress().equals(pendOrderAppeal.getWalletAddress())){
-
-                    //释放购买金额
-                    AccountReleaseLockBuyNumberCmd accountReleaseLockBuyNumberCmd = new AccountReleaseLockBuyNumberCmd();
-                    accountReleaseLockBuyNumberCmd.setOrder(pendOrder.getOrder());
-                    accountReleaseLockBuyNumberCmd.setWalletAddress(pendOrder.getBuyerWalletAddress());
-
-                    try {
-                        SingleResponse<Void> buyResponse = accountService.releaseLockBuyNumber(accountReleaseLockBuyNumberCmd);
-                        if (!buyResponse.isSuccess()) {
-                            return buyResponse;
-                        }
-                    } catch (Exception e) {
-                        e.printStackTrace();
-                        throw new RuntimeException("处理申诉异常: " + e.getMessage());
-                    }
-
-                    //释放销售金额
-                    AccountReleaseLockSellNumberCmd accountReleaseLockSellNumberCmd = new AccountReleaseLockSellNumberCmd();
-                    accountReleaseLockSellNumberCmd.setOrder(pendOrder.getOrder());
-                    accountReleaseLockSellNumberCmd.setWalletAddress(pendOrder.getWalletAddress());
-
-                    try {
-                        SingleResponse<Void> sellResponse = accountService.releaseLockSellNumber(accountReleaseLockSellNumberCmd);
-                        if (!sellResponse.isSuccess()) {
-                            log.info("处理申诉异常：{}", sellResponse.getErrMessage());
-                            throw new BusinessException("处理申诉异常：" + sellResponse.getErrMessage());
-                        }
-                    } catch (Exception e) {
-                        e.printStackTrace();
-                        throw new RuntimeException(e.getMessage());
-                    }
-
-                    pendOrder.setStatus(PendOrderStatus.COMPLETE.getCode());
-                    pendOrder.setConfirmTime(System.currentTimeMillis());
-                    pendOrder.setUpdateTime(System.currentTimeMillis());
-                    pendOrderMapper.updateById(pendOrder);
-                }
+//                if (pendOrder.getWalletAddress().equals(pendOrderAppeal.getWalletAddress())){
+//
+//                    RollbackLockBuyNumberCmd rollbackLockBuyNumberCmd = new RollbackLockBuyNumberCmd();
+//                    rollbackLockBuyNumberCmd.setOrder(pendOrder.getOrder());
+//                    rollbackLockBuyNumberCmd.setWalletAddress(pendOrder.getBuyerWalletAddress());
+//
+//                    try {
+//                        SingleResponse<Void> response = accountService.rollbackLockBuyNumber(rollbackLockBuyNumberCmd);
+//                        if (!response.isSuccess()) {
+//                            return response;
+//                        }
+//                    } catch (Exception e) {
+//                        e.printStackTrace();
+//                        throw new RuntimeException("处理申诉异常: " + e.getMessage());
+//                    }
+//
+//                    RollbackLockSellNumberCmd rollbackLockSellNumberCmd = new RollbackLockSellNumberCmd();
+//                    rollbackLockSellNumberCmd.setOrder(pendOrder.getOrder());
+//                    rollbackLockSellNumberCmd.setWalletAddress(pendOrder.getWalletAddress());
+//
+//                    try {
+//                        SingleResponse<Void> response = accountService.rollbackLockSellNumber(rollbackLockSellNumberCmd);
+//                        if (!response.isSuccess()) {
+//                            throw new BusinessException("处理申诉异常：" + response.getErrMessage());
+//                        }
+//                    } catch (Exception e) {
+//                        e.printStackTrace();
+//                        throw new RuntimeException("处理申诉异常: " + e.getMessage());
+//                    }
+//
+//                    pendOrder.setStatus(PendOrderStatus.DELETE.getCode());
+//                    pendOrder.setUpdateTime(System.currentTimeMillis());
+//                    pendOrderMapper.updateById(pendOrder);
+//
+//                }
+//
+//                //买家申诉 要订单完成
+//                if (pendOrder.getBuyerWalletAddress().equals(pendOrderAppeal.getWalletAddress())){
+//
+//                    //释放购买金额
+//                    AccountReleaseLockBuyNumberCmd accountReleaseLockBuyNumberCmd = new AccountReleaseLockBuyNumberCmd();
+//                    accountReleaseLockBuyNumberCmd.setOrder(pendOrder.getOrder());
+//                    accountReleaseLockBuyNumberCmd.setWalletAddress(pendOrder.getBuyerWalletAddress());
+//
+//                    try {
+//                        SingleResponse<Void> buyResponse = accountService.releaseLockBuyNumber(accountReleaseLockBuyNumberCmd);
+//                        if (!buyResponse.isSuccess()) {
+//                            return buyResponse;
+//                        }
+//                    } catch (Exception e) {
+//                        e.printStackTrace();
+//                        throw new RuntimeException("处理申诉异常: " + e.getMessage());
+//                    }
+//
+//                    //释放销售金额
+//                    AccountReleaseLockSellNumberCmd accountReleaseLockSellNumberCmd = new AccountReleaseLockSellNumberCmd();
+//                    accountReleaseLockSellNumberCmd.setOrder(pendOrder.getOrder());
+//                    accountReleaseLockSellNumberCmd.setWalletAddress(pendOrder.getWalletAddress());
+//
+//                    try {
+//                        SingleResponse<Void> sellResponse = accountService.releaseLockSellNumber(accountReleaseLockSellNumberCmd);
+//                        if (!sellResponse.isSuccess()) {
+//                            log.info("处理申诉异常：{}", sellResponse.getErrMessage());
+//                            throw new BusinessException("处理申诉异常：" + sellResponse.getErrMessage());
+//                        }
+//                    } catch (Exception e) {
+//                        e.printStackTrace();
+//                        throw new RuntimeException(e.getMessage());
+//                    }
+//
+//                    pendOrder.setStatus(PendOrderStatus.COMPLETE.getCode());
+//                    pendOrder.setConfirmTime(System.currentTimeMillis());
+//                    pendOrder.setUpdateTime(System.currentTimeMillis());
+//                    pendOrderMapper.updateById(pendOrder);
+//                }
 
                 pendOrderAppeal.setStatus(pendOrderAppealDealWithCmd.getStatus());
                 pendOrderAppeal.setUpdateTime(System.currentTimeMillis());
@@ -547,10 +585,45 @@ public class PendOrderServiceImpl implements PendOrderService {
                 return SingleResponse.buildSuccess();
 
             }else {
+
+                RollbackLockBuyNumberCmd rollbackLockBuyNumberCmd = new RollbackLockBuyNumberCmd();
+                rollbackLockBuyNumberCmd.setOrder(pendOrder.getOrder());
+                rollbackLockBuyNumberCmd.setWalletAddress(pendOrder.getBuyerWalletAddress());
+
+                try {
+                    SingleResponse<Void> response = accountService.rollbackLockBuyNumber(rollbackLockBuyNumberCmd);
+                    if (!response.isSuccess()) {
+                        return response;
+                    }
+                } catch (Exception e) {
+                    e.printStackTrace();
+                    throw new RuntimeException("处理申诉异常: " + e.getMessage());
+                }
+
+                RollbackLockSellNumberCmd rollbackLockSellNumberCmd = new RollbackLockSellNumberCmd();
+                rollbackLockSellNumberCmd.setOrder(pendOrder.getOrder());
+                rollbackLockSellNumberCmd.setWalletAddress(pendOrder.getWalletAddress());
+
+                try {
+                    SingleResponse<Void> response = accountService.rollbackLockSellNumber(rollbackLockSellNumberCmd);
+                    if (!response.isSuccess()) {
+                        throw new BusinessException("处理申诉异常：" + response.getErrMessage());
+                    }
+                } catch (Exception e) {
+                    e.printStackTrace();
+                    throw new RuntimeException("处理申诉异常: " + e.getMessage());
+                }
+
+                pendOrder.setStatus(PendOrderStatus.DELETE.getCode());
+                pendOrder.setUpdateTime(System.currentTimeMillis());
+                pendOrderMapper.updateById(pendOrder);
+
+
                 pendOrderAppeal.setStatus(pendOrderAppealDealWithCmd.getStatus());
                 pendOrderAppeal.setReason(pendOrderAppealDealWithCmd.getReason());
                 pendOrderAppeal.setUpdateTime(System.currentTimeMillis());
                 pendOrderAppealMapper.updateById(pendOrderAppeal);
+
                 return SingleResponse.buildSuccess();
             }
 
@@ -574,6 +647,8 @@ public class PendOrderServiceImpl implements PendOrderService {
         queryWrapper.eq(StringUtils.isNotEmpty(pendOrderAppealPageQry.getWalletAddress()), PendOrderAppeal::getWalletAddress, pendOrderAppealPageQry.getWalletAddress());
         queryWrapper.eq(StringUtils.isNotEmpty(pendOrderAppealPageQry.getStatus()), PendOrderAppeal::getStatus, pendOrderAppealPageQry.getStatus());
         queryWrapper.eq(StringUtils.isNotEmpty(pendOrderAppealPageQry.getOrder()), PendOrderAppeal::getOrder, pendOrderAppealPageQry.getOrder());
+
+        queryWrapper.orderByDesc(PendOrderAppeal::getId);
 
         Page<PendOrderAppeal> pendOrderAppealPage = pendOrderAppealMapper.selectPage(Page.of(pendOrderAppealPageQry.getPageNum(), pendOrderAppealPageQry.getPageSize()), queryWrapper);
         if (CollectionUtils.isEmpty(pendOrderAppealPage.getRecords())) {

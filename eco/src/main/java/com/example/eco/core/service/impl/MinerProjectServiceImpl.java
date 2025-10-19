@@ -54,6 +54,8 @@ public class MinerProjectServiceImpl implements MinerProjectService {
         existingProject.setPrice(minerProjectCreateCmd.getPrice());
         existingProject.setStatus(1);
         existingProject.setQuota(minerProjectCreateCmd.getQuota());
+        existingProject.setEsgRushLimit(minerProjectCreateCmd.getEsgRushLimit());
+        existingProject.setEsgRushMode(minerProjectCreateCmd.getEsgRushMode());
         existingProject.setCreateTime(System.currentTimeMillis());
         minerProjectMapper.insert(existingProject);
         return SingleResponse.buildSuccess();
@@ -72,6 +74,8 @@ public class MinerProjectServiceImpl implements MinerProjectService {
         minerProject.setQuota(minerProjectUpdateCmd.getQuota());
         minerProject.setStatus(minerProjectUpdateCmd.getStatus());
         minerProject.setUpdateTime(System.currentTimeMillis());
+        minerProject.setEsgRushLimit(minerProjectUpdateCmd.getEsgRushLimit());
+        minerProject.setEsgRushMode(minerProjectUpdateCmd.getEsgRushMode());
         minerProjectMapper.updateById(minerProject);
         return SingleResponse.buildSuccess();
     }
@@ -110,6 +114,8 @@ public class MinerProjectServiceImpl implements MinerProjectService {
             minerProjectDTO.setPrice(minerProject.getPrice());
             minerProjectDTO.setQuota(minerProject.getQuota());
             minerProjectDTO.setStatus(minerProject.getStatus());
+            minerProjectDTO.setEsgRushLimit(minerProject.getEsgRushLimit());
+            minerProjectDTO.setEsgRushMode(minerProject.getEsgRushMode());
 //            Long days = TimeUnit.MILLISECONDS.toDays(System.currentTimeMillis() - minerProject.getCreateTime());
 //            Double computingPower = Double.parseDouble(minerProject.getComputingPower()) * Math.pow(Double.parseDouble(systemConfig.getValue()), days);
 

@@ -14,6 +14,11 @@ public class PendOrderAppealDTO {
     private String order;
 
     /**
+     * 挂单id
+     */
+    private Integer pendOrderId;
+
+    /**
      * 钱包地址
      */
     private String walletAddress;

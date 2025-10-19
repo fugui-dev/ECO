@@ -2,10 +2,8 @@ package com.example.eco.api.admin;
 
 import com.example.eco.bean.MultiResponse;
 import com.example.eco.bean.SingleResponse;
-import com.example.eco.bean.cmd.PurchaseMinerProjectPageQry;
-import com.example.eco.bean.cmd.PurchaseMinerProjectRewardCmd;
-import com.example.eco.bean.cmd.PurchaseMinerProjectsBatchCreateCmd;
-import com.example.eco.bean.cmd.PurchaseMinerProjectsCreateCmd;
+import com.example.eco.bean.cmd.*;
+import com.example.eco.bean.dto.PurchaseMinerBuyWayDTO;
 import com.example.eco.bean.dto.PurchaseMinerProjectDTO;
 import com.example.eco.bean.dto.PurchaseMinerProjectsBatchCreateResultDTO;
 import com.example.eco.common.PurchaseMinerType;
@@ -95,5 +93,24 @@ public class AdminPurchaseMinerProjectController {
         resultDTO.setFailureDetails(failureDetails);
 
         return SingleResponse.of(resultDTO);
+    }
+
+
+    /**
+     * 获取支付方式
+     */
+    @PostMapping("/buy/way/list")
+    MultiResponse<PurchaseMinerBuyWayDTO> purchaseMinerBuyWayList(@RequestBody PurchaseMinerBuyWayQry purchaseMinerBuyWayQry){
+
+        return purchaseMinerProjectService.purchaseMinerBuyWayList(purchaseMinerBuyWayQry);
+    }
+
+
+    /**
+     * 创建或更新支付方式
+     */
+    @PostMapping("/buy/way/edit")
+    SingleResponse<Void> createPurchaseMinerBuyWay(@RequestBody PurchaseMinerBuyWayCreateCmd purchaseMinerBuyWayCreateCmd){
+        return purchaseMinerProjectService.createPurchaseMinerBuyWay(purchaseMinerBuyWayCreateCmd);
     }
 }

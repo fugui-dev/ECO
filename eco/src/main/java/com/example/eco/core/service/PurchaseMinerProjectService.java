@@ -3,10 +3,7 @@ package com.example.eco.core.service;
 import com.example.eco.bean.MultiResponse;
 import com.example.eco.bean.SingleResponse;
 import com.example.eco.bean.cmd.*;
-import com.example.eco.bean.dto.PurchaseMinerProjectDTO;
-import com.example.eco.bean.dto.PurchaseMinerProjectRewardDTO;
-import com.example.eco.bean.dto.PurchaseMinerProjectStatisticsDTO;
-import com.example.eco.bean.dto.RewardServiceResultDTO;
+import com.example.eco.bean.dto.*;
 
 public interface PurchaseMinerProjectService {
 
@@ -36,6 +33,17 @@ public interface PurchaseMinerProjectService {
      * 检查昨日奖励服务费
      */
     SingleResponse<RewardServiceResultDTO> checkRewardService(RewardServiceQry rewardServiceQry);
+
+    /**
+     * 获取支付方式
+     */
+    MultiResponse<PurchaseMinerBuyWayDTO> purchaseMinerBuyWayList(PurchaseMinerBuyWayQry purchaseMinerBuyWayQry);
+
+
+    /**
+     * 创建或更新支付方式
+     */
+    SingleResponse<Void> createPurchaseMinerBuyWay(PurchaseMinerBuyWayCreateCmd purchaseMinerBuyWayCreateCmd);
 
 
 }

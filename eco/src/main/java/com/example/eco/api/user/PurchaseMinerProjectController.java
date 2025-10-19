@@ -3,14 +3,8 @@ package com.example.eco.api.user;
 import com.example.eco.annotation.NoJwtAuth;
 import com.example.eco.bean.MultiResponse;
 import com.example.eco.bean.SingleResponse;
-import com.example.eco.bean.cmd.PurchaseMinerProjectPageQry;
-import com.example.eco.bean.cmd.PurchaseMinerProjectRewardQry;
-import com.example.eco.bean.cmd.PurchaseMinerProjectsCreateCmd;
-import com.example.eco.bean.cmd.RewardServiceQry;
-import com.example.eco.bean.dto.PurchaseMinerProjectDTO;
-import com.example.eco.bean.dto.PurchaseMinerProjectRewardDTO;
-import com.example.eco.bean.dto.PurchaseMinerProjectStatisticsDTO;
-import com.example.eco.bean.dto.RewardServiceResultDTO;
+import com.example.eco.bean.cmd.*;
+import com.example.eco.bean.dto.*;
 import com.example.eco.common.PurchaseMinerType;
 import com.example.eco.core.service.PurchaseMinerProjectService;
 import com.example.eco.util.UserContextUtil;
@@ -93,6 +87,15 @@ public class PurchaseMinerProjectController {
     @PostMapping("/check/reward/service")
     SingleResponse<RewardServiceResultDTO> checkRewardService(@RequestBody RewardServiceQry rewardServiceQry){
         return purchaseMinerProjectService.checkRewardService(rewardServiceQry);
+    }
+
+    /**
+     * 获取支付方式
+     */
+    @PostMapping("/buy/way/list")
+    MultiResponse<PurchaseMinerBuyWayDTO> purchaseMinerBuyWayList(@RequestBody PurchaseMinerBuyWayQry purchaseMinerBuyWayQry){
+        purchaseMinerBuyWayQry.setStatus(1);
+        return purchaseMinerProjectService.purchaseMinerBuyWayList(purchaseMinerBuyWayQry);
     }
 
 }

@@ -6,10 +6,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.example.eco.bean.MultiResponse;
 import com.example.eco.bean.SingleResponse;
 import com.example.eco.bean.cmd.*;
-import com.example.eco.bean.dto.PurchaseMinerProjectDTO;
-import com.example.eco.bean.dto.PurchaseMinerProjectRewardDTO;
-import com.example.eco.bean.dto.PurchaseMinerProjectStatisticsDTO;
-import com.example.eco.bean.dto.RewardServiceResultDTO;
+import com.example.eco.bean.dto.*;
 import com.example.eco.common.*;
 import com.example.eco.common.BusinessException;
 import com.example.eco.core.service.AccountService;
@@ -20,6 +17,7 @@ import com.example.eco.core.service.impl.ComputingPowerServiceImplV2;
 import com.example.eco.model.entity.*;
 import com.example.eco.model.mapper.*;
 import com.example.eco.util.ESGUtils;
+import com.example.eco.util.EsgPurchaseLimitUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
@@ -32,10 +30,7 @@ import javax.annotation.Resource;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.text.SimpleDateFormat;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.LocalTime;
-import java.time.ZoneId;
+import java.time.*;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
@@ -76,6 +71,10 @@ public class PurchaseMinerProjectServiceImpl implements PurchaseMinerProjectServ
     private RewardServiceLogMapper rewardServiceLogMapper;
     @Resource
     private MinerConfigMapper minerConfigMapper;
+    @Resource
+    private EsgPurchaseLimitUtil esgPurchaseLimitUtil;
+    @Resource
+    private PurchaseMinerBuyWayMapper purchaseMinerBuyWayMapper;
 
 
     @Override
@@ -87,15 +86,61 @@ public class PurchaseMinerProjectServiceImpl implements PurchaseMinerProjectServ
             return SingleResponse.buildFailure("矿机不存在");
         }
 
+        if (minerProject.getStatus() != 1){
+            return SingleResponse.buildFailure("矿机不允许购买");
+        }
+
         String dayTime = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
 
-        if (!purchaseMinerProjectsCreateCmd.getType().equals(PurchaseMinerType.ECO.getCode()) &&
-                !purchaseMinerProjectsCreateCmd.getType().equals(PurchaseMinerType.AIRDROP.getCode()) ) {
+        // ESG购买限制检查（快速检查，用于提前返回）
+        if (purchaseMinerProjectsCreateCmd.getType().equals(PurchaseMinerType.ESG.getCode())) {
+
+//            LambdaQueryWrapper<PurchaseMinerProject> purchaseMinerProjectLambdaQueryWrapper = new LambdaQueryWrapper<>();
+//            purchaseMinerProjectLambdaQueryWrapper.eq(PurchaseMinerProject::getWalletAddress,purchaseMinerProjectsCreateCmd.getWalletAddress());
+//
+//            Long count = purchaseMinerProjectMapper.selectCount(purchaseMinerProjectLambdaQueryWrapper);
+//            if (count > 0){
+//
+//                return SingleResponse.buildFailure("只允许空钱包进行购买");
+//            }
+
+            LambdaQueryWrapper<PurchaseMinerBuyWay> purchaseMinerBuyWayLambdaQueryWrapper = new LambdaQueryWrapper<>();
+            purchaseMinerBuyWayLambdaQueryWrapper.eq(PurchaseMinerBuyWay::getName,PurchaseMinerType.ESG.getCode());
+
+            PurchaseMinerBuyWay purchaseMinerBuyWay = purchaseMinerBuyWayMapper.selectOne(purchaseMinerBuyWayLambdaQueryWrapper);
+            if (Objects.isNull(purchaseMinerBuyWay)){
+                return SingleResponse.buildFailure("未知的支付方式");
+            }
+
+            if (purchaseMinerBuyWay.getStatus().equals(0)){
+                return SingleResponse.buildFailure("已关闭ESG购买方式");
+            }
+
+            // 快速检查ESG每日投放限额（不保证并发安全，仅用于提前返回）
+            if (esgPurchaseLimitUtil.isEsgRushModeEnabled(minerProject)) {
+
+                if (!esgPurchaseLimitUtil.checkEsgDailyLimit(minerProject)) {
+
+                    return SingleResponse.buildFailure("今日ESG购买矿机已达上限，请明日再试");
+                }
+            }
+
             Boolean checkQuota = checkQuota(minerProject, dayTime);
+
             if (!checkQuota) {
                 return SingleResponse.buildFailure("该矿机ESG已达限额,请使用ECO支付");
             }
         }
+//
+//        // 其他购买方式的原有限额检查
+//        if (!purchaseMinerProjectsCreateCmd.getType().equals(PurchaseMinerType.ECO.getCode()) &&
+//                !purchaseMinerProjectsCreateCmd.getType().equals(PurchaseMinerType.AIRDROP.getCode()) &&
+//                !purchaseMinerProjectsCreateCmd.getType().equals(PurchaseMinerType.ESG.getCode())) {
+//            Boolean checkQuota = checkQuota(minerProject, dayTime);
+//            if (!checkQuota) {
+//                return SingleResponse.buildFailure("该矿机ESG已达限额,请使用ECO支付");
+//            }
+//        }
 
         // todo U -> 转ESG ECO
 
@@ -152,9 +197,21 @@ public class PurchaseMinerProjectServiceImpl implements PurchaseMinerProjectServ
             accountDeductCmd.setOrder(order);
 
             try {
+                // 在扣款前进行原子性检查和计数
+                if (!esgPurchaseLimitUtil.tryPurchaseEsg(minerProject, purchaseMinerProjectsCreateCmd.getWalletAddress())) {
+                    return SingleResponse.buildFailure("ESG购买失败：已达限额或您今日已购买过该矿机");
+                }
 
                 SingleResponse<Void> response = accountService.purchaseMinerProjectNumber(accountDeductCmd);
                 if (!response.isSuccess()) {
+                    // 扣款失败，回滚Redis计数
+                    if (!esgPurchaseLimitUtil.rollbackEsgPurchase(minerProject, purchaseMinerProjectsCreateCmd.getWalletAddress())) {
+                        log.error("ESG扣款失败且回滚失败 - 矿机ID: {}, 钱包地址: {}", 
+                                minerProject.getId(), purchaseMinerProjectsCreateCmd.getWalletAddress());
+                    } else {
+                        log.warn("ESG扣款失败，已回滚Redis计数 - 矿机ID: {}, 钱包地址: {}", 
+                                minerProject.getId(), purchaseMinerProjectsCreateCmd.getWalletAddress());
+                    }
                     return response;
                 } else {
                     // 购买成功，记录购买信息
@@ -164,8 +221,18 @@ public class PurchaseMinerProjectServiceImpl implements PurchaseMinerProjectServ
                     amount = amount.add(new BigDecimal(minerProject.getPrice()));
                     totalEsgNumber = totalEsgNumber.add(esgNumber);
 
+                    log.info("ESG购买成功 - 矿机ID: {}, 钱包地址: {}", 
+                            minerProject.getId(), purchaseMinerProjectsCreateCmd.getWalletAddress());
                 }
             }catch (Exception e){
+                // ESG购买异常，回滚Redis计数
+                if (!esgPurchaseLimitUtil.rollbackEsgPurchase(minerProject, purchaseMinerProjectsCreateCmd.getWalletAddress())) {
+                    log.error("ESG购买异常且回滚失败 - 矿机ID: {}, 钱包地址: {}", 
+                            minerProject.getId(), purchaseMinerProjectsCreateCmd.getWalletAddress());
+                } else {
+                    log.warn("ESG购买异常，已回滚Redis计数 - 矿机ID: {}, 钱包地址: {}", 
+                            minerProject.getId(), purchaseMinerProjectsCreateCmd.getWalletAddress());
+                }
                 e.printStackTrace();
                 throw new RuntimeException("购买矿机异常");
             }
@@ -457,6 +524,10 @@ public class PurchaseMinerProjectServiceImpl implements PurchaseMinerProjectServ
      * 检查限额
      */
     public Boolean checkQuota(MinerProject minerProject, String dayTime) {
+
+        if (new BigDecimal(minerProject.getQuota()).compareTo(BigDecimal.ZERO) == 0){
+            return Boolean.FALSE;
+        }
 
         LambdaQueryWrapper<MinerProjectStatisticsLog> queryWrapper = new LambdaQueryWrapper<>();
         queryWrapper.eq(MinerProjectStatisticsLog::getDayTime, dayTime);
@@ -795,5 +866,76 @@ public class PurchaseMinerProjectServiceImpl implements PurchaseMinerProjectServ
         }
 
         return SingleResponse.of(rewardServiceResultDTO);
+    }
+
+    @Override
+    public MultiResponse<PurchaseMinerBuyWayDTO> purchaseMinerBuyWayList(PurchaseMinerBuyWayQry purchaseMinerBuyWayQry) {
+
+        LambdaQueryWrapper<PurchaseMinerBuyWay> lambdaQueryWrapper = new LambdaQueryWrapper<>();
+        lambdaQueryWrapper.eq(Objects.nonNull(purchaseMinerBuyWayQry.getStatus()),PurchaseMinerBuyWay::getStatus,1);
+
+        List<PurchaseMinerBuyWay> purchaseMinerBuyWayList = purchaseMinerBuyWayMapper.selectList(lambdaQueryWrapper);
+
+        List<PurchaseMinerBuyWayDTO> list = new ArrayList<>();
+
+        for (PurchaseMinerBuyWay purchaseMinerBuyWay:purchaseMinerBuyWayList){
+
+            PurchaseMinerBuyWayDTO purchaseMinerBuyWayDTO = new PurchaseMinerBuyWayDTO();
+
+            purchaseMinerBuyWayDTO.setName(purchaseMinerBuyWay.getName());
+            if (purchaseMinerBuyWay.getName().equals(PurchaseMinerType.ECO_ESG.getCode())){
+
+                LambdaQueryWrapper<MinerConfig> minerEcoConfigLambdaQueryWrapper = new LambdaQueryWrapper<>();
+                minerEcoConfigLambdaQueryWrapper.eq(MinerConfig::getName,MinerConfigEnum.BUY_MINER_ECO_RATE.getCode());
+
+                MinerConfig minerEcoConfig = minerConfigMapper.selectOne(minerEcoConfigLambdaQueryWrapper);
+
+                if (Objects.isNull(minerEcoConfig)) {
+                    return MultiResponse.buildFailure("400","未设置ECO比例");
+                }
+
+                LambdaQueryWrapper<MinerConfig> minerEsgConfigLambdaQueryWrapper = new LambdaQueryWrapper<>();
+                minerEsgConfigLambdaQueryWrapper.eq(MinerConfig::getName,MinerConfigEnum.BUY_MINER_ESG_RATE.getCode());
+
+                MinerConfig minerEsgConfig = minerConfigMapper.selectOne(minerEsgConfigLambdaQueryWrapper);
+
+                if (Objects.isNull(minerEsgConfig)) {
+                    return MultiResponse.buildFailure("400","未设置ESG比例");
+                }
+
+                String value = ( Double.parseDouble(minerEcoConfig.getValue()) * 100 ) +"%ECO+" + ( Double.parseDouble(minerEsgConfig.getValue()) * 100 ) +"%ESG";
+                purchaseMinerBuyWayDTO.setValue(value);
+            }else {
+                purchaseMinerBuyWayDTO.setValue(purchaseMinerBuyWay.getValue());
+            }
+
+            purchaseMinerBuyWayDTO.setStatus(purchaseMinerBuyWay.getStatus());
+            list.add(purchaseMinerBuyWayDTO);
+        }
+        return MultiResponse.of(list);
+    }
+
+    @Override
+    public SingleResponse<Void> createPurchaseMinerBuyWay(PurchaseMinerBuyWayCreateCmd purchaseMinerBuyWayCreateCmd) {
+
+
+        LambdaQueryWrapper<PurchaseMinerBuyWay> lambdaQueryWrapper = new LambdaQueryWrapper<>();
+        lambdaQueryWrapper.eq(PurchaseMinerBuyWay::getName,purchaseMinerBuyWayCreateCmd.getName());
+
+        PurchaseMinerBuyWay purchaseMinerBuyWay = purchaseMinerBuyWayMapper.selectOne(lambdaQueryWrapper);
+        if (Objects.isNull(purchaseMinerBuyWay)){
+            purchaseMinerBuyWay = new PurchaseMinerBuyWay();
+        }
+
+        purchaseMinerBuyWay.setName(purchaseMinerBuyWayCreateCmd.getName());
+        purchaseMinerBuyWay.setValue(purchaseMinerBuyWayCreateCmd.getValue());
+        purchaseMinerBuyWay.setStatus(purchaseMinerBuyWayCreateCmd.getStatus());
+
+        if (Objects.isNull(purchaseMinerBuyWay.getId())){
+            purchaseMinerBuyWayMapper.insert(purchaseMinerBuyWay);
+        }else {
+            purchaseMinerBuyWayMapper.updateById(purchaseMinerBuyWay);
+        }
+        return SingleResponse.buildSuccess();
     }
 }

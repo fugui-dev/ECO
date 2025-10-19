@@ -49,7 +49,11 @@ public enum SystemConfigEnum {
 
     ESG_ADDRESS("ESG_ADDRESS","ESG代币地址"),
 
-    REWARD_SERVICE("REWARD_SERVICE","奖励服务费");
+    REWARD_SERVICE("REWARD_SERVICE","奖励服务费"),
+
+    ESG_DAILY_LIMIT("ESG_DAILY_LIMIT","ESG每日投放数量"),
+
+    ESG_PURCHASE_START_TIME("ESG_PURCHASE_START_TIME","ESG购买开始时间");
 
     private String code;
 
