@@ -647,9 +647,7 @@ public class PendOrderServiceImpl implements PendOrderService {
         queryWrapper.eq(StringUtils.isNotEmpty(pendOrderAppealPageQry.getWalletAddress()), PendOrderAppeal::getWalletAddress, pendOrderAppealPageQry.getWalletAddress());
         queryWrapper.eq(StringUtils.isNotEmpty(pendOrderAppealPageQry.getStatus()), PendOrderAppeal::getStatus, pendOrderAppealPageQry.getStatus());
         queryWrapper.eq(StringUtils.isNotEmpty(pendOrderAppealPageQry.getOrder()), PendOrderAppeal::getOrder, pendOrderAppealPageQry.getOrder());
-
         queryWrapper.orderByDesc(PendOrderAppeal::getId);
-
         Page<PendOrderAppeal> pendOrderAppealPage = pendOrderAppealMapper.selectPage(Page.of(pendOrderAppealPageQry.getPageNum(), pendOrderAppealPageQry.getPageSize()), queryWrapper);
         if (CollectionUtils.isEmpty(pendOrderAppealPage.getRecords())) {
             return MultiResponse.buildSuccess();

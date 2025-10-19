@@ -1,5 +1,6 @@
 package com.example.eco.core.service.impl;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.example.eco.bean.MultiResponse;
@@ -60,7 +61,10 @@ public class NoticeServiceImpl implements NoticeService {
     @Override
     public MultiResponse<NoticeDTO> page(NoticePageQry noticePageQry) {
 
-        Page<Notice> page = noticeMapper.selectPage(Page.of(noticePageQry.getPageNum(), noticePageQry.getPageSize()), new QueryWrapper<>());
+        LambdaQueryWrapper<Notice> lambdaQueryWrapper = new LambdaQueryWrapper<>();
+        lambdaQueryWrapper.orderByDesc(Notice::getId);
+
+        Page<Notice> page = noticeMapper.selectPage(Page.of(noticePageQry.getPageNum(), noticePageQry.getPageSize()), lambdaQueryWrapper);
 
         if (CollectionUtils.isEmpty(page.getRecords())) {
             return MultiResponse.buildSuccess();
