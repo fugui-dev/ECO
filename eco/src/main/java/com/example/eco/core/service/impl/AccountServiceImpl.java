@@ -1485,6 +1485,8 @@ public class AccountServiceImpl implements AccountService {
             fromTransaction.setTransactionType(AccountTransactionType.TRANSFER_OUT.getCode());
             fromTransaction.setOrder(order);
             fromTransaction.setRemark(accountTransferCmd.getRemark());
+            fromTransaction.setFromWalletAddress(accountTransferCmd.getFromWalletAddress());
+            fromTransaction.setToWalletAddress(accountTransferCmd.getToWalletAddress());
             accountTransactionMapper.insert(fromTransaction);
 
             // 4. 记录转入交易
@@ -1500,6 +1502,8 @@ public class AccountServiceImpl implements AccountService {
             toTransaction.setTransactionType(AccountTransactionType.TRANSFER_IN.getCode());
             toTransaction.setOrder(order);
             toTransaction.setRemark(accountTransferCmd.getRemark());
+            toTransaction.setFromWalletAddress(accountTransferCmd.getFromWalletAddress());
+            toTransaction.setToWalletAddress(accountTransferCmd.getToWalletAddress());
             accountTransactionMapper.insert(toTransaction);
 
             return SingleResponse.buildSuccess();

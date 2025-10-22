@@ -80,4 +80,14 @@ public class AccountTransaction {
      * 备注
      */
     private String remark;
+
+    /**
+     * 转账钱包
+     */
+    private String fromWalletAddress;
+
+    /**
+     * 收款钱包
+     */
+    private String toWalletAddress;
 }

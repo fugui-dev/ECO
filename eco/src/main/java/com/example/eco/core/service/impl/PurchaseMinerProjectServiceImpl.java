@@ -452,7 +452,7 @@ public class PurchaseMinerProjectServiceImpl implements PurchaseMinerProjectServ
             BigDecimal originalPower = new BigDecimal(minerProject.getComputingPower());
 
 
-            return originalPower.multiply(compensationMultiplier);
+            return originalPower.multiply(compensationMultiplier).setScale(8,RoundingMode.DOWN);
             
         } catch (Exception e) {
             log.error("计算动态补偿算力失败", e);
