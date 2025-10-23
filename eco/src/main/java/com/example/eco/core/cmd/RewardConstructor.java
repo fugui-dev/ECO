@@ -1489,10 +1489,10 @@ public class RewardConstructor {
             processedMinerCount++;
             
             // 矿机当前已产生的总价值
-            BigDecimal currentTotalValue = new BigDecimal(purchaseMinerProject.getRewardPrice());
+            BigDecimal currentTotalValue = new BigDecimal(purchaseMinerProject.getRewardPrice()).setScale(8, RoundingMode.DOWN);
             
             // 矿机的2倍购买价格（奖励上限）
-            BigDecimal maxRewardValue = new BigDecimal(purchaseMinerProject.getPrice()).multiply(new BigDecimal(2));
+            BigDecimal maxRewardValue = new BigDecimal(purchaseMinerProject.getPrice()).multiply(new BigDecimal(2)).setScale(8, RoundingMode.DOWN);
             
             // 计算这个矿机还能接受的最大价值
             BigDecimal availableValue = maxRewardValue.subtract(currentTotalValue);
@@ -1504,7 +1504,12 @@ public class RewardConstructor {
                 // 矿机已经达到上限，跳过
                 log.info("【奖励上限检查】用户{}的矿机{}已达到2倍奖励上限（当前价值: {}, 上限: {}），跳过奖励分配",
                     walletAddress, purchaseMinerProject.getId(), currentTotalValue, maxRewardValue);
-                maxedOutMinerCount++;
+
+                purchaseMinerProject.setStatus(PurchaseMinerProjectStatus.STOP.getCode());
+                purchaseMinerProjectMapper.updateById(purchaseMinerProject);
+                // 矿机达到上限停用，清除用户算力缓存，让下次查询时重新计算
+                computingPowerServiceV2.invalidateUserCache(purchaseMinerProject.getWalletAddress());
+
                 continue;
             }
             
@@ -1515,7 +1520,7 @@ public class RewardConstructor {
             BigDecimal actualRewardForThisMiner = remainingReward.min(availableReward);
             
             // 计算实际分配的价值
-            BigDecimal actualValueForThisMiner = actualRewardForThisMiner.multiply(price);
+            BigDecimal actualValueForThisMiner = actualRewardForThisMiner.multiply(price).setScale(8, RoundingMode.DOWN);
             
             log.info("【奖励上限检查】用户{}矿机{} - 可用奖励: {}, 分配奖励: {}, 分配价值: {}",
                 walletAddress, purchaseMinerProject.getId(), availableReward, actualRewardForThisMiner, actualValueForThisMiner);
