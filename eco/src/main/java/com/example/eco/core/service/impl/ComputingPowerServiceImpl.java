@@ -306,6 +306,70 @@ public class ComputingPowerServiceImpl implements ComputingPowerService {
     }
 
     @Override
+    public SingleResponse<ComputingPowerDTO> getAllComputingPowerInfo(String walletAddress, String dayTime, Boolean isLevel) {
+
+        try {
+            // 计算各种算力
+            SingleResponse<BigDecimal> selfPowerResponse = calculateUserSelfPower(walletAddress, dayTime);
+            SingleResponse<BigDecimal> totalPowerResponse = calculateUserTotalPower(walletAddress, dayTime);
+            SingleResponse<BigDecimal> recommendPowerResponse = calculateUserRecommendPower(walletAddress, dayTime);
+            SingleResponse<BigDecimal> directRecommendPowerResponse = calculateUserDirectRecommendPower(walletAddress, dayTime);
+            SingleResponse<BigDecimal> minPowerResponse = calculateUserMinPower(walletAddress, dayTime, getLevelRateMap(), isLevel);
+            SingleResponse<BigDecimal> newPowerResponse = calculateUserNewPower(walletAddress, dayTime, getLevelRateMap(), isLevel);
+
+            if (!selfPowerResponse.isSuccess() || !totalPowerResponse.isSuccess() ||
+                    !recommendPowerResponse.isSuccess() || !directRecommendPowerResponse.isSuccess() ||
+                    !minPowerResponse.isSuccess() || !newPowerResponse.isSuccess()) {
+                return SingleResponse.buildFailure("计算算力信息失败");
+            }
+
+            // 获取推荐信息
+            LambdaQueryWrapper<Recommend> recommendQuery = new LambdaQueryWrapper<>();
+            recommendQuery.eq(Recommend::getWalletAddress, walletAddress);
+            Recommend recommend = recommendMapper.selectOne(recommendQuery);
+
+            // 计算直推人数
+            LambdaQueryWrapper<Recommend> directQuery = new LambdaQueryWrapper<>();
+            directQuery.eq(Recommend::getRecommendWalletAddress, walletAddress);
+            List<Recommend> directRecommends = recommendMapper.selectList(directQuery);
+            int directRecommendCount = directRecommends.size();
+
+            // 找到最大算力的直推用户
+            String maxWalletAddress = null;
+            BigDecimal maxPower = BigDecimal.ZERO;
+            if (!CollectionUtils.isEmpty(directRecommends)) {
+                for (Recommend directRecommend : directRecommends) {
+                    SingleResponse<BigDecimal> powerResponse = calculateUserTotalPower(directRecommend.getWalletAddress(), dayTime);
+                    if (powerResponse.isSuccess() && powerResponse.getData().compareTo(maxPower) > 0) {
+                        maxPower = powerResponse.getData();
+                        maxWalletAddress = directRecommend.getWalletAddress();
+                    }
+                }
+            }
+
+            ComputingPowerDTO dto = ComputingPowerDTO.builder()
+                    .walletAddress(walletAddress)
+                    .selfPower(selfPowerResponse.getData())
+                    .totalPower(totalPowerResponse.getData())
+                    .recommendPower(recommendPowerResponse.getData())
+                    .directRecommendPower(directRecommendPowerResponse.getData())
+                    .minPower(minPowerResponse.getData())
+                    .maxPower(maxPower)
+                    .maxPowerWalletAddress(maxWalletAddress)
+                    .newPower(newPowerResponse.getData())
+                    .directRecommendCount(directRecommendCount)
+                    .level(recommend != null ? recommend.getLevel() : 0)
+                    .build();
+
+            return SingleResponse.of(dto);
+
+        } catch (Exception e) {
+            log.error("获取用户{}算力信息失败", walletAddress, e);
+            return SingleResponse.buildFailure("获取算力信息失败: " + e.getMessage());
+        }
+    }
+
+    @Override
     public SingleResponse<BigDecimal> calculateTotalPower(String dayTime) {
         try {
             // 查询所有用户

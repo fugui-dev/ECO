@@ -97,6 +97,15 @@ public interface ComputingPowerService {
      */
     SingleResponse<ComputingPowerDTO> getComputingPowerInfo(String walletAddress, String dayTime);
 
+
+    /**
+     * 获取完整的算力信息
+     * @param walletAddress 钱包地址
+     * @param dayTime 日期
+     * @return 算力信息
+     */
+    SingleResponse<ComputingPowerDTO> getAllComputingPowerInfo(String walletAddress, String dayTime,Boolean isLevel);
+
     /**
      * 计算所有用户的总算力
      * @param dayTime 日期

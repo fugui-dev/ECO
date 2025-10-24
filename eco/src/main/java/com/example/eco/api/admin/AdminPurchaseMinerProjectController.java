@@ -3,6 +3,7 @@ package com.example.eco.api.admin;
 import com.example.eco.bean.MultiResponse;
 import com.example.eco.bean.SingleResponse;
 import com.example.eco.bean.cmd.*;
+import com.example.eco.bean.dto.ComputingPowerStatisticDTO;
 import com.example.eco.bean.dto.PurchaseMinerBuyWayDTO;
 import com.example.eco.bean.dto.PurchaseMinerProjectDTO;
 import com.example.eco.bean.dto.PurchaseMinerProjectsBatchCreateResultDTO;
@@ -15,6 +16,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import javax.annotation.Resource;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -112,5 +115,19 @@ public class AdminPurchaseMinerProjectController {
     @PostMapping("/buy/way/edit")
     SingleResponse<Void> createPurchaseMinerBuyWay(@RequestBody PurchaseMinerBuyWayCreateCmd purchaseMinerBuyWayCreateCmd){
         return purchaseMinerProjectService.createPurchaseMinerBuyWay(purchaseMinerBuyWayCreateCmd);
+    }
+
+    /**
+     * 算力统计
+     */
+    @PostMapping("/computing/power/statistic")
+    SingleResponse<ComputingPowerStatisticDTO> computingPowerStatistic(@RequestBody ComputingPowerStatisticQry computingPowerStatisticQry){
+        String dayTime = computingPowerStatisticQry.getDayTime();
+        if (dayTime == null || dayTime.trim().isEmpty()) {
+            dayTime = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+        }
+
+        computingPowerStatisticQry.setDayTime(dayTime);
+        return purchaseMinerProjectService.computingPowerStatistic(computingPowerStatisticQry);
     }
 }

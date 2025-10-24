@@ -6,6 +6,7 @@ import com.example.eco.core.service.ComputingPowerCacheService;
 import com.example.eco.core.service.ComputingPowerService;
 
 import java.util.Map;
+
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
@@ -41,7 +42,7 @@ public class ComputingPowerServiceImplV2 implements ComputingPowerService {
                 computingPowerCacheService.cacheComputingPower(walletAddress, dayTime, fullInfo.getData());
             }
         }
-        
+
         return result;
     }
 
@@ -62,7 +63,7 @@ public class ComputingPowerServiceImplV2 implements ComputingPowerService {
                 computingPowerCacheService.cacheComputingPower(walletAddress, dayTime, fullInfo.getData());
             }
         }
-        
+
         return result;
     }
 
@@ -83,7 +84,7 @@ public class ComputingPowerServiceImplV2 implements ComputingPowerService {
                 computingPowerCacheService.cacheComputingPower(walletAddress, dayTime, fullInfo.getData());
             }
         }
-        
+
         return result;
     }
 
@@ -104,7 +105,7 @@ public class ComputingPowerServiceImplV2 implements ComputingPowerService {
                 computingPowerCacheService.cacheComputingPower(walletAddress, dayTime, fullInfo.getData());
             }
         }
-        
+
         return result;
     }
 
@@ -125,7 +126,7 @@ public class ComputingPowerServiceImplV2 implements ComputingPowerService {
                 computingPowerCacheService.cacheComputingPower(walletAddress, dayTime, fullInfo.getData());
             }
         }
-        
+
         return result;
     }
 
@@ -146,7 +147,7 @@ public class ComputingPowerServiceImplV2 implements ComputingPowerService {
                 computingPowerCacheService.cacheComputingPower(walletAddress, dayTime, fullInfo.getData());
             }
         }
-        
+
         return result;
     }
 
@@ -163,7 +164,18 @@ public class ComputingPowerServiceImplV2 implements ComputingPowerService {
         if (result.isSuccess()) {
             computingPowerCacheService.cacheComputingPower(walletAddress, dayTime, result.getData());
         }
-        
+
+        return result;
+    }
+
+    @Override
+    public SingleResponse<ComputingPowerDTO> getAllComputingPowerInfo(String walletAddress, String dayTime, Boolean isLevel) {
+        // 缓存未命中，计算并缓存
+        SingleResponse<ComputingPowerDTO> result = computingPowerService.getAllComputingPowerInfo(walletAddress, dayTime, isLevel);
+        if (result.isSuccess()) {
+            computingPowerCacheService.cacheComputingPower(walletAddress, dayTime, result.getData());
+        }
+
         return result;
     }
 
@@ -180,12 +192,13 @@ public class ComputingPowerServiceImplV2 implements ComputingPowerService {
         if (result.isSuccess()) {
             computingPowerCacheService.cacheTotalPower(dayTime, result.getData());
         }
-        
+
         return result;
     }
 
     /**
      * 清除用户算力缓存（当用户矿机状态变化时调用）
+     *
      * @param walletAddress 钱包地址
      */
     public void invalidateUserCache(String walletAddress) {
@@ -195,6 +208,7 @@ public class ComputingPowerServiceImplV2 implements ComputingPowerService {
 
     /**
      * 清除指定日期的算力缓存（当需要重新计算某日算力时调用）
+     *
      * @param dayTime 日期
      */
     public void invalidateDayCache(String dayTime) {
@@ -225,7 +239,7 @@ public class ComputingPowerServiceImplV2 implements ComputingPowerService {
                 computingPowerCacheService.cacheComputingPower(walletAddress, dayTime, fullInfo.getData());
             }
         }
-        
+
         return result;
     }
 
@@ -246,7 +260,7 @@ public class ComputingPowerServiceImplV2 implements ComputingPowerService {
                 computingPowerCacheService.cacheComputingPower(walletAddress, dayTime, fullInfo.getData());
             }
         }
-        
+
         return result;
     }
 }

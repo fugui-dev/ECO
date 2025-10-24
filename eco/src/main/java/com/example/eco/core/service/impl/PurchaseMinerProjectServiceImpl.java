@@ -9,10 +9,7 @@ import com.example.eco.bean.cmd.*;
 import com.example.eco.bean.dto.*;
 import com.example.eco.common.*;
 import com.example.eco.common.BusinessException;
-import com.example.eco.core.service.AccountService;
-import com.example.eco.core.service.MinerProjectService;
-import com.example.eco.core.service.PurchaseMinerProjectService;
-import com.example.eco.core.service.RecommendStatisticsLogService;
+import com.example.eco.core.service.*;
 import com.example.eco.core.service.impl.ComputingPowerServiceImplV2;
 import com.example.eco.model.entity.*;
 import com.example.eco.model.mapper.*;
@@ -53,6 +50,9 @@ public class PurchaseMinerProjectServiceImpl implements PurchaseMinerProjectServ
     private RecommendStatisticsLogService recommendStatisticsLogService;
     @Resource
     private ComputingPowerServiceImplV2 computingPowerServiceV2;
+
+    @Resource(name = "computingPowerService")
+    private ComputingPowerService computingPowerService;
     @Resource
     private MinerProjectService minerProjectService;
     @Resource
@@ -75,7 +75,8 @@ public class PurchaseMinerProjectServiceImpl implements PurchaseMinerProjectServ
     private EsgPurchaseLimitUtil esgPurchaseLimitUtil;
     @Resource
     private PurchaseMinerBuyWayMapper purchaseMinerBuyWayMapper;
-
+    @Resource
+    private RecommendMapper recommendMapper;
 
     @Override
     @Transactional(isolation = Isolation.REPEATABLE_READ, rollbackFor = Exception.class)
@@ -86,7 +87,7 @@ public class PurchaseMinerProjectServiceImpl implements PurchaseMinerProjectServ
             return SingleResponse.buildFailure("矿机不存在");
         }
 
-        if (minerProject.getStatus() != 1){
+        if (minerProject.getStatus() != 1) {
             return SingleResponse.buildFailure("矿机不允许购买");
         }
 
@@ -105,14 +106,14 @@ public class PurchaseMinerProjectServiceImpl implements PurchaseMinerProjectServ
 //            }
 
             LambdaQueryWrapper<PurchaseMinerBuyWay> purchaseMinerBuyWayLambdaQueryWrapper = new LambdaQueryWrapper<>();
-            purchaseMinerBuyWayLambdaQueryWrapper.eq(PurchaseMinerBuyWay::getName,PurchaseMinerType.ESG.getCode());
+            purchaseMinerBuyWayLambdaQueryWrapper.eq(PurchaseMinerBuyWay::getName, PurchaseMinerType.ESG.getCode());
 
             PurchaseMinerBuyWay purchaseMinerBuyWay = purchaseMinerBuyWayMapper.selectOne(purchaseMinerBuyWayLambdaQueryWrapper);
-            if (Objects.isNull(purchaseMinerBuyWay)){
+            if (Objects.isNull(purchaseMinerBuyWay)) {
                 return SingleResponse.buildFailure("未知的支付方式");
             }
 
-            if (purchaseMinerBuyWay.getStatus().equals(0)){
+            if (purchaseMinerBuyWay.getStatus().equals(0)) {
                 return SingleResponse.buildFailure("已关闭ESG购买方式");
             }
 
@@ -161,11 +162,11 @@ public class PurchaseMinerProjectServiceImpl implements PurchaseMinerProjectServ
 
         // 计算动态补偿算力 - 从数据库获取倍数配置，使用1.003^(n-1)公式
         BigDecimal actualComputingPower = calculateDynamicCompensationPower(minerProject, purchaseMinerProject.getCreateTime());
-        
+
         if (actualComputingPower.compareTo(new BigDecimal(minerProject.getComputingPower())) > 0) {
             // 设置补偿算力
             purchaseMinerProject.setActualComputingPower(actualComputingPower.toString());
-            
+
             // 设置加速到期时间（从购买时开始，有效期从配置获取）
             Long effectiveTime = calculateEffectiveTime();
             purchaseMinerProject.setAccelerateExpireTime(effectiveTime);
@@ -206,10 +207,10 @@ public class PurchaseMinerProjectServiceImpl implements PurchaseMinerProjectServ
                 if (!response.isSuccess()) {
                     // 扣款失败，回滚Redis计数
                     if (!esgPurchaseLimitUtil.rollbackEsgPurchase(minerProject, purchaseMinerProjectsCreateCmd.getWalletAddress())) {
-                        log.error("ESG扣款失败且回滚失败 - 矿机ID: {}, 钱包地址: {}", 
+                        log.error("ESG扣款失败且回滚失败 - 矿机ID: {}, 钱包地址: {}",
                                 minerProject.getId(), purchaseMinerProjectsCreateCmd.getWalletAddress());
                     } else {
-                        log.warn("ESG扣款失败，已回滚Redis计数 - 矿机ID: {}, 钱包地址: {}", 
+                        log.warn("ESG扣款失败，已回滚Redis计数 - 矿机ID: {}, 钱包地址: {}",
                                 minerProject.getId(), purchaseMinerProjectsCreateCmd.getWalletAddress());
                     }
                     return response;
@@ -221,16 +222,16 @@ public class PurchaseMinerProjectServiceImpl implements PurchaseMinerProjectServ
                     amount = amount.add(new BigDecimal(minerProject.getPrice()));
                     totalEsgNumber = totalEsgNumber.add(esgNumber);
 
-                    log.info("ESG购买成功 - 矿机ID: {}, 钱包地址: {}", 
+                    log.info("ESG购买成功 - 矿机ID: {}, 钱包地址: {}",
                             minerProject.getId(), purchaseMinerProjectsCreateCmd.getWalletAddress());
                 }
-            }catch (Exception e){
+            } catch (Exception e) {
                 // ESG购买异常，回滚Redis计数
                 if (!esgPurchaseLimitUtil.rollbackEsgPurchase(minerProject, purchaseMinerProjectsCreateCmd.getWalletAddress())) {
-                    log.error("ESG购买异常且回滚失败 - 矿机ID: {}, 钱包地址: {}", 
+                    log.error("ESG购买异常且回滚失败 - 矿机ID: {}, 钱包地址: {}",
                             minerProject.getId(), purchaseMinerProjectsCreateCmd.getWalletAddress());
                 } else {
-                    log.warn("ESG购买异常，已回滚Redis计数 - 矿机ID: {}, 钱包地址: {}", 
+                    log.warn("ESG购买异常，已回滚Redis计数 - 矿机ID: {}, 钱包地址: {}",
                             minerProject.getId(), purchaseMinerProjectsCreateCmd.getWalletAddress());
                 }
                 e.printStackTrace();
@@ -268,7 +269,7 @@ public class PurchaseMinerProjectServiceImpl implements PurchaseMinerProjectServ
                     purchaseMinerProject.setStatus(PurchaseMinerProjectStatus.SUCCESS.getCode());
                     purchaseMinerProject.setFinishTime(System.currentTimeMillis());
                 }
-            }catch (Exception e){
+            } catch (Exception e) {
                 e.printStackTrace();
                 throw new RuntimeException("购买矿机异常");
             }
@@ -291,7 +292,7 @@ public class PurchaseMinerProjectServiceImpl implements PurchaseMinerProjectServ
             }
 
             LambdaQueryWrapper<MinerConfig> minerEcoConfigLambdaQueryWrapper = new LambdaQueryWrapper<>();
-            minerEcoConfigLambdaQueryWrapper.eq(MinerConfig::getName,MinerConfigEnum.BUY_MINER_ECO_RATE.getCode());
+            minerEcoConfigLambdaQueryWrapper.eq(MinerConfig::getName, MinerConfigEnum.BUY_MINER_ECO_RATE.getCode());
 
             MinerConfig minerEcoConfig = minerConfigMapper.selectOne(minerEcoConfigLambdaQueryWrapper);
 
@@ -300,7 +301,7 @@ public class PurchaseMinerProjectServiceImpl implements PurchaseMinerProjectServ
             }
 
             LambdaQueryWrapper<MinerConfig> minerEsgConfigLambdaQueryWrapper = new LambdaQueryWrapper<>();
-            minerEsgConfigLambdaQueryWrapper.eq(MinerConfig::getName,MinerConfigEnum.BUY_MINER_ESG_RATE.getCode());
+            minerEsgConfigLambdaQueryWrapper.eq(MinerConfig::getName, MinerConfigEnum.BUY_MINER_ESG_RATE.getCode());
 
             MinerConfig minerEsgConfig = minerConfigMapper.selectOne(minerEsgConfigLambdaQueryWrapper);
 
@@ -315,7 +316,8 @@ public class PurchaseMinerProjectServiceImpl implements PurchaseMinerProjectServ
 
             BigDecimal esgNumber = totalEcoNumber.multiply(new BigDecimal(minerEsgConfig.getValue()));
 
-            BigDecimal ecoNumber = totalEcoNumber.multiply(new BigDecimal(minerEcoConfig.getValue()));;
+            BigDecimal ecoNumber = totalEcoNumber.multiply(new BigDecimal(minerEcoConfig.getValue()));
+            ;
 
 //            amount = amount.add(esgNumber.multiply(esgPrice));
 
@@ -334,7 +336,7 @@ public class PurchaseMinerProjectServiceImpl implements PurchaseMinerProjectServ
                 if (!ecoResponse.isSuccess()) {
                     return ecoResponse;
                 }
-            }catch (Exception e){
+            } catch (Exception e) {
                 e.printStackTrace();
                 throw new RuntimeException("购买矿机异常");
             }
@@ -351,7 +353,7 @@ public class PurchaseMinerProjectServiceImpl implements PurchaseMinerProjectServ
                 if (!esgResponse.isSuccess()) {
                     throw new BusinessException("ESG支付失败: " + esgResponse.getErrMessage());
                 }
-            }catch (Exception e){
+            } catch (Exception e) {
                 e.printStackTrace();
                 throw new BusinessException(e.getMessage());
             }
@@ -364,7 +366,7 @@ public class PurchaseMinerProjectServiceImpl implements PurchaseMinerProjectServ
             totalEsgNumber = totalEsgNumber.add(esgNumber);
         }
 
-        if (purchaseMinerProjectsCreateCmd.getType().equals(PurchaseMinerType.AIRDROP.getCode())){
+        if (purchaseMinerProjectsCreateCmd.getType().equals(PurchaseMinerType.AIRDROP.getCode())) {
             purchaseMinerProject.setEsgNumber("0");
             purchaseMinerProject.setEcoNumber("0");
             purchaseMinerProject.setStatus(PurchaseMinerProjectStatus.SUCCESS.getCode());
@@ -388,7 +390,7 @@ public class PurchaseMinerProjectServiceImpl implements PurchaseMinerProjectServ
             }
             purchaseMinerProjectMapper.insert(purchaseMinerProject);
 
-        }catch (Exception e){
+        } catch (Exception e) {
             e.printStackTrace();
             throw new RuntimeException("购买矿机异常");
         }
@@ -406,12 +408,12 @@ public class PurchaseMinerProjectServiceImpl implements PurchaseMinerProjectServ
      */
     private BigDecimal calculateDynamicCompensationPower(MinerProject minerProject, Long purchaseTime) {
         try {
-            
+
             // 从数据库获取倍数配置
             LambdaQueryWrapper<SystemConfig> increaseQueryWrapper = new LambdaQueryWrapper<>();
             increaseQueryWrapper.eq(SystemConfig::getName, SystemConfigEnum.INCREASE_MULTIPLIER.getCode());
             SystemConfig increaseSystemConfig = systemConfigMapper.selectOne(increaseQueryWrapper);
-            
+
             if (increaseSystemConfig == null || increaseSystemConfig.getValue() == null) {
                 // 如果没有配置，返回原始算力
                 return new BigDecimal(minerProject.getComputingPower());
@@ -432,35 +434,35 @@ public class PurchaseMinerProjectServiceImpl implements PurchaseMinerProjectServ
 
             SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
             Date date = sdf.parse(increaseStartTimeSystemConfig.getValue());
-            
+
             // 计算天数差
             long daysDifference = calculateDaysDifference(date.getTime(), purchaseTime);
-            
+
             // 从购买时开始补偿，即 n >= 1
             if (daysDifference < 1) {
                 // 当天购买，无补偿
                 return new BigDecimal(minerProject.getComputingPower());
             }
-            
+
             // 计算补偿倍数：baseMultiplier^(n-1)
             int exponent = (int) (daysDifference); // n-1
-            
+
             // 使用BigDecimal进行幂运算
             BigDecimal compensationMultiplier = baseMultiplier.pow(exponent);
-            
+
             // 计算补偿算力
             BigDecimal originalPower = new BigDecimal(minerProject.getComputingPower());
 
 
-            return originalPower.multiply(compensationMultiplier).setScale(8,RoundingMode.DOWN);
-            
+            return originalPower.multiply(compensationMultiplier).setScale(8, RoundingMode.DOWN);
+
         } catch (Exception e) {
             log.error("计算动态补偿算力失败", e);
             // 计算失败时返回原始算力
             return new BigDecimal(minerProject.getComputingPower());
         }
     }
-    
+
     /**
      * 计算两个时间戳之间的天数差
      */
@@ -468,24 +470,24 @@ public class PurchaseMinerProjectServiceImpl implements PurchaseMinerProjectServ
         try {
             // 将时间戳转换为LocalDate
             LocalDate startDate = LocalDateTime.ofInstant(
-                java.time.Instant.ofEpochMilli(startTime), 
-                ZoneId.systemDefault()
+                    java.time.Instant.ofEpochMilli(startTime),
+                    ZoneId.systemDefault()
             ).toLocalDate();
-            
+
             LocalDate endDate = LocalDateTime.ofInstant(
-                java.time.Instant.ofEpochMilli(endTime), 
-                ZoneId.systemDefault()
+                    java.time.Instant.ofEpochMilli(endTime),
+                    ZoneId.systemDefault()
             ).toLocalDate();
-            
+
             // 计算天数差
             return ChronoUnit.DAYS.between(startDate, endDate);
-            
+
         } catch (Exception e) {
             log.error("计算天数差失败: startTime={}, endTime={}", startTime, endTime, e);
             return 0;
         }
     }
-    
+
     /**
      * 计算补偿算力有效期
      * 从购买时开始，有效期从数据库配置 EFFECTIVE_DAY 获取
@@ -496,22 +498,22 @@ public class PurchaseMinerProjectServiceImpl implements PurchaseMinerProjectServ
             LambdaQueryWrapper<SystemConfig> effectiveQueryWrapper = new LambdaQueryWrapper<>();
             effectiveQueryWrapper.eq(SystemConfig::getName, SystemConfigEnum.EFFECTIVE_DAY.getCode());
             SystemConfig effectiveSystemConfig = systemConfigMapper.selectOne(effectiveQueryWrapper);
-            
+
             if (effectiveSystemConfig == null || effectiveSystemConfig.getValue() == null) {
                 // 如果没有配置，默认1天有效期
                 LocalDateTime effectiveDate = LocalDateTime.now().plusDays(1);
                 return effectiveDate.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli();
             }
-            
+
             // 从购买时开始，加上配置的有效天数
             long effectiveDays = Long.parseLong(effectiveSystemConfig.getValue());
             LocalDateTime effectiveDate = LocalDateTime.now().plusDays(effectiveDays);
             Long effectiveTime = effectiveDate.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli();
-            
+
             log.info("补偿算力有效期计算: 有效天数={}, 到期时间={}", effectiveDays, new java.util.Date(effectiveTime));
-            
+
             return effectiveTime;
-            
+
         } catch (Exception e) {
             log.error("计算补偿算力有效期失败", e);
             // 计算失败时默认1天有效期
@@ -525,7 +527,7 @@ public class PurchaseMinerProjectServiceImpl implements PurchaseMinerProjectServ
      */
     public Boolean checkQuota(MinerProject minerProject, String dayTime) {
 
-        if (new BigDecimal(minerProject.getQuota()).compareTo(BigDecimal.ZERO) == 0){
+        if (new BigDecimal(minerProject.getQuota()).compareTo(BigDecimal.ZERO) == 0) {
             return Boolean.FALSE;
         }
 
@@ -557,9 +559,9 @@ public class PurchaseMinerProjectServiceImpl implements PurchaseMinerProjectServ
     public MultiResponse<PurchaseMinerProjectDTO> page(PurchaseMinerProjectPageQry purchaseMinerProjectPageQry) {
 
         LambdaQueryWrapper<PurchaseMinerProject> lambdaQueryWrapper = new LambdaQueryWrapper<>();
-        lambdaQueryWrapper.eq(StringUtils.hasLength(purchaseMinerProjectPageQry.getWalletAddress()),PurchaseMinerProject::getWalletAddress, purchaseMinerProjectPageQry.getWalletAddress());
-        lambdaQueryWrapper.eq(StringUtils.hasLength(purchaseMinerProjectPageQry.getType()),PurchaseMinerProject::getType, purchaseMinerProjectPageQry.getType());
-        lambdaQueryWrapper.eq(StringUtils.hasLength(purchaseMinerProjectPageQry.getStatus()),PurchaseMinerProject::getStatus, purchaseMinerProjectPageQry.getStatus());
+        lambdaQueryWrapper.eq(StringUtils.hasLength(purchaseMinerProjectPageQry.getWalletAddress()), PurchaseMinerProject::getWalletAddress, purchaseMinerProjectPageQry.getWalletAddress());
+        lambdaQueryWrapper.eq(StringUtils.hasLength(purchaseMinerProjectPageQry.getType()), PurchaseMinerProject::getType, purchaseMinerProjectPageQry.getType());
+        lambdaQueryWrapper.eq(StringUtils.hasLength(purchaseMinerProjectPageQry.getStatus()), PurchaseMinerProject::getStatus, purchaseMinerProjectPageQry.getStatus());
 
         if (Objects.nonNull(purchaseMinerProjectPageQry.getStartTime()) && Objects.nonNull(purchaseMinerProjectPageQry.getEndTime())) {
             lambdaQueryWrapper.between(PurchaseMinerProject::getCreateTime, purchaseMinerProjectPageQry.getStartTime(), purchaseMinerProjectPageQry.getEndTime());
@@ -581,9 +583,9 @@ public class PurchaseMinerProjectServiceImpl implements PurchaseMinerProjectServ
             purchaseMinerProjectDTO.setTypeName(PurchaseMinerType.of(purchaseMinerProject.getType()).getName());
             purchaseMinerProjectDTO.setStatusName(PurchaseMinerProjectStatus.of(purchaseMinerProject.getStatus()).getName());
             purchaseMinerProjectDTO.setActualComputingPower(new BigDecimal(purchaseMinerProject.getActualComputingPower())
-                    .setScale(2,RoundingMode.DOWN).toString());
+                    .setScale(2, RoundingMode.DOWN).toString());
             purchaseMinerProjectDTO.setTotalReward(new BigDecimal(purchaseMinerProject.getReward())
-                    .setScale(2,RoundingMode.DOWN).toString());
+                    .setScale(2, RoundingMode.DOWN).toString());
 //            LambdaQueryWrapper<PurchaseMinerProjectReward> queryWrapper = new LambdaQueryWrapper<>();
 //            queryWrapper.eq(PurchaseMinerProjectReward::getPurchaseMinerProjectId, purchaseMinerProject.getId());
 //
@@ -603,18 +605,18 @@ public class PurchaseMinerProjectServiceImpl implements PurchaseMinerProjectServ
 //                    .orElse(BigDecimal.ZERO);
 
             LambdaQueryWrapper<MinerDailyReward> minerDailyRewardLambdaQueryWrapper = new LambdaQueryWrapper<>();
-            minerDailyRewardLambdaQueryWrapper.eq(MinerDailyReward::getMinerProjectId,purchaseMinerProject.getId());
-            minerDailyRewardLambdaQueryWrapper.eq(MinerDailyReward::getDayTime,dayTime);
+            minerDailyRewardLambdaQueryWrapper.eq(MinerDailyReward::getMinerProjectId, purchaseMinerProject.getId());
+            minerDailyRewardLambdaQueryWrapper.eq(MinerDailyReward::getDayTime, dayTime);
 
             MinerDailyReward minerDailyReward = minerDailyRewardMapper.selectOne(minerDailyRewardLambdaQueryWrapper);
-            if (Objects.isNull(minerDailyReward)){
+            if (Objects.isNull(minerDailyReward)) {
                 purchaseMinerProjectDTO.setYesterdayTotalRewardPrice("0");
                 purchaseMinerProjectDTO.setYesterdayTotalReward("0");
-            }else {
+            } else {
                 purchaseMinerProjectDTO.setYesterdayTotalReward(new BigDecimal(minerDailyReward.getTotalReward())
-                        .setScale(2,RoundingMode.DOWN).toString());
+                        .setScale(2, RoundingMode.DOWN).toString());
                 purchaseMinerProjectDTO.setYesterdayTotalRewardPrice(new BigDecimal(minerDailyReward.getTotalRewardPrice())
-                        .setScale(2,RoundingMode.DOWN).toString());
+                        .setScale(2, RoundingMode.DOWN).toString());
             }
 
             purchaseMinerProjectDTOS.add(purchaseMinerProjectDTO);
@@ -711,16 +713,16 @@ public class PurchaseMinerProjectServiceImpl implements PurchaseMinerProjectServ
         BigDecimal progress = totalEcoNumber.divide(totalNumber, 4, RoundingMode.HALF_UP);
 
         purchaseMinerProjectStatisticsDTO.setTotalComputingPower(totalComputingPower
-                .setScale(2,RoundingMode.DOWN).toString());
+                .setScale(2, RoundingMode.DOWN).toString());
         purchaseMinerProjectStatisticsDTO.setTotalPurchaseMinerProjectCount(totalPurchaseMinerProjectCount);
         purchaseMinerProjectStatisticsDTO.setProgress(progress.toString());
         purchaseMinerProjectStatisticsDTO.setPrice(priceSystemConfig.getValue());
         purchaseMinerProjectStatisticsDTO.setTotalEcoNumber(totalEcoNumber
-                .setScale(2,RoundingMode.DOWN).toString());
+                .setScale(2, RoundingMode.DOWN).toString());
         purchaseMinerProjectStatisticsDTO.setYesterdayTotalEcoNumber(yesterdayTotalEcoNumber
-                .setScale(2,RoundingMode.DOWN).toString());
+                .setScale(2, RoundingMode.DOWN).toString());
         purchaseMinerProjectStatisticsDTO.setYesterdayTotalComputingPower(yesterdayTotalComputingPower
-                .setScale(2,RoundingMode.DOWN).toString());
+                .setScale(2, RoundingMode.DOWN).toString());
         purchaseMinerProjectStatisticsDTO.setYesterdayTotalPurchaseMinerProjectCount(yesterdayTotalPurchaseMinerProjectCount);
 
         return SingleResponse.of(purchaseMinerProjectStatisticsDTO);
@@ -730,13 +732,13 @@ public class PurchaseMinerProjectServiceImpl implements PurchaseMinerProjectServ
     public SingleResponse<PurchaseMinerProjectRewardDTO> reward(PurchaseMinerProjectRewardQry purchaseMinerProjectRewardQry) {
 
         LambdaQueryWrapper<PurchaseMinerProjectReward> queryWrapper = new LambdaQueryWrapper<>();
-        queryWrapper.eq(PurchaseMinerProjectReward::getWalletAddress,purchaseMinerProjectRewardQry.getWalletAddress());
-        queryWrapper.eq(PurchaseMinerProjectReward::getDayTime,purchaseMinerProjectRewardQry.getDayTime());
+        queryWrapper.eq(PurchaseMinerProjectReward::getWalletAddress, purchaseMinerProjectRewardQry.getWalletAddress());
+        queryWrapper.eq(PurchaseMinerProjectReward::getDayTime, purchaseMinerProjectRewardQry.getDayTime());
 
         List<PurchaseMinerProjectReward> purchaseMinerProjectRewards = purchaseMinerProjectRewardMapper.selectList(queryWrapper);
 
         PurchaseMinerProjectRewardDTO purchaseMinerProjectRewardDTO = new PurchaseMinerProjectRewardDTO();
-        if (CollectionUtils.isEmpty(purchaseMinerProjectRewards)){
+        if (CollectionUtils.isEmpty(purchaseMinerProjectRewards)) {
 
             purchaseMinerProjectRewardDTO.setBaseReward("0");
             purchaseMinerProjectRewardDTO.setNewReward("0");
@@ -851,17 +853,17 @@ public class PurchaseMinerProjectServiceImpl implements PurchaseMinerProjectServ
         String dayTime = LocalDate.now().minusDays(1).format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
 
         LambdaQueryWrapper<RewardServiceLog> rewardServiceLogLambdaQueryWrapper = new LambdaQueryWrapper<>();
-        rewardServiceLogLambdaQueryWrapper.eq(RewardServiceLog::getDayTime,dayTime);
-        rewardServiceLogLambdaQueryWrapper.eq(RewardServiceLog::getWalletAddress,rewardServiceQry.getWalletAddress());
+        rewardServiceLogLambdaQueryWrapper.eq(RewardServiceLog::getDayTime, dayTime);
+        rewardServiceLogLambdaQueryWrapper.eq(RewardServiceLog::getWalletAddress, rewardServiceQry.getWalletAddress());
 
         RewardServiceLog rewardServiceLog = rewardServiceLogMapper.selectOne(rewardServiceLogLambdaQueryWrapper);
 
-        if (Objects.isNull(rewardServiceLog)){
+        if (Objects.isNull(rewardServiceLog)) {
             rewardServiceResultDTO.setResult(Boolean.TRUE);
             return SingleResponse.of(rewardServiceResultDTO);
         }
 
-        if (new BigDecimal(rewardServiceLog.getEcoNumber()).compareTo(BigDecimal.ZERO) > 0){
+        if (new BigDecimal(rewardServiceLog.getEcoNumber()).compareTo(BigDecimal.ZERO) > 0) {
             rewardServiceResultDTO.setResult(Boolean.FALSE);
         }
 
@@ -872,40 +874,40 @@ public class PurchaseMinerProjectServiceImpl implements PurchaseMinerProjectServ
     public MultiResponse<PurchaseMinerBuyWayDTO> purchaseMinerBuyWayList(PurchaseMinerBuyWayQry purchaseMinerBuyWayQry) {
 
         LambdaQueryWrapper<PurchaseMinerBuyWay> lambdaQueryWrapper = new LambdaQueryWrapper<>();
-        lambdaQueryWrapper.eq(Objects.nonNull(purchaseMinerBuyWayQry.getStatus()),PurchaseMinerBuyWay::getStatus,1);
+        lambdaQueryWrapper.eq(Objects.nonNull(purchaseMinerBuyWayQry.getStatus()), PurchaseMinerBuyWay::getStatus, 1);
 
         List<PurchaseMinerBuyWay> purchaseMinerBuyWayList = purchaseMinerBuyWayMapper.selectList(lambdaQueryWrapper);
 
         List<PurchaseMinerBuyWayDTO> list = new ArrayList<>();
 
-        for (PurchaseMinerBuyWay purchaseMinerBuyWay:purchaseMinerBuyWayList){
+        for (PurchaseMinerBuyWay purchaseMinerBuyWay : purchaseMinerBuyWayList) {
 
             PurchaseMinerBuyWayDTO purchaseMinerBuyWayDTO = new PurchaseMinerBuyWayDTO();
 
             purchaseMinerBuyWayDTO.setName(purchaseMinerBuyWay.getName());
-            if (purchaseMinerBuyWay.getName().equals(PurchaseMinerType.ECO_ESG.getCode())){
+            if (purchaseMinerBuyWay.getName().equals(PurchaseMinerType.ECO_ESG.getCode())) {
 
                 LambdaQueryWrapper<MinerConfig> minerEcoConfigLambdaQueryWrapper = new LambdaQueryWrapper<>();
-                minerEcoConfigLambdaQueryWrapper.eq(MinerConfig::getName,MinerConfigEnum.BUY_MINER_ECO_RATE.getCode());
+                minerEcoConfigLambdaQueryWrapper.eq(MinerConfig::getName, MinerConfigEnum.BUY_MINER_ECO_RATE.getCode());
 
                 MinerConfig minerEcoConfig = minerConfigMapper.selectOne(minerEcoConfigLambdaQueryWrapper);
 
                 if (Objects.isNull(minerEcoConfig)) {
-                    return MultiResponse.buildFailure("400","未设置ECO比例");
+                    return MultiResponse.buildFailure("400", "未设置ECO比例");
                 }
 
                 LambdaQueryWrapper<MinerConfig> minerEsgConfigLambdaQueryWrapper = new LambdaQueryWrapper<>();
-                minerEsgConfigLambdaQueryWrapper.eq(MinerConfig::getName,MinerConfigEnum.BUY_MINER_ESG_RATE.getCode());
+                minerEsgConfigLambdaQueryWrapper.eq(MinerConfig::getName, MinerConfigEnum.BUY_MINER_ESG_RATE.getCode());
 
                 MinerConfig minerEsgConfig = minerConfigMapper.selectOne(minerEsgConfigLambdaQueryWrapper);
 
                 if (Objects.isNull(minerEsgConfig)) {
-                    return MultiResponse.buildFailure("400","未设置ESG比例");
+                    return MultiResponse.buildFailure("400", "未设置ESG比例");
                 }
 
-                String value = ( Double.parseDouble(minerEcoConfig.getValue()) * 100 ) +"%ECO+" + ( Double.parseDouble(minerEsgConfig.getValue()) * 100 ) +"%ESG";
+                String value = (Double.parseDouble(minerEcoConfig.getValue()) * 100) + "%ECO+" + (Double.parseDouble(minerEsgConfig.getValue()) * 100) + "%ESG";
                 purchaseMinerBuyWayDTO.setValue(value);
-            }else {
+            } else {
                 purchaseMinerBuyWayDTO.setValue(purchaseMinerBuyWay.getValue());
             }
 
@@ -920,10 +922,10 @@ public class PurchaseMinerProjectServiceImpl implements PurchaseMinerProjectServ
 
 
         LambdaQueryWrapper<PurchaseMinerBuyWay> lambdaQueryWrapper = new LambdaQueryWrapper<>();
-        lambdaQueryWrapper.eq(PurchaseMinerBuyWay::getName,purchaseMinerBuyWayCreateCmd.getName());
+        lambdaQueryWrapper.eq(PurchaseMinerBuyWay::getName, purchaseMinerBuyWayCreateCmd.getName());
 
         PurchaseMinerBuyWay purchaseMinerBuyWay = purchaseMinerBuyWayMapper.selectOne(lambdaQueryWrapper);
-        if (Objects.isNull(purchaseMinerBuyWay)){
+        if (Objects.isNull(purchaseMinerBuyWay)) {
             purchaseMinerBuyWay = new PurchaseMinerBuyWay();
         }
 
@@ -931,11 +933,96 @@ public class PurchaseMinerProjectServiceImpl implements PurchaseMinerProjectServ
         purchaseMinerBuyWay.setValue(purchaseMinerBuyWayCreateCmd.getValue());
         purchaseMinerBuyWay.setStatus(purchaseMinerBuyWayCreateCmd.getStatus());
 
-        if (Objects.isNull(purchaseMinerBuyWay.getId())){
+        if (Objects.isNull(purchaseMinerBuyWay.getId())) {
             purchaseMinerBuyWayMapper.insert(purchaseMinerBuyWay);
-        }else {
+        } else {
             purchaseMinerBuyWayMapper.updateById(purchaseMinerBuyWay);
         }
         return SingleResponse.buildSuccess();
+    }
+
+    @Override
+    public SingleResponse<ComputingPowerStatisticDTO> computingPowerStatistic(ComputingPowerStatisticQry computingPowerStatisticQry) {
+
+        SingleResponse<ComputingPowerDTO> allComputingPowerInfo = computingPowerService.getAllComputingPowerInfo(computingPowerStatisticQry.getWalletAddress(), computingPowerStatisticQry.getDayTime(), computingPowerStatisticQry.getIsLevel());
+
+        ComputingPowerStatisticDTO computingPowerStatisticDTO = new ComputingPowerStatisticDTO();
+
+        if (allComputingPowerInfo.isSuccess() && Objects.nonNull(allComputingPowerInfo.getData())) {
+
+            ComputingPowerDTO computingPowerDTO = allComputingPowerInfo.getData();
+            computingPowerStatisticDTO.setDirectRecommendComputingPower(computingPowerDTO.getDirectRecommendPower());
+            computingPowerStatisticDTO.setRecommendComputingPower(computingPowerDTO.getRecommendPower());
+            computingPowerStatisticDTO.setSelfComputingPower(computingPowerDTO.getSelfPower());
+            computingPowerStatisticDTO.setMaxComputingPower(computingPowerDTO.getMaxPower());
+            computingPowerStatisticDTO.setMinComputingPower(computingPowerDTO.getMinPower());
+
+        }
+
+        LambdaQueryWrapper<PurchaseMinerProject> queryWrapper = new LambdaQueryWrapper<>();
+        queryWrapper.eq(PurchaseMinerProject::getWalletAddress, computingPowerStatisticQry.getWalletAddress());
+
+        List<PurchaseMinerProject> purchaseMinerProjectList = purchaseMinerProjectMapper.selectList(queryWrapper);
+
+        Long airdropMinerCount = purchaseMinerProjectList.stream()
+                .filter(x -> x.getType()
+                        .equals(PurchaseMinerType.AIRDROP.getCode()))
+                .count();
+
+        Long ecoMinerCount = purchaseMinerProjectList.stream()
+                .filter(x -> x.getType()
+                        .equals(PurchaseMinerType.ECO.getCode()))
+                .count();
+
+        Long esgMinerCount = purchaseMinerProjectList.stream()
+                .filter(x -> x.getType()
+                        .equals(PurchaseMinerType.ESG.getCode()))
+                .count();
+
+        Long ecoEsgMinerCount = purchaseMinerProjectList.stream()
+                .filter(x -> x.getType()
+                        .equals(PurchaseMinerType.ECO_ESG.getCode()))
+                .count();
+
+        Long allAirdropMinerCount = getMinerCount(computingPowerStatisticQry.getWalletAddress(), PurchaseMinerType.AIRDROP.getCode());
+
+        Long allEcoMinerCount = getMinerCount(computingPowerStatisticQry.getWalletAddress(), PurchaseMinerType.ECO.getCode());
+
+        Long allEsgMinerCount = getMinerCount(computingPowerStatisticQry.getWalletAddress(), PurchaseMinerType.ESG.getCode());
+
+        Long allEcoEsgMinerCount = getMinerCount(computingPowerStatisticQry.getWalletAddress(), PurchaseMinerType.ECO_ESG.getCode());
+
+        computingPowerStatisticDTO.setAirdropMinerCount(allAirdropMinerCount - airdropMinerCount);
+        computingPowerStatisticDTO.setEcoMinerCount(allEcoMinerCount - ecoMinerCount);
+        computingPowerStatisticDTO.setEsgMinerCount(allEsgMinerCount - esgMinerCount);
+        computingPowerStatisticDTO.setEcoEsgMinerCount(allEcoEsgMinerCount - ecoEsgMinerCount);
+
+        return SingleResponse.of(computingPowerStatisticDTO);
+    }
+
+
+    private Long getMinerCount(String walletAddress, String type) {
+
+        LambdaQueryWrapper<PurchaseMinerProject> purchaseMinerProjectLambdaQueryWrapper = new LambdaQueryWrapper<>();
+        purchaseMinerProjectLambdaQueryWrapper.eq(PurchaseMinerProject::getWalletAddress, walletAddress);
+        purchaseMinerProjectLambdaQueryWrapper.eq(PurchaseMinerProject::getType, type);
+
+        Long count = purchaseMinerProjectMapper.selectCount(purchaseMinerProjectLambdaQueryWrapper);
+
+
+        // 查询直接下级
+        LambdaQueryWrapper<Recommend> queryWrapper = new LambdaQueryWrapper<>();
+        queryWrapper.eq(Recommend::getRecommendWalletAddress, walletAddress);
+        List<Recommend> directSubordinates = recommendMapper.selectList(queryWrapper);
+
+
+        for (Recommend recommend : directSubordinates) {
+
+            Long minerCount = getMinerCount(recommend.getWalletAddress(), type);
+
+            count += minerCount;
+        }
+
+        return count;
     }
 }

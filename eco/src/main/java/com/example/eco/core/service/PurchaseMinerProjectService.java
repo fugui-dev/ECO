@@ -46,4 +46,10 @@ public interface PurchaseMinerProjectService {
     SingleResponse<Void> createPurchaseMinerBuyWay(PurchaseMinerBuyWayCreateCmd purchaseMinerBuyWayCreateCmd);
 
 
+    /**
+     * 算力统计
+     */
+    SingleResponse<ComputingPowerStatisticDTO> computingPowerStatistic(ComputingPowerStatisticQry computingPowerStatisticQry);
+
+
 }
