@@ -1518,6 +1518,17 @@ public class RewardConstructor {
             
             // 实际分配给这个矿机的奖励数量（取较小值）
             BigDecimal actualRewardForThisMiner = remainingReward.min(availableReward);
+
+            if (actualRewardForThisMiner.compareTo(BigDecimal.ZERO) <= 0) {
+                log.info("【奖励上限检查】用户{}的矿机{}可用奖励为0，跳过", walletAddress, purchaseMinerProject.getId());
+
+                purchaseMinerProject.setStatus(PurchaseMinerProjectStatus.STOP.getCode());
+                purchaseMinerProjectMapper.updateById(purchaseMinerProject);
+                // 矿机达到上限停用，清除用户算力缓存，让下次查询时重新计算
+                computingPowerServiceV2.invalidateUserCache(purchaseMinerProject.getWalletAddress());
+
+                continue;
+            }
             
             // 计算实际分配的价值
             BigDecimal actualValueForThisMiner = actualRewardForThisMiner.multiply(price).setScale(8, RoundingMode.DOWN);
