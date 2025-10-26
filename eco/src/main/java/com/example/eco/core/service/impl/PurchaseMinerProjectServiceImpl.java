@@ -77,6 +77,8 @@ public class PurchaseMinerProjectServiceImpl implements PurchaseMinerProjectServ
     private PurchaseMinerBuyWayMapper purchaseMinerBuyWayMapper;
     @Resource
     private RecommendMapper recommendMapper;
+    @Resource
+    private AccountMapper accountMapper;
 
     @Override
     @Transactional(isolation = Isolation.REPEATABLE_READ, rollbackFor = Exception.class)
@@ -992,11 +994,37 @@ public class PurchaseMinerProjectServiceImpl implements PurchaseMinerProjectServ
 
         Long allEcoEsgMinerCount = getMinerCount(computingPowerStatisticQry.getWalletAddress(), PurchaseMinerType.ECO_ESG.getCode());
 
+
+        LambdaQueryWrapper<Account> accountLambdaQueryWrapper = new LambdaQueryWrapper<>();
+        accountLambdaQueryWrapper.eq(Account::getWalletAddress, computingPowerStatisticQry.getWalletAddress());
+
+        List<Account> accountList = accountMapper.selectList(accountLambdaQueryWrapper);
+
+        BigDecimal ecoNumber = BigDecimal.ZERO;
+
+        BigDecimal esgNumber = BigDecimal.ZERO;
+
+        for (Account account:accountList){
+
+            if (account.getType().equals(AccountType.ECO.getCode())){
+                ecoNumber = new BigDecimal(account.getNumber());
+            }
+
+            if (account.getType().equals(AccountType.ESG.getCode())){
+                esgNumber = new BigDecimal(account.getNumber());
+            }
+        }
+
+        BigDecimal allEcoNumber = getNumber(computingPowerStatisticQry.getWalletAddress(), AccountType.ECO.getCode());
+
+        BigDecimal allEsgNumber = getNumber(computingPowerStatisticQry.getWalletAddress(), AccountType.ESG.getCode());
+
         computingPowerStatisticDTO.setAirdropMinerCount(allAirdropMinerCount - airdropMinerCount);
         computingPowerStatisticDTO.setEcoMinerCount(allEcoMinerCount - ecoMinerCount);
         computingPowerStatisticDTO.setEsgMinerCount(allEsgMinerCount - esgMinerCount);
         computingPowerStatisticDTO.setEcoEsgMinerCount(allEcoEsgMinerCount - ecoEsgMinerCount);
-
+        computingPowerStatisticDTO.setEcoNumber(allEcoNumber.subtract(ecoNumber));
+        computingPowerStatisticDTO.setEsgNumber(allEsgNumber.subtract(esgNumber));
         return SingleResponse.of(computingPowerStatisticDTO);
     }
 
@@ -1024,5 +1052,37 @@ public class PurchaseMinerProjectServiceImpl implements PurchaseMinerProjectServ
         }
 
         return count;
+    }
+
+
+    private BigDecimal getNumber(String walletAddress, String type) {
+
+        LambdaQueryWrapper<Account> accountLambdaQueryWrapper = new LambdaQueryWrapper<>();
+        accountLambdaQueryWrapper.eq(Account::getWalletAddress, walletAddress);
+        accountLambdaQueryWrapper.eq(Account::getType, type);
+
+        Account account = accountMapper.selectOne(accountLambdaQueryWrapper);
+
+        BigDecimal number = BigDecimal.ZERO;
+
+        if (Objects.nonNull(account)){
+            number = new BigDecimal(account.getNumber());
+        }
+
+
+        // 查询直接下级
+        LambdaQueryWrapper<Recommend> queryWrapper = new LambdaQueryWrapper<>();
+        queryWrapper.eq(Recommend::getRecommendWalletAddress, walletAddress);
+        List<Recommend> directSubordinates = recommendMapper.selectList(queryWrapper);
+
+
+        for (Recommend recommend : directSubordinates) {
+
+            BigDecimal recommendNumber = getNumber(recommend.getWalletAddress(), type);
+
+            number = number.add(recommendNumber);
+        }
+
+        return number;
     }
 }

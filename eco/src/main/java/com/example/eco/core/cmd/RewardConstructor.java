@@ -1500,19 +1500,6 @@ public class RewardConstructor {
             log.info("【奖励上限检查】用户{}矿机{} - 当前价值: {}, 上限: {}, 可用价值: {}",
                 walletAddress, purchaseMinerProject.getId(), currentTotalValue, maxRewardValue, availableValue);
             
-            if (availableValue.compareTo(BigDecimal.ZERO) <= 0) {
-                // 矿机已经达到上限，跳过
-                log.info("【奖励上限检查】用户{}的矿机{}已达到2倍奖励上限（当前价值: {}, 上限: {}），跳过奖励分配",
-                    walletAddress, purchaseMinerProject.getId(), currentTotalValue, maxRewardValue);
-
-                purchaseMinerProject.setStatus(PurchaseMinerProjectStatus.STOP.getCode());
-                purchaseMinerProjectMapper.updateById(purchaseMinerProject);
-                // 矿机达到上限停用，清除用户算力缓存，让下次查询时重新计算
-                computingPowerServiceV2.invalidateUserCache(purchaseMinerProject.getWalletAddress());
-
-                continue;
-            }
-            
             // 计算这个矿机实际能接受的奖励数量
             BigDecimal availableReward = availableValue.divide(price, 8, RoundingMode.DOWN);
             
@@ -1521,7 +1508,7 @@ public class RewardConstructor {
 
             if (actualRewardForThisMiner.compareTo(BigDecimal.ZERO) <= 0) {
                 log.info("【奖励上限检查】用户{}的矿机{}可用奖励为0，跳过", walletAddress, purchaseMinerProject.getId());
-
+                purchaseMinerProject.setRewardPrice(maxRewardValue.toString());
                 purchaseMinerProject.setStatus(PurchaseMinerProjectStatus.STOP.getCode());
                 purchaseMinerProjectMapper.updateById(purchaseMinerProject);
                 // 矿机达到上限停用，清除用户算力缓存，让下次查询时重新计算
@@ -1535,7 +1522,18 @@ public class RewardConstructor {
             
             log.info("【奖励上限检查】用户{}矿机{} - 可用奖励: {}, 分配奖励: {}, 分配价值: {}",
                 walletAddress, purchaseMinerProject.getId(), availableReward, actualRewardForThisMiner, actualValueForThisMiner);
-            
+
+            if (actualValueForThisMiner.compareTo(BigDecimal.ZERO) <= 0) {
+                log.info("【奖励上限检查】用户{}的矿机{}可用奖励为0，跳过", walletAddress, purchaseMinerProject.getId());
+                purchaseMinerProject.setRewardPrice(maxRewardValue.toString());
+                purchaseMinerProject.setStatus(PurchaseMinerProjectStatus.STOP.getCode());
+                purchaseMinerProjectMapper.updateById(purchaseMinerProject);
+                // 矿机达到上限停用，清除用户算力缓存，让下次查询时重新计算
+                computingPowerServiceV2.invalidateUserCache(purchaseMinerProject.getWalletAddress());
+
+                continue;
+            }
+
             // 更新矿机信息
             BigDecimal totalReward = new BigDecimal(purchaseMinerProject.getReward()).add(actualRewardForThisMiner);
             BigDecimal finalTotalValue = currentTotalValue.add(actualValueForThisMiner);
@@ -1546,6 +1544,7 @@ public class RewardConstructor {
             
             // 如果达到上限，停止矿机
             if (finalTotalValue.compareTo(maxRewardValue) >= 0) {
+                purchaseMinerProject.setRewardPrice(maxRewardValue.toString());
                 purchaseMinerProject.setStatus(PurchaseMinerProjectStatus.STOP.getCode());
                 log.info("【奖励上限检查】用户{}的矿机{}达到2倍奖励上限（最终价值: {}, 上限: {}），停止奖励发放",
                     walletAddress, purchaseMinerProject.getId(), finalTotalValue, maxRewardValue);

@@ -28,6 +28,16 @@ public class ComputingPowerStatisticDTO {
     private Long ecoMinerCount;
 
     /**
+     * ECO数量
+     */
+    private BigDecimal ecoNumber;
+
+    /**
+     * ESG数量
+     */
+    private BigDecimal esgNumber;
+
+    /**
      * ECO+ESG矿机数量
      */
     private Long ecoEsgMinerCount;
