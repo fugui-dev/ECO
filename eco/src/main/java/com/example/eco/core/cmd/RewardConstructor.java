@@ -306,20 +306,9 @@ public class RewardConstructor {
             return SingleResponse.buildFailure("新增矿机挖矿数量要求配置错误");
         }
 
-        // 查询用户所有有效矿机
-        LambdaQueryWrapper<PurchaseMinerProject> queryWrapper = new LambdaQueryWrapper<>();
-        queryWrapper.eq(PurchaseMinerProject::getStatus, PurchaseMinerProjectStatus.SUCCESS.getCode());
-
-        BigDecimal computingPower  = purchaseMinerProjectMapper.selectList(queryWrapper)
-                .stream()
-                .map(PurchaseMinerProject::getComputingPower)
-                .map(BigDecimal::new)
-                .reduce(BigDecimal::add)
-                .orElse(BigDecimal.ZERO);
-
 
         // 计算出多余的算力
-        BigDecimal moreComputingPower = computingPower.subtract(minerRequirement);
+        BigDecimal moreComputingPower = totalComputingPower.subtract(minerRequirement);
 
         // 计算出新增矿机数量
         if (moreComputingPower.compareTo(minerAddNumberRequirement) < 0) {
