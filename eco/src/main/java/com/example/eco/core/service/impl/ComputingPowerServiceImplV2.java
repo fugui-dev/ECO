@@ -110,6 +110,12 @@ public class ComputingPowerServiceImplV2 implements ComputingPowerService {
     }
 
     @Override
+    public SingleResponse<BigDecimal> calculateUserDirectRecommendNewPower(String walletAddress, String dayTime) {
+
+        return computingPowerService.calculateUserDirectRecommendNewPower(walletAddress,dayTime);
+    }
+
+    @Override
     public SingleResponse<BigDecimal> calculateUserMinPower(String walletAddress, String dayTime) {
         // 先尝试从缓存获取
         SingleResponse<ComputingPowerDTO> cachedResponse = computingPowerCacheService.getCachedComputingPower(walletAddress, dayTime);

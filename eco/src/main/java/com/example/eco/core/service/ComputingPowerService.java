@@ -27,6 +27,7 @@ public interface ComputingPowerService {
      */
     SingleResponse<BigDecimal> calculateUserSelfPower(String walletAddress, String dayTime);
 
+
     /**
      * 计算用户推荐算力（下级算力总和）
      * @param walletAddress 钱包地址
@@ -52,6 +53,15 @@ public interface ComputingPowerService {
      * @return 直推算力
      */
     SingleResponse<BigDecimal> calculateUserDirectRecommendPower(String walletAddress, String dayTime);
+
+
+    /**
+     * 计算用户直推算力（直接下级算力总和）
+     * @param walletAddress 钱包地址
+     * @param dayTime 日期
+     * @return 直推算力
+     */
+    SingleResponse<BigDecimal> calculateUserDirectRecommendNewPower(String walletAddress, String dayTime);
 
     /**
      * 计算用户小区算力（除最大算力外的直推算力总和）

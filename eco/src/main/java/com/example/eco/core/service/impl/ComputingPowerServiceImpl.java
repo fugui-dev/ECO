@@ -158,6 +158,37 @@ public class ComputingPowerServiceImpl implements ComputingPowerService {
     }
 
     @Override
+    public SingleResponse<BigDecimal> calculateUserDirectRecommendNewPower(String walletAddress, String dayTime) {
+        try {
+            // 查询直接下级
+            LambdaQueryWrapper<Recommend> queryWrapper = new LambdaQueryWrapper<>();
+            queryWrapper.eq(Recommend::getRecommendWalletAddress, walletAddress);
+
+            List<Recommend> directRecommends = recommendMapper.selectList(queryWrapper);
+
+            if (CollectionUtils.isEmpty(directRecommends)) {
+                return SingleResponse.of(BigDecimal.ZERO);
+            }
+
+            // 计算每个直接下级的自身算力（不包括下级的下级）
+            BigDecimal directRecommendPower = BigDecimal.ZERO;
+            for (Recommend directRecommend : directRecommends) {
+                SingleResponse<BigDecimal> selfPowerResponse = calculateUserNewPower(directRecommend.getWalletAddress(), dayTime);
+                if (selfPowerResponse.isSuccess()) {
+                    directRecommendPower = directRecommendPower.add(selfPowerResponse.getData());
+                }
+            }
+
+            log.debug("用户{}直推新增算力: {}", walletAddress, directRecommendPower);
+            return SingleResponse.of(directRecommendPower);
+
+        } catch (Exception e) {
+            log.error("计算用户{}直推新增算力", walletAddress, e);
+            return SingleResponse.buildFailure("计算直推新增算力: " + e.getMessage());
+        }
+    }
+
+    @Override
     public SingleResponse<BigDecimal> calculateUserMinPower(String walletAddress, String dayTime) {
         try {
             // 查询直接下级
