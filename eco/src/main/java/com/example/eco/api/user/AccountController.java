@@ -56,6 +56,25 @@ public class AccountController {
             return SingleResponse.buildFailure("用户未登录");
         }
         
+        // 验证转入钱包地址格式
+        String toWalletAddress = accountTransferCmd.getToWalletAddress();
+        if (toWalletAddress == null || toWalletAddress.trim().isEmpty()) {
+            log.warn("转入钱包地址为空");
+            return SingleResponse.buildFailure("转入钱包地址不能为空");
+        }
+        
+        // 验证钱包地址格式：应该是以0x开头的42位字符
+        if (!toWalletAddress.startsWith("0x") || toWalletAddress.length() != 42) {
+            log.warn("转入钱包地址格式错误: {}", toWalletAddress);
+            return SingleResponse.buildFailure("转入钱包地址格式错误");
+        }
+        
+        // 验证是否为有效的十六进制地址
+        if (!toWalletAddress.matches("^0x[a-fA-F0-9]{40}$")) {
+            log.warn("转入钱包地址不是有效的十六进制地址: {}", toWalletAddress);
+            return SingleResponse.buildFailure("转入钱包地址不是有效的十六进制地址");
+        }
+        
         // 设置转出钱包地址
         accountTransferCmd.setFromWalletAddress(walletAddress);
         log.info("账户转账: fromWalletAddress={}, toWalletAddress={}, amount={}", 

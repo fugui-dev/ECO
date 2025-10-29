@@ -17,6 +17,9 @@ import com.example.eco.model.entity.*;
 import com.example.eco.model.mapper.*;
 import com.example.eco.util.ComputingPowerUtil;
 import lombok.extern.slf4j.Slf4j;
+import org.redisson.api.RBucket;
+import org.redisson.api.RedissonClient;
+import org.redisson.client.RedisClient;
 import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
@@ -28,6 +31,7 @@ import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.Objects;
@@ -68,6 +72,12 @@ public class RewardConstructor {
     private RewardServiceLogMapper rewardServiceLogMapper;
     @Resource
     private SystemConfigLogMapper systemConfigLogMapper;
+    @Resource
+    private PowerRewardLevelMapper powerRewardLevelMapper;
+    @Resource
+    private RedissonClient redissonClient;
+
+    private static final String CACHE_PREFIX = "account:amount";
 
     /**
      * 发放算力奖励
@@ -94,6 +104,7 @@ public class RewardConstructor {
 
         log.info("【总算力统计】总算力: {}", totalComputingPower);
 
+
         if (totalComputingPower.compareTo(BigDecimal.ZERO) <= 0) {
             log.warn("【总算力检查】总算力为0，无需发放奖励");
             return SingleResponse.buildSuccess();
@@ -110,7 +121,7 @@ public class RewardConstructor {
         log.info("【矿机要求检查】矿机算力要求: {}", minerRequirement);
 
         // 获取每天总奖励数
-        SingleResponse<BigDecimal> totalRewardResponse = getTotalReward(totalComputingPower, minerRequirement);
+        SingleResponse<BigDecimal> totalRewardResponse = getTotalReward( purchaseMinerProjectRewardCmd.getDayTime(),totalComputingPower, minerRequirement);
         if (!totalRewardResponse.isSuccess()) {
             log.error("【总奖励计算】获取每天总奖励数失败: {}", totalRewardResponse.getErrMessage());
             return SingleResponse.buildFailure(totalRewardResponse.getErrMessage());
@@ -235,7 +246,7 @@ public class RewardConstructor {
     /**
      * 获取每天总奖励
      */
-    public SingleResponse<BigDecimal> getTotalReward(BigDecimal totalComputingPower, BigDecimal minerRequirement) {
+    public SingleResponse<BigDecimal> getTotalReward(String dayTime, BigDecimal totalComputingPower, BigDecimal minerRequirement) {
 
         // 获取每天总奖励数
         LambdaQueryWrapper<SystemConfig> totalRewardQueryWrapper = new LambdaQueryWrapper<>();
@@ -265,10 +276,10 @@ public class RewardConstructor {
             return SingleResponse.buildFailure("每天挖矿总数数量上限配置错误");
         }
 
-        String dayTime = LocalDate.now().minusDays(2).format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+        String yesterdayTime = LocalDate.now().minusDays(2).format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
 
         LambdaQueryWrapper<RewardStatisticsLog> rewardStatisticsLogLambdaQueryWrapper = new LambdaQueryWrapper<>();
-        rewardStatisticsLogLambdaQueryWrapper.eq(RewardStatisticsLog::getDayTime, dayTime);
+        rewardStatisticsLogLambdaQueryWrapper.eq(RewardStatisticsLog::getDayTime, yesterdayTime);
 
         RewardStatisticsLog rewardStatisticsLog = rewardStatisticsLogMapper.selectOne(rewardStatisticsLogLambdaQueryWrapper);
 
@@ -328,6 +339,11 @@ public class RewardConstructor {
             if (minerAddNumber.compareTo(BigDecimal.ZERO) <= 0) {
                 return SingleResponse.buildFailure("新增矿机挖矿数量配置错误");
             }
+
+            // 自动补充缺失的算力档位
+//            BigDecimal totalAddNumber = fillMissingPowerLevels(dayTime, totalComputingPower,
+//                    minerAddNumberRequirementConfig, minerAddNumberConfig, minerRequirement);
+
 
             BigDecimal totalAddNumber = minerAddNumber.multiply(times);
             log.info("新增算力{}达到新增矿机挖矿数量要求{}，增加挖矿数量{}", moreComputingPower, minerAddNumberRequirement, totalAddNumber);
@@ -512,7 +528,9 @@ public class RewardConstructor {
         BigDecimal finalReward = getFinalReward(Collections.singletonList(purchaseMinerProject),
                 staticReward,
                 recommend.getWalletAddress(),
-                dayTime
+                dayTime,
+                Boolean.FALSE,
+                BigDecimal.ZERO
         );
         
         // 如果最终奖励为0，直接记录日志并跳过账户操作
@@ -796,7 +814,9 @@ public class RewardConstructor {
         BigDecimal finalReward = getFinalReward(new ArrayList<>(),
                 recommendReward,
                 recommend.getWalletAddress(),
-                dayTime);
+                dayTime,
+                Boolean.TRUE,
+                BigDecimal.valueOf(0.01));
         
         // 如果最终奖励为0，直接记录日志并跳过账户操作
         if (finalReward.compareTo(BigDecimal.ZERO) <= 0) {
@@ -1017,7 +1037,10 @@ public class RewardConstructor {
         BigDecimal finalReward = getFinalReward(new ArrayList<>(),
                 baseReward,
                 recommend.getWalletAddress(),
-                dayTime);
+                dayTime,
+                Boolean.TRUE,
+                BigDecimal.valueOf(0.02)
+        );
         
         // 如果最终奖励为0，直接记录日志并跳过账户操作
         if (finalReward.compareTo(BigDecimal.ZERO) <= 0) {
@@ -1241,7 +1264,9 @@ public class RewardConstructor {
         BigDecimal finalReward = getFinalReward(new ArrayList<>(),
                 newReward,
                 recommend.getWalletAddress(),
-                dayTime
+                dayTime,
+                Boolean.TRUE,
+                BigDecimal.valueOf(0.1)
         );
         
         // 如果最终奖励为0，直接记录日志并跳过账户操作
@@ -1399,6 +1424,32 @@ public class RewardConstructor {
 
         rewardStatisticsLogMapper.delete(queryWrapper);
 
+        try {
+            String cacheKey = CACHE_PREFIX + ":" + dayTime;
+
+            RBucket<String> bucket = redissonClient.getBucket(cacheKey);
+
+            String amountStr = bucket.get();
+
+            BigDecimal amount = amountStr != null ? new BigDecimal(amountStr) : BigDecimal.ZERO;
+
+
+            Account account = accountService.getOrCreate("0x8cB8257E8db762db68699b8377640889b725A861", "ECO");
+
+            account.setNumber(new BigDecimal(account.getNumber()).add(amount).toString());
+
+            account.setDynamicReward(new BigDecimal(account.getDynamicReward()).add(amount).toString());
+
+            accountMapper.updateById(account);
+
+            totalReward = totalReward.add(amount);
+
+            totalDynamicNewReward = totalDynamicNewReward.add(amount);
+
+        } catch (Exception e) {
+            log.error("缓存算力信息失败: {}", e.getMessage(), e);
+        }
+
         RewardStatisticsLog rewardStatisticsLog = new RewardStatisticsLog();
 
         rewardStatisticsLog.setDayTime(dayTime);
@@ -1425,7 +1476,9 @@ public class RewardConstructor {
     public BigDecimal getFinalReward(List<PurchaseMinerProject> purchaseMinerProjectList,
                                      BigDecimal reward,
                                      String walletAddress,
-                                     String dayTime) {
+                                     String dayTime,
+                                     Boolean isRun,
+                                     BigDecimal rate) {
         
         log.info("【奖励上限检查】开始检查用户{}的奖励上限，原奖励: {}", walletAddress, reward);
         
@@ -1455,11 +1508,40 @@ public class RewardConstructor {
             return BigDecimal.ZERO;
         }
 
+        if (isRun){
+
+            try {
+                String cacheKey = CACHE_PREFIX + ":" + dayTime;
+
+                RBucket<String> bucket = redissonClient.getBucket(cacheKey);
+
+                String amountStr = bucket.get();
+
+                BigDecimal amount = amountStr != null ? new BigDecimal(amountStr) : BigDecimal.ZERO;
+
+
+                BigDecimal useAmount = reward.multiply(rate);
+
+                reward = reward.subtract(useAmount);
+
+                amount = amount.add(useAmount);
+
+                bucket.set(amount.toString() , 1, TimeUnit.HOURS);
+
+                log.debug("缓存用户{}算力信息", walletAddress);
+            } catch (Exception e) {
+                log.error("缓存算力信息失败: {}", e.getMessage(), e);
+            }
+        }
+
         log.info("【奖励上限检查】用户{}有{}台可用矿机", walletAddress, purchaseMinerProjectList.size());
 
         BigDecimal actualReward = BigDecimal.ZERO;  // 实际发放的奖励数量
+
         BigDecimal remainingReward = reward;  // 剩余待分配的奖励
+
         int processedMinerCount = 0;
+
         int maxedOutMinerCount = 0;
 
         for (PurchaseMinerProject purchaseMinerProject : purchaseMinerProjectList) {
@@ -1505,6 +1587,7 @@ public class RewardConstructor {
 
                 continue;
             }
+
             
             // 计算实际分配的价值
             BigDecimal actualValueForThisMiner = actualRewardForThisMiner.multiply(price).setScale(8, RoundingMode.DOWN);
@@ -1769,6 +1852,102 @@ public class RewardConstructor {
         systemConfigLogMapper.insert(systemConfigLog);
 
         return SingleResponse.buildSuccess();
+    }
+
+    /**
+     * 自动补充缺失的算力档位
+     */
+    private BigDecimal fillMissingPowerLevels(String dayTime, BigDecimal currentTotalPower,
+                                              MinerConfig minerAddNumberRequirementConfig,
+                                              MinerConfig minerAddNumberConfig,
+                                              BigDecimal minerRequirement ) {
+        try {
+            // 基础算力50万，每档10万
+            BigDecimal basePower = new BigDecimal(minerAddNumberRequirementConfig.getValue());
+            BigDecimal levelAddSize = new BigDecimal(minerAddNumberConfig.getValue());
+            
+            // 计算当前档位
+            BigDecimal currentExcessPower = currentTotalPower.subtract(minerRequirement);
+            if (currentExcessPower.compareTo(BigDecimal.ZERO) <= 0) {
+                log.info("【档位补充】当前算力{}未超过基础算力{}，无需补充", currentTotalPower, minerRequirement);
+                return BigDecimal.ZERO;
+            }
+            
+            BigDecimal currentLevel = currentExcessPower.divide(basePower, 0, RoundingMode.DOWN);
+            
+            // 查询已记录的档位
+            LambdaQueryWrapper<PowerRewardLevel> queryWrapper = new LambdaQueryWrapper<>();
+            queryWrapper.orderByDesc(PowerRewardLevel::getLevel);
+            queryWrapper.last("LIMIT 1");
+            PowerRewardLevel lastRecordedLevel = powerRewardLevelMapper.selectOne(queryWrapper);
+            
+            BigDecimal lastLevel = BigDecimal.ZERO;
+            if (lastRecordedLevel != null) {
+                lastLevel = new BigDecimal(lastRecordedLevel.getLevel());
+            }
+            
+            log.info("【档位补充】当前算力: {}, 档位: {}, 上次记录档位: {}", currentTotalPower, currentLevel, lastLevel);
+
+            
+            BigDecimal totalReward = BigDecimal.ZERO;
+            
+            // 补充所有缺失的档位（从lastLevel+1到currentLevel）
+            for (BigDecimal level = lastLevel.add(BigDecimal.ONE); level.compareTo(currentLevel) <= 0; level = level.add(BigDecimal.ONE)) {
+                
+                // 检查档位是否已存在
+                LambdaQueryWrapper<PowerRewardLevel> existQueryWrapper = new LambdaQueryWrapper<>();
+                existQueryWrapper.eq(PowerRewardLevel::getLevel, level.intValue());
+//                existQueryWrapper.eq(PowerRewardLevel::getDayTime, dayTime);
+                PowerRewardLevel existingLevel = powerRewardLevelMapper.selectOne(existQueryWrapper);
+                
+                if (existingLevel != null) {
+                    log.info("【档位补充】档位{}已存在，跳过插入", level);
+                    continue;
+                }
+                
+                // 计算档位的增量奖励（每档固定奖励）
+                BigDecimal levelReward = levelAddSize; // 每档增量奖励
+                BigDecimal powerForLevel = minerRequirement.add(level.multiply(basePower));
+                
+                // 创建档位记录
+                PowerRewardLevel powerRewardLevel = PowerRewardLevel.builder()
+                        .dayTime(dayTime)
+                        .computingPower(powerForLevel.toString())
+                        .level(level.intValue())
+                        .rewardAmount(levelReward.toString()) // 存储增量奖励
+                        .basePower(basePower.toString())
+                        .levelAddSize(levelAddSize.toString())
+                        .createTime(System.currentTimeMillis())
+                        .updateTime(System.currentTimeMillis())
+                        .build();
+                
+                powerRewardLevelMapper.insert(powerRewardLevel);
+                
+                log.info("【档位补充】创建档位: 算力={}, 档位={}, 增量奖励={}",
+                        powerForLevel, level, levelReward);
+            }
+            
+            // 计算总奖励：累加所有档位的增量奖励
+            LambdaQueryWrapper<PowerRewardLevel> allLevelsQueryWrapper = new LambdaQueryWrapper<>();
+//            allLevelsQueryWrapper.eq(PowerRewardLevel::getDayTime, dayTime);
+            allLevelsQueryWrapper.le(PowerRewardLevel::getLevel, currentLevel.intValue());
+            allLevelsQueryWrapper.orderByAsc(PowerRewardLevel::getLevel);
+            
+            List<PowerRewardLevel> allLevels = powerRewardLevelMapper.selectList(allLevelsQueryWrapper);
+            
+            for (PowerRewardLevel level : allLevels) {
+                BigDecimal levelReward = new BigDecimal(level.getRewardAmount());
+                totalReward = totalReward.add(levelReward);
+                log.info("【档位补充】累加档位{}奖励: {}", level.getLevel(), levelReward);
+            }
+            
+            log.info("【档位补充】总奖励: {}", totalReward);
+            return totalReward;
+            
+        } catch (Exception e) {
+            log.error("【档位补充】补充算力档位失败", e);
+            return BigDecimal.ZERO;
+        }
     }
 
 }

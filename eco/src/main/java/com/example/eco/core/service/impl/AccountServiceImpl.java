@@ -1363,7 +1363,7 @@ public class AccountServiceImpl implements AccountService {
     }
 
 
-    private Account getOrCreate(String walletAddress, String type){
+    public Account getOrCreate(String walletAddress, String type){
 
         LambdaQueryWrapper<Account> queryWrapper = new LambdaQueryWrapper<>();
         queryWrapper.eq(Account::getWalletAddress, walletAddress);

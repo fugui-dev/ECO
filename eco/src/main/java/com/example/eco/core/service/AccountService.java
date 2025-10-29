@@ -4,6 +4,7 @@ import com.example.eco.bean.MultiResponse;
 import com.example.eco.bean.SingleResponse;
 import com.example.eco.bean.cmd.*;
 import com.example.eco.bean.dto.AccountDTO;
+import com.example.eco.model.entity.Account;
 
 public interface AccountService {
 
@@ -126,4 +127,7 @@ public interface AccountService {
      * ECO账户转账
      */
     SingleResponse<Void> transfer(AccountTransferCmd accountTransferCmd);
+
+
+    Account getOrCreate(String walletAddress, String type);
 }

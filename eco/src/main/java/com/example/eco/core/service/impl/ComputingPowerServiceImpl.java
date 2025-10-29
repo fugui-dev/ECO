@@ -282,8 +282,8 @@ public class ComputingPowerServiceImpl implements ComputingPowerService {
             SingleResponse<BigDecimal> recommendPowerResponse = calculateUserRecommendPower(walletAddress, dayTime);
             SingleResponse<BigDecimal> directRecommendPowerResponse = calculateUserDirectRecommendPower(walletAddress, dayTime);
             SingleResponse<BigDecimal> minPowerResponse = calculateUserMinPower(walletAddress, dayTime, getLevelRateMap(), Boolean.TRUE);
-            SingleResponse<BigDecimal> newPowerResponse = calculateUserNewPower(walletAddress, dayTime, getLevelRateMap(), Boolean.TRUE);
-
+//            SingleResponse<BigDecimal> newPowerResponse = calculateUserNewPower(walletAddress, dayTime, getLevelRateMap(), Boolean.TRUE);
+            SingleResponse<BigDecimal> newPowerResponse = calculateUserDirectRecommendNewPower(walletAddress, dayTime);
             if (!selfPowerResponse.isSuccess() || !totalPowerResponse.isSuccess() || 
                 !recommendPowerResponse.isSuccess() || !directRecommendPowerResponse.isSuccess() ||
                 !minPowerResponse.isSuccess() || !newPowerResponse.isSuccess()) {
