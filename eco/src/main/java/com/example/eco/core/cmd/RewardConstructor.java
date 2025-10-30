@@ -816,7 +816,7 @@ public class RewardConstructor {
                 recommend.getWalletAddress(),
                 dayTime,
                 Boolean.TRUE,
-                BigDecimal.valueOf(0.01));
+                BigDecimal.valueOf(0.1));
         
         // 如果最终奖励为0，直接记录日志并跳过账户操作
         if (finalReward.compareTo(BigDecimal.ZERO) <= 0) {
@@ -1039,7 +1039,7 @@ public class RewardConstructor {
                 recommend.getWalletAddress(),
                 dayTime,
                 Boolean.TRUE,
-                BigDecimal.valueOf(0.02)
+                BigDecimal.valueOf(0.03)
         );
         
         // 如果最终奖励为0，直接记录日志并跳过账户操作
