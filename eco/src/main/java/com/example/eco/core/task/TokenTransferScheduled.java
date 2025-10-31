@@ -69,6 +69,9 @@ public class TokenTransferScheduled {
         // 同步ECO代币转账
         syncTokenTransfersForType("ECO", apiKeyConfig.getValue());
 
+        // 同步ECO代币转账
+        syncTokenTransfersForType("ESG-NFT", apiKeyConfig.getValue());
+
         // 检查充值记录
         checkDepositRecords();
 
@@ -169,8 +172,23 @@ public class TokenTransferScheduled {
      * 获取管理合约地址
      */
     private String getManagementContractAddress(String tokenType) {
-        String configName = "ESG".equals(tokenType) ? "ESG_ADDRESS" : "ECO_ADDRESS";
+
+        String configName = null;
+
+        if (tokenType.equals("ESG")){
+            configName = "ESG_ADDRESS";
+        }
+
+        if (tokenType.equals("ECO")){
+            configName = "ECO_ADDRESS";
+        }
+
+        if (tokenType.equals("ESG-NFT")){
+            configName = "ESG_NFT_ADDRESS";
+        }
+
         SystemConfig config = getSystemConfig(configName);
+
         return config != null ? config.getValue() : null;
     }
 
@@ -178,6 +196,7 @@ public class TokenTransferScheduled {
      * 获取最后同步的区块号
      */
     private Long getLastSyncedBlock(String managementContractAddress, String tokenType) {
+
         LambdaQueryWrapper<TokenTransferLog> queryWrapper = new LambdaQueryWrapper<TokenTransferLog>()
                 .eq(TokenTransferLog::getToAddress, managementContractAddress)
                 .eq(TokenTransferLog::getTokenType, tokenType)
@@ -297,6 +316,14 @@ public class TokenTransferScheduled {
                 log.info("ECO充值记录检查完成: {}", ecoResponse.getData());
             } else {
                 log.error("ECO充值记录检查失败: {}", ecoResponse.getErrMessage());
+            }
+
+            // 检查ECO代币充值记录
+            SingleResponse<String> esgNftResponse = tokenTransferService.checkDepositRecords("ESG-NFT");
+            if (esgNftResponse.isSuccess()) {
+                log.info("ESG-NFT充值记录检查完成: {}", esgNftResponse.getData());
+            } else {
+                log.error("ESG-NFT充值记录检查失败: {}", esgNftResponse.getErrMessage());
             }
             
         } catch (Exception e) {

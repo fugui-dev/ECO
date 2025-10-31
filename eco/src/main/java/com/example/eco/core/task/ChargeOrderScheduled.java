@@ -1,6 +1,7 @@
 package com.example.eco.core.task;
 
 import com.example.eco.core.service.ChargeOrderService;
+import com.example.eco.core.service.EsgChargeOrderService;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -18,6 +19,9 @@ public class ChargeOrderScheduled {
     @Resource
     private ChargeOrderService chargeOrderService;
 
+    @Resource
+    private EsgChargeOrderService esgChargeOrderService;
+
 
     @Scheduled(cron = "0 0/3 * * * ?")
     @SneakyThrows
@@ -29,6 +33,11 @@ public class ChargeOrderScheduled {
             chargeOrderService.checkChargeOrder();
 
             chargeOrderService.dealwithFailChargeOrder();
+
+
+            esgChargeOrderService.checkChargeOrder();
+
+            esgChargeOrderService.dealwithFailChargeOrder();
         }
         catch (Exception e){
             e.printStackTrace();

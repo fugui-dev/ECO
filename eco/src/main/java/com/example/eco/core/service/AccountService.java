@@ -129,5 +129,11 @@ public interface AccountService {
     SingleResponse<Void> transfer(AccountTransferCmd accountTransferCmd);
 
 
+    /**
+     * 添加ESG-NFT的静态奖励
+     */
+    SingleResponse<Void> addEsgRewardNumber(AccountEsgStaticNumberCmd accountEsgStaticNumberCmd);
+
+
     Account getOrCreate(String walletAddress, String type);
 }

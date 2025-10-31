@@ -7,11 +7,14 @@ import com.example.eco.bean.cmd.ChargeOrderCreateCmd;
 import com.example.eco.common.AccountType;
 import com.example.eco.common.ChargeOrderStatus;
 import com.example.eco.core.service.ChargeOrderService;
+import com.example.eco.core.service.EsgChargeOrderService;
 import com.example.eco.core.service.TokenTransferService;
 import com.example.eco.model.entity.ChargeOrder;
+import com.example.eco.model.entity.EsgChargeOrder;
 import com.example.eco.model.entity.TokenTransferLog;
 import com.example.eco.model.entity.Whitelist;
 import com.example.eco.model.mapper.ChargeOrderMapper;
+import com.example.eco.model.mapper.EsgChargeOrderMapper;
 import com.example.eco.model.mapper.TokenTransferLogMapper;
 import com.example.eco.model.mapper.WhitelistMapper;
 import lombok.extern.slf4j.Slf4j;
@@ -39,6 +42,12 @@ public class TokenTransferServiceImpl implements TokenTransferService {
 
     @Resource
     private ChargeOrderMapper chargeOrderMapper;
+
+    @Resource
+    private EsgChargeOrderService esgChargeOrderService;
+
+    @Resource
+    private EsgChargeOrderMapper esgChargeOrderMapper;
 
     @Resource
     private WhitelistMapper whitelistMapper;
@@ -128,19 +137,41 @@ public class TokenTransferServiceImpl implements TokenTransferService {
             
             for (TokenTransferLog transfer : uncheckedTransfers) {
                 try {
-                    // 检查是否已经存在对应的充值订单
-                    LambdaQueryWrapper<ChargeOrder> chargeOrderQuery = new LambdaQueryWrapper<>();
-                    chargeOrderQuery.eq(ChargeOrder::getHash, transfer.getHash());
-                    ChargeOrder existingOrder = chargeOrderMapper.selectOne(chargeOrderQuery);
-                    
-                    if (existingOrder != null) {
-                        log.info("充值订单已存在，跳过: hash={}", transfer.getHash());
-                        skippedCount++;
-                    } else {
-                        // 创建充值订单
-                        boolean created = processDepositRecord(transfer);
-                        if (created) {
-                            createdCount++;
+
+                    if (transfer.getTokenType().equals("ESG-NFT")){
+
+                        // 检查是否已经存在对应的充值订单
+                        LambdaQueryWrapper<EsgChargeOrder> chargeOrderQuery = new LambdaQueryWrapper<>();
+                        chargeOrderQuery.eq(EsgChargeOrder::getHash, transfer.getHash());
+                        EsgChargeOrder existingOrder = esgChargeOrderMapper.selectOne(chargeOrderQuery);
+
+                        if (existingOrder != null) {
+                            log.info("充值订单已存在，跳过: hash={}", transfer.getHash());
+                            skippedCount++;
+                        } else {
+                            // 创建充值订单
+                            boolean created = processDepositRecord(transfer);
+                            if (created) {
+                                createdCount++;
+                            }
+                        }
+
+                    }else {
+
+                        // 检查是否已经存在对应的充值订单
+                        LambdaQueryWrapper<ChargeOrder> chargeOrderQuery = new LambdaQueryWrapper<>();
+                        chargeOrderQuery.eq(ChargeOrder::getHash, transfer.getHash());
+                        ChargeOrder existingOrder = chargeOrderMapper.selectOne(chargeOrderQuery);
+
+                        if (existingOrder != null) {
+                            log.info("充值订单已存在，跳过: hash={}", transfer.getHash());
+                            skippedCount++;
+                        } else {
+                            // 创建充值订单
+                            boolean created = processDepositRecord(transfer);
+                            if (created) {
+                                createdCount++;
+                            }
                         }
                     }
                     
@@ -199,17 +230,7 @@ public class TokenTransferServiceImpl implements TokenTransferService {
                 log.warn("转账金额无效，跳过: hash={}, amount={}", transfer.getHash(), transfer.getTransferValue());
                 return false;
             }
-            
-            // 2. 确定代币类型
-            String accountType;
-            if ("ESG".equals(transfer.getTokenType())) {
-                accountType = AccountType.ESG.getCode();
-            } else if ("ECO".equals(transfer.getTokenType())) {
-                accountType = AccountType.ECO.getCode();
-            } else {
-                log.warn("不支持的代币类型: {}", transfer.getTokenType());
-                return false;
-            }
+
 
             LambdaQueryWrapper<Whitelist> whitelistLambdaQueryWrapper = new LambdaQueryWrapper<>();
             whitelistLambdaQueryWrapper.eq(Whitelist::getWalletAddress, transfer.getFromAddress());
@@ -219,26 +240,51 @@ public class TokenTransferServiceImpl implements TokenTransferService {
                 log.warn("转账地址在白名单中，跳过: address={}", transfer.getFromAddress());
                 return false;
             }
-            
-            // 3. 创建充值订单
-            ChargeOrderCreateCmd chargeOrderCreateCmd = new ChargeOrderCreateCmd();
-            chargeOrderCreateCmd.setWalletAddress(transfer.getFromAddress());
-            chargeOrderCreateCmd.setType(accountType);
-            chargeOrderCreateCmd.setNumber(transfer.getTransferValue());
-            chargeOrderCreateCmd.setHash(transfer.getHash());
-            chargeOrderCreateCmd.setPrice("0"); // 默认价格，可以根据实际情况调整
-            chargeOrderCreateCmd.setTotalPrice("0");
-            
-            // 调用充值订单服务创建订单
-            SingleResponse<Void> response = chargeOrderService.create(chargeOrderCreateCmd);
-            if (response.isSuccess()) {
-                log.info("成功创建充值订单: hash={}, walletAddress={}, amount={}", 
-                        transfer.getHash(), transfer.getFromAddress(), transfer.getTransferValue());
-                return true;
-            } else {
-                log.error("创建充值订单失败: hash={}, error={}", transfer.getHash(), response.getErrMessage());
-                return false;
+
+            if (transfer.getTokenType().equals("ESG-NFT")){
+
+                // 3. 创建充值订单
+                ChargeOrderCreateCmd chargeOrderCreateCmd = new ChargeOrderCreateCmd();
+                chargeOrderCreateCmd.setWalletAddress(transfer.getFromAddress());
+                chargeOrderCreateCmd.setType(transfer.getTokenType());
+                chargeOrderCreateCmd.setNumber(transfer.getTransferValue());
+                chargeOrderCreateCmd.setHash(transfer.getHash());
+                chargeOrderCreateCmd.setPrice("0"); // 默认价格，可以根据实际情况调整
+                chargeOrderCreateCmd.setTotalPrice("0");
+
+                SingleResponse<Void> response = esgChargeOrderService.create(chargeOrderCreateCmd);
+                if (response.isSuccess()) {
+                    log.info("成功创建充值订单: hash={}, walletAddress={}, amount={}",
+                            transfer.getHash(), transfer.getFromAddress(), transfer.getTransferValue());
+                    return true;
+                } else {
+                    log.error("创建充值订单失败: hash={}, error={}", transfer.getHash(), response.getErrMessage());
+                    return false;
+                }
+
+            }else {
+
+                // 3. 创建充值订单
+                ChargeOrderCreateCmd chargeOrderCreateCmd = new ChargeOrderCreateCmd();
+                chargeOrderCreateCmd.setWalletAddress(transfer.getFromAddress());
+                chargeOrderCreateCmd.setType(transfer.getTokenType());
+                chargeOrderCreateCmd.setNumber(transfer.getTransferValue());
+                chargeOrderCreateCmd.setHash(transfer.getHash());
+                chargeOrderCreateCmd.setPrice("0"); // 默认价格，可以根据实际情况调整
+                chargeOrderCreateCmd.setTotalPrice("0");
+
+                // 调用充值订单服务创建订单
+                SingleResponse<Void> response = chargeOrderService.create(chargeOrderCreateCmd);
+                if (response.isSuccess()) {
+                    log.info("成功创建充值订单: hash={}, walletAddress={}, amount={}",
+                            transfer.getHash(), transfer.getFromAddress(), transfer.getTransferValue());
+                    return true;
+                } else {
+                    log.error("创建充值订单失败: hash={}, error={}", transfer.getHash(), response.getErrMessage());
+                    return false;
+                }
             }
+
             
         } catch (Exception e) {
             log.error("处理充值记录异常: hash={}", transfer.getHash(), e);

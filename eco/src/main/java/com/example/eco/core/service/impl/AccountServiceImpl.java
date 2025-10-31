@@ -172,7 +172,9 @@ public class AccountServiceImpl implements AccountService {
         account.setStaticRewardPrice(String.valueOf(new BigDecimal(account.getStaticRewardPrice()).add(price)));
 
         account.setNumber(String.valueOf(new BigDecimal(account.getNumber()).add(new BigDecimal(accountStaticNumberCmd.getNumber()))));
+
         account.setStaticReward(String.valueOf(new BigDecimal(account.getStaticReward()).add(new BigDecimal(accountStaticNumberCmd.getNumber()))));
+
         account.setUpdateTime(System.currentTimeMillis());
         int updateCount = accountMapper.updateById(account);
 
@@ -242,7 +244,9 @@ public class AccountServiceImpl implements AccountService {
         account.setDynamicRewardPrice(String.valueOf(new BigDecimal(account.getDynamicRewardPrice()).add(price)));
 
         account.setNumber(String.valueOf(new BigDecimal(account.getNumber()).add(new BigDecimal(accountDynamicNumberCmd.getNumber()))));
+
         account.setDynamicReward(String.valueOf(new BigDecimal(account.getDynamicReward()).add(new BigDecimal(accountDynamicNumberCmd.getNumber()))));
+
         account.setUpdateTime(System.currentTimeMillis());
         int updateCount = accountMapper.updateById(account);
 
@@ -790,7 +794,7 @@ public class AccountServiceImpl implements AccountService {
         accountRollbackLockChargeTransaction.setBeforeNumber(beforeChargeLockNumber);
         accountRollbackLockChargeTransaction.setTransactionTime(System.currentTimeMillis());
         accountRollbackLockChargeTransaction.setNumber(lockChargeTransaction.getNumber());
-        accountRollbackLockChargeTransaction.setAfterNumber(account.getSellLockNumber());
+        accountRollbackLockChargeTransaction.setAfterNumber(account.getChargeLockNumber());
         accountRollbackLockChargeTransaction.setAccountType(account.getType());
         accountRollbackLockChargeTransaction.setStatus(AccountTransactionStatusEnum.SUCCESS.getCode());
         accountRollbackLockChargeTransaction.setTransactionType(AccountTransactionType.ROLLBACK_LOCK_CHARGE.getCode());
@@ -1513,5 +1517,43 @@ public class AccountServiceImpl implements AccountService {
             // 重新抛出异常以触发事务回滚
             throw new RuntimeException("转账失败: " + e.getMessage(), e);
         }
+    }
+
+    @Override
+    @Retryable(value = OptimisticLockingFailureException.class, maxAttempts = 3, backoff = @Backoff(delay = 100))
+    @Transactional(isolation = Isolation.REPEATABLE_READ, rollbackFor = Exception.class)
+    public SingleResponse<Void> addEsgRewardNumber(AccountEsgStaticNumberCmd accountEsgStaticNumberCmd) {
+
+        Account account = getOrCreate(accountEsgStaticNumberCmd.getWalletAddress(), AccountType.ECO.getCode());
+
+
+        String beforeNumber = account.getNumber();
+
+        account.setNumber(String.valueOf(new BigDecimal(account.getNumber()).add(new BigDecimal(accountEsgStaticNumberCmd.getNumber()))));
+
+        account.setUpdateTime(System.currentTimeMillis());
+
+        int updateCount = accountMapper.updateById(account);
+
+        if (updateCount == 0) {
+            throw new OptimisticLockingFailureException("乐观锁异常");
+        }
+
+        AccountTransaction accountTransaction = new AccountTransaction();
+        accountTransaction.setWalletAddress(accountEsgStaticNumberCmd.getWalletAddress());
+        accountTransaction.setAccountId(account.getId());
+        accountTransaction.setBeforeNumber(beforeNumber);
+        accountTransaction.setTransactionTime(System.currentTimeMillis());
+        accountTransaction.setNumber(accountEsgStaticNumberCmd.getNumber());
+        accountTransaction.setAfterNumber(account.getNumber());
+        accountTransaction.setAccountType(account.getType());
+        accountTransaction.setStatus(AccountTransactionStatusEnum.SUCCESS.getCode());
+        accountTransaction.setTransactionType(AccountTransactionType.ESG_NFT_STATIC_REWARD.getCode());
+        accountTransaction.setOrder(accountEsgStaticNumberCmd.getOrder());
+
+        accountTransactionMapper.insert(accountTransaction);
+
+
+        return SingleResponse.buildSuccess();
     }
 }

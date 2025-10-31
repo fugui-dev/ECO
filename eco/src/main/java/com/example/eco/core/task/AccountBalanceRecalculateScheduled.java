@@ -23,7 +23,7 @@ import java.util.stream.Collectors;
 
 @Slf4j
 @Component
-public class AccountBalanceRecalculateScheduled {
+public class   AccountBalanceRecalculateScheduled {
 
     @Resource
     private AccountMapper accountMapper;
