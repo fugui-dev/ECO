@@ -3,13 +3,11 @@ package com.example.eco.api.admin;
 import com.example.eco.bean.MultiResponse;
 import com.example.eco.bean.SingleResponse;
 import com.example.eco.bean.cmd.*;
-import com.example.eco.bean.dto.ComputingPowerStatisticDTO;
-import com.example.eco.bean.dto.PurchaseMinerBuyWayDTO;
-import com.example.eco.bean.dto.PurchaseMinerProjectDTO;
-import com.example.eco.bean.dto.PurchaseMinerProjectsBatchCreateResultDTO;
+import com.example.eco.bean.dto.*;
 import com.example.eco.common.PurchaseMinerType;
 import com.example.eco.core.cmd.RewardConstructor;
 import com.example.eco.core.service.PurchaseMinerProjectService;
+import com.example.eco.util.UserContextUtil;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -129,5 +127,15 @@ public class AdminPurchaseMinerProjectController {
 
         computingPowerStatisticQry.setDayTime(dayTime);
         return purchaseMinerProjectService.computingPowerStatistic(computingPowerStatisticQry);
+    }
+
+
+    /**
+     * 查询伞下使用ESG-ECO方式购买不同等级矿机的数量
+     */
+    @PostMapping("/subordinate/miner/statistics")
+    MultiResponse<MinerLevelStatisticsDTO> getSubordinateMinerStatistics(@RequestBody SubordinateMinerStatisticsQry qry) {
+
+        return purchaseMinerProjectService.getSubordinateMinerStatistics(qry);
     }
 }

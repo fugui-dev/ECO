@@ -963,7 +963,7 @@ public class PurchaseMinerProjectServiceImpl implements PurchaseMinerProjectServ
 
         LambdaQueryWrapper<PurchaseMinerProject> queryWrapper = new LambdaQueryWrapper<>();
         queryWrapper.eq(PurchaseMinerProject::getWalletAddress, computingPowerStatisticQry.getWalletAddress());
-
+        queryWrapper.between(PurchaseMinerProject::getFinishTime,computingPowerStatisticQry.getStartTime(),computingPowerStatisticQry.getEndTime());
         List<PurchaseMinerProject> purchaseMinerProjectList = purchaseMinerProjectMapper.selectList(queryWrapper);
 
         Long airdropMinerCount = purchaseMinerProjectList.stream()
@@ -986,13 +986,21 @@ public class PurchaseMinerProjectServiceImpl implements PurchaseMinerProjectServ
                         .equals(PurchaseMinerType.ECO_ESG.getCode()))
                 .count();
 
-        Long allAirdropMinerCount = getMinerCount(computingPowerStatisticQry.getWalletAddress(), PurchaseMinerType.AIRDROP.getCode());
+        Long allAirdropMinerCount = getMinerCount(computingPowerStatisticQry.getWalletAddress(),
+                PurchaseMinerType.AIRDROP.getCode(),
+                computingPowerStatisticQry.getStartTime(),computingPowerStatisticQry.getEndTime());
 
-        Long allEcoMinerCount = getMinerCount(computingPowerStatisticQry.getWalletAddress(), PurchaseMinerType.ECO.getCode());
+        Long allEcoMinerCount = getMinerCount(computingPowerStatisticQry.getWalletAddress(),
+                PurchaseMinerType.ECO.getCode(),
+                computingPowerStatisticQry.getStartTime(),computingPowerStatisticQry.getEndTime());
 
-        Long allEsgMinerCount = getMinerCount(computingPowerStatisticQry.getWalletAddress(), PurchaseMinerType.ESG.getCode());
+        Long allEsgMinerCount = getMinerCount(computingPowerStatisticQry.getWalletAddress(),
+                PurchaseMinerType.ESG.getCode(),
+                computingPowerStatisticQry.getStartTime(),computingPowerStatisticQry.getEndTime());
 
-        Long allEcoEsgMinerCount = getMinerCount(computingPowerStatisticQry.getWalletAddress(), PurchaseMinerType.ECO_ESG.getCode());
+        Long allEcoEsgMinerCount = getMinerCount(computingPowerStatisticQry.getWalletAddress(),
+                PurchaseMinerType.ECO_ESG.getCode(),
+                computingPowerStatisticQry.getStartTime(),computingPowerStatisticQry.getEndTime());
 
 
         LambdaQueryWrapper<Account> accountLambdaQueryWrapper = new LambdaQueryWrapper<>();
@@ -1029,12 +1037,12 @@ public class PurchaseMinerProjectServiceImpl implements PurchaseMinerProjectServ
     }
 
 
-    private Long getMinerCount(String walletAddress, String type) {
+    private Long getMinerCount(String walletAddress, String type, Long startTime, Long endTime) {
 
         LambdaQueryWrapper<PurchaseMinerProject> purchaseMinerProjectLambdaQueryWrapper = new LambdaQueryWrapper<>();
         purchaseMinerProjectLambdaQueryWrapper.eq(PurchaseMinerProject::getWalletAddress, walletAddress);
         purchaseMinerProjectLambdaQueryWrapper.eq(PurchaseMinerProject::getType, type);
-
+        purchaseMinerProjectLambdaQueryWrapper.between(PurchaseMinerProject::getFinishTime,startTime,endTime);
         Long count = purchaseMinerProjectMapper.selectCount(purchaseMinerProjectLambdaQueryWrapper);
 
 
@@ -1046,7 +1054,7 @@ public class PurchaseMinerProjectServiceImpl implements PurchaseMinerProjectServ
 
         for (Recommend recommend : directSubordinates) {
 
-            Long minerCount = getMinerCount(recommend.getWalletAddress(), type);
+            Long minerCount = getMinerCount(recommend.getWalletAddress(), type,startTime,endTime);
 
             count += minerCount;
         }
@@ -1084,5 +1092,104 @@ public class PurchaseMinerProjectServiceImpl implements PurchaseMinerProjectServ
         }
 
         return number;
+    }
+
+    @Override
+    public MultiResponse<MinerLevelStatisticsDTO> getSubordinateMinerStatistics(SubordinateMinerStatisticsQry qry) {
+        try {
+            if (qry.getWalletAddress() == null || qry.getYear() == null || qry.getMonth() == null) {
+                return MultiResponse.buildFailure("400","参数不能为空");
+            }
+
+            // 获取所有下级钱包地址（包括自己）
+            List<String> allWalletAddresses = new ArrayList<>();
+            allWalletAddresses.add(qry.getWalletAddress());
+            getAllSubordinateAddresses(qry.getWalletAddress(), allWalletAddresses);
+
+            log.info("【伞下矿机统计】地址{}的伞下共有{}个钱包地址", qry.getWalletAddress(), allWalletAddresses.size());
+
+            // 计算月份时间范围
+            LocalDate startDate = LocalDate.of(qry.getYear(), qry.getMonth(), 1);
+            LocalDate endDate = startDate.withDayOfMonth(startDate.lengthOfMonth());
+            
+            LocalDateTime startDateTime = startDate.atStartOfDay();
+            LocalDateTime endDateTime = endDate.atTime(23, 59, 59);
+            
+            long startTime = startDateTime.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli();
+            long endTime = endDateTime.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli();
+
+            // 查询购买记录
+            LambdaQueryWrapper<PurchaseMinerProject> queryWrapper = new LambdaQueryWrapper<>();
+            queryWrapper.in(PurchaseMinerProject::getWalletAddress, allWalletAddresses);
+            queryWrapper.eq(PurchaseMinerProject::getType, PurchaseMinerType.ECO_ESG.getCode());
+            queryWrapper.ge(PurchaseMinerProject::getCreateTime, startTime);
+            queryWrapper.le(PurchaseMinerProject::getCreateTime, endTime);
+            
+            List<PurchaseMinerProject> purchaseList = purchaseMinerProjectMapper.selectList(queryWrapper);
+
+            // 按矿机ID分组统计
+            java.util.Map<Integer, MinerLevelStatisticsDTO> statisticsMap = new java.util.HashMap<>();
+            
+            for (PurchaseMinerProject purchase : purchaseList) {
+                Integer minerProjectId = purchase.getMinerProjectId();
+                
+                MinerLevelStatisticsDTO dto = statisticsMap.getOrDefault(minerProjectId, new MinerLevelStatisticsDTO());
+                dto.setMinerProjectId(minerProjectId);
+                dto.setCount(dto.getCount() == null ? 1 : dto.getCount() + 1);
+                
+                // 如果还没有设置价格和算力，从购买记录中获取
+                if (dto.getPrice() == null && purchase.getPrice() != null) {
+                    dto.setPrice(purchase.getPrice());
+                }
+                if (dto.getComputingPower() == null && purchase.getComputingPower() != null) {
+                    dto.setComputingPower(purchase.getComputingPower());
+                }
+                
+                statisticsMap.put(minerProjectId, dto);
+            }
+
+            // 如果统计中没有价格或算力，从矿机项目表中获取
+            for (MinerLevelStatisticsDTO dto : statisticsMap.values()) {
+                if (dto.getPrice() == null || dto.getComputingPower() == null) {
+                    MinerProject minerProject = minerProjectMapper.selectById(dto.getMinerProjectId());
+                    if (minerProject != null) {
+                        if (dto.getPrice() == null) {
+                            dto.setPrice(minerProject.getPrice());
+                        }
+                        if (dto.getComputingPower() == null) {
+                            dto.setComputingPower(minerProject.getComputingPower());
+                        }
+                    }
+                }
+            }
+
+            List<MinerLevelStatisticsDTO> result = new ArrayList<>(statisticsMap.values());
+            
+            log.info("【伞下矿机统计】查询完成，共{}种不同等级的矿机", result.size());
+            
+            return MultiResponse.of(result);
+            
+        } catch (Exception e) {
+            log.error("【伞下矿机统计】查询失败", e);
+            return MultiResponse.buildFailure("400","查询失败: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 递归获取所有下级钱包地址
+     */
+    private void getAllSubordinateAddresses(String walletAddress, List<String> allAddresses) {
+        LambdaQueryWrapper<Recommend> queryWrapper = new LambdaQueryWrapper<>();
+        queryWrapper.eq(Recommend::getRecommendWalletAddress, walletAddress);
+        List<Recommend> directSubordinates = recommendMapper.selectList(queryWrapper);
+
+        for (Recommend subordinate : directSubordinates) {
+            String subordinateAddress = subordinate.getWalletAddress();
+            if (!allAddresses.contains(subordinateAddress)) {
+                allAddresses.add(subordinateAddress);
+                // 递归查询下级的下级
+                getAllSubordinateAddresses(subordinateAddress, allAddresses);
+            }
+        }
     }
 }

@@ -51,5 +51,9 @@ public interface PurchaseMinerProjectService {
      */
     SingleResponse<ComputingPowerStatisticDTO> computingPowerStatistic(ComputingPowerStatisticQry computingPowerStatisticQry);
 
+    /**
+     * 查询伞下使用ESG-ECO方式购买不同等级矿机的数量
+     */
+    MultiResponse<MinerLevelStatisticsDTO> getSubordinateMinerStatistics(SubordinateMinerStatisticsQry qry);
 
 }

@@ -98,4 +98,22 @@ public class PurchaseMinerProjectController {
         return purchaseMinerProjectService.purchaseMinerBuyWayList(purchaseMinerBuyWayQry);
     }
 
+    /**
+     * 查询伞下使用ESG-ECO方式购买不同等级矿机的数量
+     */
+    @PostMapping("/subordinate/miner/statistics")
+    MultiResponse<MinerLevelStatisticsDTO> getSubordinateMinerStatistics(@RequestBody SubordinateMinerStatisticsQry qry) {
+        // 如果未指定钱包地址，使用当前登录用户
+        if (qry.getWalletAddress() == null || qry.getWalletAddress().trim().isEmpty()) {
+            String walletAddress = UserContextUtil.getCurrentWalletAddress();
+            if (walletAddress == null) {
+                log.warn("获取当前用户钱包地址失败");
+                return MultiResponse.buildFailure("400", "用户未登录或未指定钱包地址");
+            }
+            qry.setWalletAddress(walletAddress);
+        }
+        
+        return purchaseMinerProjectService.getSubordinateMinerStatistics(qry);
+    }
+
 }

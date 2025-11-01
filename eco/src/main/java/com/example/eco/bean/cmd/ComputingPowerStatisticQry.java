@@ -10,4 +10,8 @@ public class ComputingPowerStatisticQry {
     private String dayTime;
 
     private Boolean isLevel;
+
+    private Long startTime;
+
+    private Long endTime;
 }
