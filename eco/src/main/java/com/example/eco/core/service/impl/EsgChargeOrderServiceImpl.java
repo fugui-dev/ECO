@@ -40,10 +40,10 @@ import java.util.stream.Collectors;
 public class EsgChargeOrderServiceImpl implements EsgChargeOrderService {
 
     @Resource
-    private EsgChargeOrderMapper chargeOrderMapper;
+    private EsgChargeOrderMapper esgChargeOrderMapper;
 
     @Resource
-    private EsgAccountService accountService;
+    private EsgAccountService esgAccountService;
 
     @Resource
     private TransactionVerificationUtil transactionVerificationUtil;
@@ -66,7 +66,7 @@ public class EsgChargeOrderServiceImpl implements EsgChargeOrderService {
         accountChargeNumberCmd.setHash(chargeOrderCreateCmd.getHash());
 
         try {
-            SingleResponse<Void> response = accountService.chargeNumber(accountChargeNumberCmd);
+            SingleResponse<Void> response = esgAccountService.chargeNumber(accountChargeNumberCmd);
             if (!response.isSuccess()) {
                 return response;
             }
@@ -83,7 +83,7 @@ public class EsgChargeOrderServiceImpl implements EsgChargeOrderService {
         chargeOrder.setHash(chargeOrderCreateCmd.getHash());
         chargeOrder.setCreateTime(System.currentTimeMillis());
 
-        chargeOrderMapper.insert(chargeOrder);
+        esgChargeOrderMapper.insert(chargeOrder);
 
         return SingleResponse.buildSuccess();
     }
@@ -95,7 +95,7 @@ public class EsgChargeOrderServiceImpl implements EsgChargeOrderService {
         LambdaQueryWrapper<EsgChargeOrder> queryWrapper = new LambdaQueryWrapper<>();
         queryWrapper.eq(EsgChargeOrder::getHash, chargeOrderUpdateCmd.getHash());
 
-        EsgChargeOrder chargeOrder = chargeOrderMapper.selectOne(queryWrapper);
+        EsgChargeOrder chargeOrder = esgChargeOrderMapper.selectOne(queryWrapper);
         if (Objects.isNull(chargeOrder)) {
             return SingleResponse.buildFailure("充值订单不存在");
         }
@@ -114,7 +114,7 @@ public class EsgChargeOrderServiceImpl implements EsgChargeOrderService {
             accountLockChargeNumberCmd.setHash(chargeOrder.getHash());
 
             try {
-                SingleResponse<Void> response = accountService.releaseLockChargeNumber(accountLockChargeNumberCmd);
+                SingleResponse<Void> response = esgAccountService.releaseLockChargeNumber(accountLockChargeNumberCmd);
 
                 if (!response.isSuccess()) {
                     return response;
@@ -134,7 +134,7 @@ public class EsgChargeOrderServiceImpl implements EsgChargeOrderService {
             rollbackLockChargeNumberCmd.setHash(chargeOrder.getHash());
 
             try {
-                SingleResponse<Void> response = accountService.rollbackLockChargeNumber(rollbackLockChargeNumberCmd);
+                SingleResponse<Void> response = esgAccountService.rollbackLockChargeNumber(rollbackLockChargeNumberCmd);
 
                 if (!response.isSuccess()) {
                     log.info("更新充值订单失败{}", response.getErrMessage());
@@ -146,7 +146,7 @@ public class EsgChargeOrderServiceImpl implements EsgChargeOrderService {
             }
         }
 
-        chargeOrderMapper.updateById(chargeOrder);
+        esgChargeOrderMapper.updateById(chargeOrder);
         return SingleResponse.buildSuccess();
     }
 
@@ -158,7 +158,7 @@ public class EsgChargeOrderServiceImpl implements EsgChargeOrderService {
         queryWrapper.eq(StringUtils.isNotEmpty(chargeOrderPageQry.getStatus()), EsgChargeOrder::getStatus, chargeOrderPageQry.getStatus());
         queryWrapper.eq(StringUtils.isNotEmpty(chargeOrderPageQry.getOrder()), EsgChargeOrder::getOrder, chargeOrderPageQry.getOrder());
 
-        Page<EsgChargeOrder> chargeOrderPage = chargeOrderMapper.selectPage(Page.of(chargeOrderPageQry.getPageNum(), chargeOrderPageQry.getPageSize()), queryWrapper);
+        Page<EsgChargeOrder> chargeOrderPage = esgChargeOrderMapper.selectPage(Page.of(chargeOrderPageQry.getPageNum(), chargeOrderPageQry.getPageSize()), queryWrapper);
 
         List<ChargeOrderDTO> chargeOrderList = new ArrayList<>();
 
@@ -179,7 +179,7 @@ public class EsgChargeOrderServiceImpl implements EsgChargeOrderService {
         LambdaQueryWrapper<EsgChargeOrder> queryWrapper = new LambdaQueryWrapper<>();
         queryWrapper.eq(EsgChargeOrder::getStatus, ChargeOrderStatus.PENDING.getCode());
 
-        List<EsgChargeOrder> chargeOrderList = chargeOrderMapper.selectList(queryWrapper);
+        List<EsgChargeOrder> chargeOrderList = esgChargeOrderMapper.selectList(queryWrapper);
 
         for (EsgChargeOrder chargeOrder : chargeOrderList) {
 
@@ -221,7 +221,7 @@ public class EsgChargeOrderServiceImpl implements EsgChargeOrderService {
         queryWrapper.eq(EsgChargeOrder::getStatus, ChargeOrderStatus.FAILED.getCode())
                 .isNotNull(EsgChargeOrder::getHash); // 提前过滤空hash
 
-        List<EsgChargeOrder> chargeOrderList = chargeOrderMapper.selectList(queryWrapper);
+        List<EsgChargeOrder> chargeOrderList = esgChargeOrderMapper.selectList(queryWrapper);
 
         if (CollectionUtils.isEmpty(chargeOrderList)) {
             return SingleResponse.buildSuccess();
@@ -272,7 +272,7 @@ public class EsgChargeOrderServiceImpl implements EsgChargeOrderService {
         if (!deleteOrderIds.isEmpty()) {
             LambdaQueryWrapper<EsgChargeOrder> deleteWrapper = new LambdaQueryWrapper<>();
             deleteWrapper.in(EsgChargeOrder::getId, deleteOrderIds);
-            chargeOrderMapper.delete(deleteWrapper);
+            esgChargeOrderMapper.delete(deleteWrapper);
         }
 
         return SingleResponse.buildSuccess();

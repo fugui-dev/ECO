@@ -36,7 +36,7 @@ import java.util.Objects;
 public class EsgPurchaseMinerProjectServiceImpl implements EsgPurchaseMinerProjectService {
 
     @Resource
-    private EsgMinerProjectMapper minerProjectMapper;
+    private EsgMinerProjectMapper esgMinerProjectMapper;
 
     @Resource
     private EsgPurchaseMinerProjectMapper esgPurchaseMinerProjectMapper;
@@ -48,7 +48,7 @@ public class EsgPurchaseMinerProjectServiceImpl implements EsgPurchaseMinerProje
     @Transactional(isolation = Isolation.REPEATABLE_READ, rollbackFor = Exception.class)
     public SingleResponse<Void> create(EsgPurchaseMinerProjectsCreateCmd esgPurchaseMinerProjectsCreateCmd) {
 
-        EsgMinerProject minerProject = minerProjectMapper.selectById(esgPurchaseMinerProjectsCreateCmd.getMinerProjectId());
+        EsgMinerProject minerProject = esgMinerProjectMapper.selectById(esgPurchaseMinerProjectsCreateCmd.getMinerProjectId());
         if (minerProject == null) {
             return SingleResponse.buildFailure("矿机不存在");
         }

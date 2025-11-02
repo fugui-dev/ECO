@@ -28,7 +28,7 @@ public class EsgAccountServiceImpl implements EsgAccountService {
     @Resource
     private EsgAccountMapper esgAccountMapper;
     @Resource
-    private EsgAccountTransactionMapper accountTransactionMapper;
+    private EsgAccountTransactionMapper esgAccountTransactionMapper;
 
 
     @Override
@@ -91,7 +91,7 @@ public class EsgAccountServiceImpl implements EsgAccountService {
         accountStaticTransaction.setStatus(AccountTransactionStatusEnum.SUCCESS.getCode());
         accountStaticTransaction.setTransactionType(AccountTransactionType.ESG_NFT_STATIC_REWARD.getCode());
         accountStaticTransaction.setOrder(accountStaticNumberCmd.getOrder());
-        accountTransactionMapper.insert(accountStaticTransaction);
+        esgAccountTransactionMapper.insert(accountStaticTransaction);
 
         return SingleResponse.buildSuccess();
     }
@@ -127,7 +127,7 @@ public class EsgAccountServiceImpl implements EsgAccountService {
         accountLockChargeTransaction.setOrder(accountChargeNumberCmd.getOrder());
         accountLockChargeTransaction.setHash(accountChargeNumberCmd.getHash());
 
-        accountTransactionMapper.insert(accountLockChargeTransaction);
+        esgAccountTransactionMapper.insert(accountLockChargeTransaction);
 
         return SingleResponse.buildSuccess();
     }
@@ -145,7 +145,7 @@ public class EsgAccountServiceImpl implements EsgAccountService {
         lambdaQueryWrapper.orderByDesc(EsgAccountTransaction::getId);
         lambdaQueryWrapper.last("LIMIT 1");
 
-        EsgAccountTransaction lockChargeTransaction = accountTransactionMapper.selectOne(lambdaQueryWrapper);
+        EsgAccountTransaction lockChargeTransaction = esgAccountTransactionMapper.selectOne(lambdaQueryWrapper);
 
         EsgAccount account = esgAccountMapper.selectById(lockChargeTransaction.getAccountId());
 
@@ -180,7 +180,7 @@ public class EsgAccountServiceImpl implements EsgAccountService {
         accountTransaction.setTransactionType(AccountTransactionType.ADD_NUMBER.getCode());
         accountTransaction.setOrder(lockChargeTransaction.getOrder());
         accountTransaction.setHash(accountLockChargeNumberCmd.getHash());
-        accountTransactionMapper.insert(accountTransaction);
+        esgAccountTransactionMapper.insert(accountTransaction);
 
         EsgAccountTransaction accountChargeTransaction = new EsgAccountTransaction();
         accountChargeTransaction.setWalletAddress(accountLockChargeNumberCmd.getWalletAddress());
@@ -193,7 +193,7 @@ public class EsgAccountServiceImpl implements EsgAccountService {
         accountChargeTransaction.setTransactionType(AccountTransactionType.CHARGE.getCode());
         accountChargeTransaction.setOrder(lockChargeTransaction.getOrder());
         accountChargeTransaction.setHash(accountLockChargeNumberCmd.getHash());
-        accountTransactionMapper.insert(accountChargeTransaction);
+        esgAccountTransactionMapper.insert(accountChargeTransaction);
 
 
         EsgAccountTransaction accountReleaseChargeTransaction = new EsgAccountTransaction();
@@ -207,7 +207,7 @@ public class EsgAccountServiceImpl implements EsgAccountService {
         accountReleaseChargeTransaction.setTransactionType(AccountTransactionType.RELEASE_LOCK_CHARGE.getCode());
         accountReleaseChargeTransaction.setHash(accountLockChargeNumberCmd.getHash());
         accountReleaseChargeTransaction.setOrder(lockChargeTransaction.getOrder());
-        accountTransactionMapper.insert(accountReleaseChargeTransaction);
+        esgAccountTransactionMapper.insert(accountReleaseChargeTransaction);
 
 
         return SingleResponse.buildSuccess();
@@ -226,7 +226,7 @@ public class EsgAccountServiceImpl implements EsgAccountService {
         lambdaQueryWrapper.orderByDesc(EsgAccountTransaction::getId);
         lambdaQueryWrapper.last("LIMIT 1");
 
-        EsgAccountTransaction lockChargeTransaction = accountTransactionMapper.selectOne(lambdaQueryWrapper);
+        EsgAccountTransaction lockChargeTransaction = esgAccountTransactionMapper.selectOne(lambdaQueryWrapper);
 
         EsgAccount account = esgAccountMapper.selectById(lockChargeTransaction.getAccountId());
         if (account == null) {
@@ -255,7 +255,7 @@ public class EsgAccountServiceImpl implements EsgAccountService {
         accountRollbackLockChargeTransaction.setTransactionType(AccountTransactionType.ROLLBACK_LOCK_CHARGE.getCode());
         accountRollbackLockChargeTransaction.setOrder(rollbackLockChargeNumberCmd.getOrder());
 
-        accountTransactionMapper.insert(accountRollbackLockChargeTransaction);
+        esgAccountTransactionMapper.insert(accountRollbackLockChargeTransaction);
 
         return SingleResponse.buildSuccess();
     }
@@ -291,7 +291,7 @@ public class EsgAccountServiceImpl implements EsgAccountService {
         accountTransaction.setTransactionType(AccountTransactionType.DEDUCT_NUMBER.getCode());
         accountTransaction.setOrder(accountDeductCmd.getOrder());
 
-        accountTransactionMapper.insert(accountTransaction);
+        esgAccountTransactionMapper.insert(accountTransaction);
 
         int updateCount = esgAccountMapper.updateById(account);
         if (updateCount == 0) {

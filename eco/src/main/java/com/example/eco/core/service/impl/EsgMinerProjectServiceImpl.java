@@ -32,7 +32,7 @@ import java.util.Objects;
 public class EsgMinerProjectServiceImpl implements EsgMinerProjectService {
 
     @Resource
-    private EsgMinerProjectMapper minerProjectMapper;
+    private EsgMinerProjectMapper esgMinerProjectMapper;
 
 
     @Override
@@ -42,7 +42,7 @@ public class EsgMinerProjectServiceImpl implements EsgMinerProjectService {
         lambdaQueryWrapper.eq(EsgMinerProject::getComputingPower, esgMinerProjectCreateCmd.getComputingPower());
         lambdaQueryWrapper.eq(EsgMinerProject::getPrice, esgMinerProjectCreateCmd.getPrice());
 
-        EsgMinerProject existingProject = minerProjectMapper.selectOne(lambdaQueryWrapper);
+        EsgMinerProject existingProject = esgMinerProjectMapper.selectOne(lambdaQueryWrapper);
         if (existingProject != null) {
             return SingleResponse.buildFailure("矿机项目已存在");
         }
@@ -53,14 +53,14 @@ public class EsgMinerProjectServiceImpl implements EsgMinerProjectService {
         existingProject.setStatus(1);
         existingProject.setRate(esgMinerProjectCreateCmd.getRate());
         existingProject.setCreateTime(System.currentTimeMillis());
-        minerProjectMapper.insert(existingProject);
+        esgMinerProjectMapper.insert(existingProject);
         return SingleResponse.buildSuccess();
     }
 
     @Override
     public SingleResponse<Void> update(EsgMinerProjectUpdateCmd esgMinerProjectUpdateCmd) {
 
-        EsgMinerProject minerProject = minerProjectMapper.selectById(esgMinerProjectUpdateCmd.getId());
+        EsgMinerProject minerProject = esgMinerProjectMapper.selectById(esgMinerProjectUpdateCmd.getId());
         if (minerProject == null) {
             return SingleResponse.buildFailure("矿机项目不存在");
         }
@@ -70,13 +70,13 @@ public class EsgMinerProjectServiceImpl implements EsgMinerProjectService {
         minerProject.setRate(esgMinerProjectUpdateCmd.getRate());
         minerProject.setStatus(esgMinerProjectUpdateCmd.getStatus());
         minerProject.setUpdateTime(System.currentTimeMillis());
-        minerProjectMapper.updateById(minerProject);
+        esgMinerProjectMapper.updateById(minerProject);
         return SingleResponse.buildSuccess();
     }
 
     @Override
     public SingleResponse<Void> delete(MinerProjectDeleteCmd minerProjectDeleteCmd) {
-        minerProjectMapper.deleteById(minerProjectDeleteCmd.getId());
+        esgMinerProjectMapper.deleteById(minerProjectDeleteCmd.getId());
         return SingleResponse.buildSuccess();
     }
 
@@ -86,7 +86,7 @@ public class EsgMinerProjectServiceImpl implements EsgMinerProjectService {
         LambdaQueryWrapper<EsgMinerProject> lambdaQueryWrapper = new LambdaQueryWrapper<>();
         lambdaQueryWrapper.eq(Objects.nonNull(minerProjectPageQry.getStatus()),EsgMinerProject::getStatus,minerProjectPageQry.getStatus());
 
-        Page<EsgMinerProject> minerProjectPage = minerProjectMapper.selectPage(Page.of(minerProjectPageQry.getPageNum(), minerProjectPageQry.getPageSize()), lambdaQueryWrapper);
+        Page<EsgMinerProject> minerProjectPage = esgMinerProjectMapper.selectPage(Page.of(minerProjectPageQry.getPageNum(), minerProjectPageQry.getPageSize()), lambdaQueryWrapper);
         if (CollectionUtils.isEmpty(minerProjectPage.getRecords())) {
             return MultiResponse.buildSuccess();
         }

@@ -29,7 +29,7 @@ import java.util.List;
 public class EsgAccountTransactionServiceImpl implements EsgAccountTransactionService {
 
     @Resource
-    private EsgAccountTransactionMapper accountTransactionMapper;
+    private EsgAccountTransactionMapper esgAccountTransactionMapper;
 
     @Override
     public MultiResponse<EsgAccountTransactionDTO> page(AccountTransactionPageQry accountTransactionPageQry) {
@@ -44,7 +44,7 @@ public class EsgAccountTransactionServiceImpl implements EsgAccountTransactionSe
 
         queryWrapper.orderByDesc(EsgAccountTransaction::getTransactionTime);
 
-        Page<EsgAccountTransaction> accountTransactionPage = accountTransactionMapper.selectPage(Page.of(accountTransactionPageQry.getPageNum(), accountTransactionPageQry.getPageSize()), queryWrapper);
+        Page<EsgAccountTransaction> accountTransactionPage = esgAccountTransactionMapper.selectPage(Page.of(accountTransactionPageQry.getPageNum(), accountTransactionPageQry.getPageSize()), queryWrapper);
 
         if(CollectionUtils.isEmpty(accountTransactionPage.getRecords())){
             return MultiResponse.buildSuccess();
