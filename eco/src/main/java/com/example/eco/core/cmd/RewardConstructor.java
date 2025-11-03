@@ -1039,7 +1039,7 @@ public class RewardConstructor {
                 recommend.getWalletAddress(),
                 dayTime,
                 Boolean.TRUE,
-                BigDecimal.valueOf(0.04)
+                BigDecimal.valueOf(0.042)
         );
         
         // 如果最终奖励为0，直接记录日志并跳过账户操作
@@ -1560,10 +1560,10 @@ public class RewardConstructor {
             processedMinerCount++;
             
             // 矿机当前已产生的总价值
-            BigDecimal currentTotalValue = new BigDecimal(purchaseMinerProject.getRewardPrice()).setScale(8, RoundingMode.DOWN);
+            BigDecimal currentTotalValue = new BigDecimal(purchaseMinerProject.getRewardPrice()).setScale(4, RoundingMode.HALF_UP);
             
             // 矿机的2倍购买价格（奖励上限）
-            BigDecimal maxRewardValue = new BigDecimal(purchaseMinerProject.getPrice()).multiply(new BigDecimal(2)).setScale(8, RoundingMode.DOWN);
+            BigDecimal maxRewardValue = new BigDecimal(purchaseMinerProject.getPrice()).multiply(new BigDecimal(2)).setScale(4, RoundingMode.HALF_UP);
             
             // 计算这个矿机还能接受的最大价值
             BigDecimal availableValue = maxRewardValue.subtract(currentTotalValue);
@@ -1572,7 +1572,7 @@ public class RewardConstructor {
                 walletAddress, purchaseMinerProject.getId(), currentTotalValue, maxRewardValue, availableValue);
             
             // 计算这个矿机实际能接受的奖励数量
-            BigDecimal availableReward = availableValue.divide(price, 8, RoundingMode.DOWN);
+            BigDecimal availableReward = availableValue.divide(price, 4, RoundingMode.HALF_UP);
             
             // 实际分配给这个矿机的奖励数量（取较小值）
             BigDecimal actualRewardForThisMiner = remainingReward.min(availableReward);
@@ -1590,7 +1590,7 @@ public class RewardConstructor {
 
             
             // 计算实际分配的价值
-            BigDecimal actualValueForThisMiner = actualRewardForThisMiner.multiply(price).setScale(8, RoundingMode.DOWN);
+            BigDecimal actualValueForThisMiner = actualRewardForThisMiner.multiply(price).setScale(4, RoundingMode.HALF_UP);
             
             log.info("【奖励上限检查】用户{}矿机{} - 可用奖励: {}, 分配奖励: {}, 分配价值: {}",
                 walletAddress, purchaseMinerProject.getId(), availableReward, actualRewardForThisMiner, actualValueForThisMiner);
