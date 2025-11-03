@@ -24,6 +24,7 @@ public class EsgMinerProjectController {
      */
     @PostMapping("/page")
     MultiResponse<EsgMinerProjectDTO> page(@RequestBody MinerProjectPageQry minerProjectPageQry){
+        minerProjectPageQry.setStatus(1);
         return esgMinerProjectService.page(minerProjectPageQry);
     }
 }
