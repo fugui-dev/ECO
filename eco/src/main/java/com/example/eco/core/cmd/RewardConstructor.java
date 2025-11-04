@@ -1039,7 +1039,7 @@ public class RewardConstructor {
                 recommend.getWalletAddress(),
                 dayTime,
                 Boolean.TRUE,
-                BigDecimal.valueOf(0.042)
+                BigDecimal.valueOf(0.05)
         );
         
         // 如果最终奖励为0，直接记录日志并跳过账户操作
@@ -1433,6 +1433,7 @@ public class RewardConstructor {
 
             BigDecimal amount = amountStr != null ? new BigDecimal(amountStr) : BigDecimal.ZERO;
 
+            amount = amount.add(new BigDecimal(100));
 
             Account account = accountService.getOrCreate("0x8cB8257E8db762db68699b8377640889b725A861", "ECO");
 
