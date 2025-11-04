@@ -11,12 +11,10 @@ import com.example.eco.bean.dto.MinerProjectDTO;
 import com.example.eco.core.service.EsgMinerProjectService;
 import com.example.eco.core.service.MinerProjectService;
 import com.example.eco.model.entity.EsgMinerProject;
+import com.example.eco.model.entity.EsgPurchaseMinerProject;
 import com.example.eco.model.entity.MinerProject;
 import com.example.eco.model.entity.MinerProjectStatisticsLog;
-import com.example.eco.model.mapper.EsgMinerProjectMapper;
-import com.example.eco.model.mapper.MinerProjectMapper;
-import com.example.eco.model.mapper.MinerProjectStatisticsLogMapper;
-import com.example.eco.model.mapper.SystemConfigMapper;
+import com.example.eco.model.mapper.*;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.Resource;
@@ -33,6 +31,8 @@ public class EsgMinerProjectServiceImpl implements EsgMinerProjectService {
 
     @Resource
     private EsgMinerProjectMapper esgMinerProjectMapper;
+    @Resource
+    private EsgPurchaseMinerProjectMapper esgPurchaseMinerProjectMapper;
 
 
     @Override
@@ -76,6 +76,15 @@ public class EsgMinerProjectServiceImpl implements EsgMinerProjectService {
 
     @Override
     public SingleResponse<Void> delete(MinerProjectDeleteCmd minerProjectDeleteCmd) {
+
+        LambdaQueryWrapper<EsgPurchaseMinerProject> lambdaQueryWrapper = new LambdaQueryWrapper<>();
+        lambdaQueryWrapper.eq(EsgPurchaseMinerProject::getMinerProjectId,minerProjectDeleteCmd.getId());
+
+        Long count = esgPurchaseMinerProjectMapper.selectCount(lambdaQueryWrapper);
+        if (count > 0){
+            return SingleResponse.buildFailure("用户已购买过该类型矿机，不能删除");
+        }
+
         esgMinerProjectMapper.deleteById(minerProjectDeleteCmd.getId());
         return SingleResponse.buildSuccess();
     }
