@@ -77,7 +77,8 @@ public class EsgPurchaseMinerProjectServiceImpl implements EsgPurchaseMinerProje
         esgPurchaseMinerProject.setPrice(minerProject.getPrice());
         esgPurchaseMinerProject.setComputingPower(minerProject.getComputingPower());
         esgPurchaseMinerProject.setWalletAddress(esgPurchaseMinerProjectsCreateCmd.getWalletAddress());
-        esgPurchaseMinerProject.setStatus(PurchaseMinerProjectStatus.DEALING.getCode());
+        esgPurchaseMinerProject.setStatus(PurchaseMinerProjectStatus.SUCCESS.getCode());
+        esgPurchaseMinerProject.setFinishTime(System.currentTimeMillis());
         esgPurchaseMinerProject.setCreateTime(System.currentTimeMillis());
         esgPurchaseMinerProject.setReward("0");
         esgPurchaseMinerProject.setYesterdayReward("0");
