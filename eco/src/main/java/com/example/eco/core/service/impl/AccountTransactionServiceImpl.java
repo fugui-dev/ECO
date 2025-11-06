@@ -37,7 +37,8 @@ public class AccountTransactionServiceImpl implements AccountTransactionService 
                AccountTransactionType.ADD_NUMBER.getCode(),
                 AccountTransactionType.DEDUCT_NUMBER.getCode(),
                 AccountTransactionType.TRANSFER_OUT.getCode(),
-                AccountTransactionType.TRANSFER_IN.getCode()
+                AccountTransactionType.TRANSFER_IN.getCode(),
+                AccountTransactionType.ESG_NFT_STATIC_REWARD.getCode()
         );
 
         LambdaQueryWrapper<AccountTransaction> queryWrapper = new LambdaQueryWrapper<>();
