@@ -34,13 +34,13 @@ public class EsgAccountTransactionServiceImpl implements EsgAccountTransactionSe
     @Override
     public MultiResponse<EsgAccountTransactionDTO> page(AccountTransactionPageQry accountTransactionPageQry) {
 
-
         LambdaQueryWrapper<EsgAccountTransaction> queryWrapper = new LambdaQueryWrapper<>();
         queryWrapper.eq(StringUtils.hasLength(accountTransactionPageQry.getWalletAddress()), EsgAccountTransaction::getWalletAddress, accountTransactionPageQry.getWalletAddress());
         queryWrapper.eq(StringUtils.hasLength(accountTransactionPageQry.getTransactionStatus()), EsgAccountTransaction::getStatus, accountTransactionPageQry.getTransactionStatus());
         queryWrapper.eq(StringUtils.hasLength(accountTransactionPageQry.getOrder()), EsgAccountTransaction::getOrder, accountTransactionPageQry.getOrder());
         queryWrapper.eq(StringUtils.hasLength(accountTransactionPageQry.getHash()), EsgAccountTransaction::getHash, accountTransactionPageQry.getHash());
 
+        queryWrapper.eq(EsgAccountTransaction::getTransactionType, AccountTransactionType.ESG_NFT_STATIC_REWARD.getCode());
 
         queryWrapper.orderByDesc(EsgAccountTransaction::getTransactionTime);
 
