@@ -22,6 +22,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.List;
+import java.util.Objects;
 
 @Slf4j
 @Component
@@ -76,6 +77,16 @@ public class EsgRewardConstructor {
             String order = "EST" + System.currentTimeMillis();
 
             EsgMinerProject esgMinerProject = esgMinerProjectMapper.selectById(esgPurchaseMinerProject.getMinerProjectId());
+
+            if(Objects.isNull(esgMinerProject)){
+                log.info("用户{}的矿机项目{}对应的矿机产品不存在，跳过此次发放", esgPurchaseMinerProject.getWalletAddress(), esgPurchaseMinerProject.getId());
+                continue;
+            }
+
+            if (esgMinerProject.getRate() == null || esgMinerProject.getRate().isEmpty()){
+                log.info("用户{}的矿机项目{}对应的矿机产品的发放比例不存在，跳过此次发放", esgPurchaseMinerProject.getWalletAddress(), esgPurchaseMinerProject.getId());
+                continue;
+            }
 
             BigDecimal rate = new BigDecimal(esgMinerProject.getRate());
 
