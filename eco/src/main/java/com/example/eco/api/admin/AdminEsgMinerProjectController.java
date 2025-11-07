@@ -7,11 +7,10 @@ import com.example.eco.bean.cmd.EsgMinerProjectUpdateCmd;
 import com.example.eco.bean.cmd.MinerProjectDeleteCmd;
 import com.example.eco.bean.cmd.MinerProjectPageQry;
 import com.example.eco.bean.dto.EsgMinerProjectDTO;
+import com.example.eco.bean.dto.EsgPurchaseMinerProjectStatisticDTO;
 import com.example.eco.core.service.EsgMinerProjectService;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import com.example.eco.core.service.EsgPurchaseMinerProjectService;
+import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.Resource;
 
@@ -22,6 +21,9 @@ public class AdminEsgMinerProjectController {
 
     @Resource
     private EsgMinerProjectService esgMinerProjectService;
+
+    @Resource
+    private EsgPurchaseMinerProjectService esgPurchaseMinerProjectService;
 
 
 
@@ -56,5 +58,13 @@ public class AdminEsgMinerProjectController {
     @PostMapping("/page")
     MultiResponse<EsgMinerProjectDTO> page(@RequestBody MinerProjectPageQry minerProjectPageQry){
         return esgMinerProjectService.page(minerProjectPageQry);
+    }
+
+    /**
+     * 统计购买矿机项目
+     */
+    @GetMapping("/statistic")
+    SingleResponse<EsgPurchaseMinerProjectStatisticDTO> statistic(){
+        return esgPurchaseMinerProjectService.statistic();
     }
 }

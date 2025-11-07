@@ -8,6 +8,7 @@ import com.example.eco.bean.cmd.AccountDeductCmd;
 import com.example.eco.bean.cmd.EsgPurchaseMinerProjectsCreateCmd;
 import com.example.eco.bean.cmd.PurchaseMinerProjectPageQry;
 import com.example.eco.bean.dto.EsgPurchaseMinerProjectDTO;
+import com.example.eco.bean.dto.EsgPurchaseMinerProjectStatisticDTO;
 import com.example.eco.bean.dto.PurchaseMinerProjectDTO;
 import com.example.eco.common.PurchaseMinerProjectStatus;
 import com.example.eco.common.PurchaseMinerType;
@@ -27,10 +28,12 @@ import javax.annotation.Resource;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.stream.Collectors;
 
 @Service
 public class EsgPurchaseMinerProjectServiceImpl implements EsgPurchaseMinerProjectService {
@@ -115,5 +118,41 @@ public class EsgPurchaseMinerProjectServiceImpl implements EsgPurchaseMinerProje
             purchaseMinerProjectDTOS.add(purchaseMinerProjectDTO);
         }
         return MultiResponse.of(purchaseMinerProjectDTOS, (int) purchaseMinerProjectPage.getTotal());
+    }
+
+    @Override
+    public SingleResponse<EsgPurchaseMinerProjectStatisticDTO> statistic() {
+
+        Long startTime = LocalDate.now().minusDays(1).atStartOfDay().atZone(ZoneId.systemDefault()).toInstant().toEpochMilli();
+
+        Long endTime = LocalDate.now().atStartOfDay().atZone(ZoneId.systemDefault()).toInstant().toEpochMilli();
+
+
+        LambdaQueryWrapper<EsgPurchaseMinerProject> lambdaQueryWrapper = new LambdaQueryWrapper<>();
+        lambdaQueryWrapper.eq(EsgPurchaseMinerProject::getStatus, PurchaseMinerProjectStatus.SUCCESS.getCode());
+
+        List<EsgPurchaseMinerProject> purchaseMinerProjectList = esgPurchaseMinerProjectMapper.selectList(lambdaQueryWrapper);
+
+        List<EsgPurchaseMinerProject> yesterdayPurchaseMinerProjectList = purchaseMinerProjectList.stream().filter(p -> p.getFinishTime() >= startTime && p.getFinishTime() < endTime).collect(Collectors.toList());
+
+        EsgPurchaseMinerProjectStatisticDTO statisticDTO = new EsgPurchaseMinerProjectStatisticDTO();
+
+        BigDecimal totalComputingPower = purchaseMinerProjectList.stream()
+                .map(EsgPurchaseMinerProject::getComputingPower)
+                .map(BigDecimal::new)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        BigDecimal yesterdayComputingPower = yesterdayPurchaseMinerProjectList.stream()
+                .map(EsgPurchaseMinerProject::getComputingPower)
+                .map(BigDecimal::new)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+
+        statisticDTO.setTotalComputingPower(totalComputingPower.toString());
+        statisticDTO.setYesterdayComputingPower(yesterdayComputingPower.toString());
+        statisticDTO.setTotalMinerCount(purchaseMinerProjectList.size());
+        statisticDTO.setYesterdayNewMinerCount(yesterdayPurchaseMinerProjectList.size());
+
+        return SingleResponse.of(statisticDTO);
     }
 }
