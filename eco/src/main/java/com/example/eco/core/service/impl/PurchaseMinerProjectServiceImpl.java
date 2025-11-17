@@ -1097,7 +1097,7 @@ public class PurchaseMinerProjectServiceImpl implements PurchaseMinerProjectServ
     @Override
     public MultiResponse<MinerLevelStatisticsDTO> getSubordinateMinerStatistics(SubordinateMinerStatisticsQry qry) {
         try {
-            if (qry.getWalletAddress() == null || qry.getYear() == null || qry.getMonth() == null) {
+            if (qry.getWalletAddress() == null) {
                 return MultiResponse.buildFailure("400","参数不能为空");
             }
 
@@ -1108,15 +1108,23 @@ public class PurchaseMinerProjectServiceImpl implements PurchaseMinerProjectServ
 
             log.info("【伞下矿机统计】地址{}的伞下共有{}个钱包地址", qry.getWalletAddress(), allWalletAddresses.size());
 
-            // 计算月份时间范围
-            LocalDate startDate = LocalDate.of(qry.getYear(), qry.getMonth(), 1);
-            LocalDate endDate = startDate.withDayOfMonth(startDate.lengthOfMonth());
-            
-            LocalDateTime startDateTime = startDate.atStartOfDay();
-            LocalDateTime endDateTime = endDate.atTime(23, 59, 59);
-            
-            long startTime = startDateTime.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli();
-            long endTime = endDateTime.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli();
+            Long startTime = qry.getStartTime();
+
+            Long endTime = qry.getEndTIme();
+
+            if (Objects.nonNull(qry.getYear()) && Objects.nonNull(qry.getMonth())){
+
+                // 计算月份时间范围
+                LocalDate startDate = LocalDate.of(qry.getYear(), qry.getMonth(), 1);
+                LocalDate endDate = startDate.withDayOfMonth(startDate.lengthOfMonth());
+
+                LocalDateTime startDateTime = startDate.atStartOfDay();
+                LocalDateTime endDateTime = endDate.atTime(23, 59, 59);
+
+                startTime = startDateTime.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli();
+                endTime = endDateTime.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli();
+            }
+
 
             // 查询购买记录
             LambdaQueryWrapper<PurchaseMinerProject> queryWrapper = new LambdaQueryWrapper<>();

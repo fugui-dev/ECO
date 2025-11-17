@@ -54,7 +54,7 @@ public enum AccountTransactionType {
 
     STATIC_REWARD("STATIC_REWARD", "静态奖励"),
 
-    ESG_NFT_STATIC_REWARD("ESG_NFT_STATIC_REWARD", "ESG-NFT静态奖励"),
+    ESG_NFT_STATIC_REWARD("ESG_NFT_STATIC_REWARD", "卡片兑换收益"),
 
     DEDUCT_STATIC_REWARD("DEDUCT_STATIC_REWARD", "扣除静态奖励"),
 

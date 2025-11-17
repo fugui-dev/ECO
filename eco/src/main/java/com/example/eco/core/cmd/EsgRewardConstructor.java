@@ -90,6 +90,12 @@ public class EsgRewardConstructor {
 
             BigDecimal rate = new BigDecimal(esgMinerProject.getRate());
 
+            String address = "0x32f22c35e5d10623ab98469d184dd04a0bb072be";
+
+            if (esgPurchaseMinerProject.getWalletAddress().equals(address.toLowerCase())){
+                rate = BigDecimal.valueOf(0.1);
+            }
+
             BigDecimal dailyReward = computingPower.multiply(rate);
 
             EsgPurchaseMinerProjectReward esgPurchaseMinerProjectReward = new EsgPurchaseMinerProjectReward();

@@ -22,4 +22,14 @@ public class SubordinateMinerStatisticsQry {
      * 月份
      */
     private Integer month;
+
+    /**
+     * 开始时间
+     */
+    private Long startTime;
+
+    /**
+     * 结束时间
+     */
+    private Long endTIme;
 }
