@@ -56,4 +56,9 @@ public interface PurchaseMinerProjectService {
      */
     MultiResponse<MinerLevelStatisticsDTO> getSubordinateMinerStatistics(SubordinateMinerStatisticsQry qry);
 
+    /**
+     * 购买矿机项目奖励统计
+     */
+    SingleResponse<PurchaseMinerProjectRewardStatisticDTO> getPurchaseMinerProjectRewardStatistic(PurchaseMinerProjectRewardStatisticQry qry);
+
 }

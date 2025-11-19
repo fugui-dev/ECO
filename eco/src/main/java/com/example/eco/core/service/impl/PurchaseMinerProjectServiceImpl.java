@@ -30,10 +30,7 @@ import java.text.SimpleDateFormat;
 import java.time.*;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.List;
-import java.util.Objects;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -963,7 +960,7 @@ public class PurchaseMinerProjectServiceImpl implements PurchaseMinerProjectServ
 
         LambdaQueryWrapper<PurchaseMinerProject> queryWrapper = new LambdaQueryWrapper<>();
         queryWrapper.eq(PurchaseMinerProject::getWalletAddress, computingPowerStatisticQry.getWalletAddress());
-        queryWrapper.between(PurchaseMinerProject::getFinishTime,computingPowerStatisticQry.getStartTime(),computingPowerStatisticQry.getEndTime());
+        queryWrapper.between(PurchaseMinerProject::getFinishTime, computingPowerStatisticQry.getStartTime(), computingPowerStatisticQry.getEndTime());
         List<PurchaseMinerProject> purchaseMinerProjectList = purchaseMinerProjectMapper.selectList(queryWrapper);
 
         Long airdropMinerCount = purchaseMinerProjectList.stream()
@@ -988,19 +985,19 @@ public class PurchaseMinerProjectServiceImpl implements PurchaseMinerProjectServ
 
         Long allAirdropMinerCount = getMinerCount(computingPowerStatisticQry.getWalletAddress(),
                 PurchaseMinerType.AIRDROP.getCode(),
-                computingPowerStatisticQry.getStartTime(),computingPowerStatisticQry.getEndTime());
+                computingPowerStatisticQry.getStartTime(), computingPowerStatisticQry.getEndTime());
 
         Long allEcoMinerCount = getMinerCount(computingPowerStatisticQry.getWalletAddress(),
                 PurchaseMinerType.ECO.getCode(),
-                computingPowerStatisticQry.getStartTime(),computingPowerStatisticQry.getEndTime());
+                computingPowerStatisticQry.getStartTime(), computingPowerStatisticQry.getEndTime());
 
         Long allEsgMinerCount = getMinerCount(computingPowerStatisticQry.getWalletAddress(),
                 PurchaseMinerType.ESG.getCode(),
-                computingPowerStatisticQry.getStartTime(),computingPowerStatisticQry.getEndTime());
+                computingPowerStatisticQry.getStartTime(), computingPowerStatisticQry.getEndTime());
 
         Long allEcoEsgMinerCount = getMinerCount(computingPowerStatisticQry.getWalletAddress(),
                 PurchaseMinerType.ECO_ESG.getCode(),
-                computingPowerStatisticQry.getStartTime(),computingPowerStatisticQry.getEndTime());
+                computingPowerStatisticQry.getStartTime(), computingPowerStatisticQry.getEndTime());
 
 
         LambdaQueryWrapper<Account> accountLambdaQueryWrapper = new LambdaQueryWrapper<>();
@@ -1012,13 +1009,13 @@ public class PurchaseMinerProjectServiceImpl implements PurchaseMinerProjectServ
 
         BigDecimal esgNumber = BigDecimal.ZERO;
 
-        for (Account account:accountList){
+        for (Account account : accountList) {
 
-            if (account.getType().equals(AccountType.ECO.getCode())){
+            if (account.getType().equals(AccountType.ECO.getCode())) {
                 ecoNumber = new BigDecimal(account.getNumber());
             }
 
-            if (account.getType().equals(AccountType.ESG.getCode())){
+            if (account.getType().equals(AccountType.ESG.getCode())) {
                 esgNumber = new BigDecimal(account.getNumber());
             }
         }
@@ -1042,7 +1039,7 @@ public class PurchaseMinerProjectServiceImpl implements PurchaseMinerProjectServ
         LambdaQueryWrapper<PurchaseMinerProject> purchaseMinerProjectLambdaQueryWrapper = new LambdaQueryWrapper<>();
         purchaseMinerProjectLambdaQueryWrapper.eq(PurchaseMinerProject::getWalletAddress, walletAddress);
         purchaseMinerProjectLambdaQueryWrapper.eq(PurchaseMinerProject::getType, type);
-        purchaseMinerProjectLambdaQueryWrapper.between(PurchaseMinerProject::getFinishTime,startTime,endTime);
+        purchaseMinerProjectLambdaQueryWrapper.between(PurchaseMinerProject::getFinishTime, startTime, endTime);
         Long count = purchaseMinerProjectMapper.selectCount(purchaseMinerProjectLambdaQueryWrapper);
 
 
@@ -1054,7 +1051,7 @@ public class PurchaseMinerProjectServiceImpl implements PurchaseMinerProjectServ
 
         for (Recommend recommend : directSubordinates) {
 
-            Long minerCount = getMinerCount(recommend.getWalletAddress(), type,startTime,endTime);
+            Long minerCount = getMinerCount(recommend.getWalletAddress(), type, startTime, endTime);
 
             count += minerCount;
         }
@@ -1073,7 +1070,7 @@ public class PurchaseMinerProjectServiceImpl implements PurchaseMinerProjectServ
 
         BigDecimal number = BigDecimal.ZERO;
 
-        if (Objects.nonNull(account)){
+        if (Objects.nonNull(account)) {
             number = new BigDecimal(account.getNumber());
         }
 
@@ -1098,7 +1095,7 @@ public class PurchaseMinerProjectServiceImpl implements PurchaseMinerProjectServ
     public MultiResponse<MinerLevelStatisticsDTO> getSubordinateMinerStatistics(SubordinateMinerStatisticsQry qry) {
         try {
             if (qry.getWalletAddress() == null) {
-                return MultiResponse.buildFailure("400","参数不能为空");
+                return MultiResponse.buildFailure("400", "参数不能为空");
             }
 
             // 获取所有下级钱包地址（包括自己）
@@ -1112,7 +1109,7 @@ public class PurchaseMinerProjectServiceImpl implements PurchaseMinerProjectServ
 
             Long endTime = qry.getEndTIme();
 
-            if (Objects.nonNull(qry.getYear()) && Objects.nonNull(qry.getMonth())){
+            if (Objects.nonNull(qry.getYear()) && Objects.nonNull(qry.getMonth())) {
 
                 // 计算月份时间范围
                 LocalDate startDate = LocalDate.of(qry.getYear(), qry.getMonth(), 1);
@@ -1132,19 +1129,19 @@ public class PurchaseMinerProjectServiceImpl implements PurchaseMinerProjectServ
             queryWrapper.eq(PurchaseMinerProject::getType, PurchaseMinerType.ECO_ESG.getCode());
             queryWrapper.ge(PurchaseMinerProject::getCreateTime, startTime);
             queryWrapper.le(PurchaseMinerProject::getCreateTime, endTime);
-            
+
             List<PurchaseMinerProject> purchaseList = purchaseMinerProjectMapper.selectList(queryWrapper);
 
             // 按矿机ID分组统计
             java.util.Map<Integer, MinerLevelStatisticsDTO> statisticsMap = new java.util.HashMap<>();
-            
+
             for (PurchaseMinerProject purchase : purchaseList) {
                 Integer minerProjectId = purchase.getMinerProjectId();
-                
+
                 MinerLevelStatisticsDTO dto = statisticsMap.getOrDefault(minerProjectId, new MinerLevelStatisticsDTO());
                 dto.setMinerProjectId(minerProjectId);
                 dto.setCount(dto.getCount() == null ? 1 : dto.getCount() + 1);
-                
+
                 // 如果还没有设置价格和算力，从购买记录中获取
                 if (dto.getPrice() == null && purchase.getPrice() != null) {
                     dto.setPrice(purchase.getPrice());
@@ -1152,7 +1149,7 @@ public class PurchaseMinerProjectServiceImpl implements PurchaseMinerProjectServ
                 if (dto.getComputingPower() == null && purchase.getComputingPower() != null) {
                     dto.setComputingPower(purchase.getComputingPower());
                 }
-                
+
                 statisticsMap.put(minerProjectId, dto);
             }
 
@@ -1172,17 +1169,60 @@ public class PurchaseMinerProjectServiceImpl implements PurchaseMinerProjectServ
             }
 
             List<MinerLevelStatisticsDTO> result = new ArrayList<>(statisticsMap.values());
-            
+
             log.info("【伞下矿机统计】查询完成，共{}种不同等级的矿机", result.size());
-            
+
             return MultiResponse.of(result);
-            
+
         } catch (Exception e) {
             log.error("【伞下矿机统计】查询失败", e);
-            return MultiResponse.buildFailure("400","查询失败: " + e.getMessage());
+            return MultiResponse.buildFailure("400", "查询失败: " + e.getMessage());
         }
     }
 
+    @Override
+    public SingleResponse<PurchaseMinerProjectRewardStatisticDTO> getPurchaseMinerProjectRewardStatistic(PurchaseMinerProjectRewardStatisticQry qry) {
+
+        // 参数校验
+        if (qry == null || qry.getMinRewardNumber() == null || qry.getMaxRewardNumber() == null) {
+            return SingleResponse.of(new PurchaseMinerProjectRewardStatisticDTO());
+        }
+
+        String dayTime = LocalDate.now().minusDays(1).format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+
+        LambdaQueryWrapper<PurchaseMinerProjectReward> lambdaQueryWrapper = new LambdaQueryWrapper<>();
+        lambdaQueryWrapper.eq(PurchaseMinerProjectReward::getDayTime, dayTime);
+        lambdaQueryWrapper.eq(PurchaseMinerProjectReward::getRewardType, PurchaseMinerProjectDynamicRewardType.BASE.getCode());
+
+        List<PurchaseMinerProjectReward> rewardList = purchaseMinerProjectRewardMapper.selectList(lambdaQueryWrapper);
+
+        // 预创建BigDecimal避免重复实例化
+        BigDecimal minReward = new BigDecimal(qry.getMinRewardNumber());
+        BigDecimal maxReward = new BigDecimal(qry.getMaxRewardNumber());
+
+        Map<String, String> rewardStatisticMap = rewardList.stream()
+                .filter(Objects::nonNull)
+                .filter(x -> x.getReward() != null && !x.getReward().trim().isEmpty())
+                .filter(x -> {
+                    try {
+                        BigDecimal reward = new BigDecimal(x.getReward());
+                        return reward.compareTo(minReward) > 0 && reward.compareTo(maxReward) <= 0;
+                    } catch (NumberFormatException e) {
+                        // 记录日志或处理格式错误
+                        return false;
+                    }
+                })
+                .collect(Collectors.toMap(
+                        PurchaseMinerProjectReward::getWalletAddress,
+                        PurchaseMinerProjectReward::getReward,
+                        (existing, replacement) -> existing // 处理重复键
+                ));
+
+        PurchaseMinerProjectRewardStatisticDTO dto = new PurchaseMinerProjectRewardStatisticDTO();
+        dto.setRewardStatisticMap(rewardStatisticMap);
+
+        return SingleResponse.of(dto);
+    }
     /**
      * 递归获取所有下级钱包地址
      */

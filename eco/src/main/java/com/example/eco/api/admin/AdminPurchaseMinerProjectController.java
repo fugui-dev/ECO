@@ -138,4 +138,14 @@ public class AdminPurchaseMinerProjectController {
 
         return purchaseMinerProjectService.getSubordinateMinerStatistics(qry);
     }
+
+
+    /**
+     * 购买矿机项目奖励统计
+     */
+    @PostMapping("/reward/statistic")
+    SingleResponse<PurchaseMinerProjectRewardStatisticDTO> getPurchaseMinerProjectRewardStatistic(@RequestBody PurchaseMinerProjectRewardStatisticQry qry){
+
+        return purchaseMinerProjectService.getPurchaseMinerProjectRewardStatistic(qry);
+    }
 }
