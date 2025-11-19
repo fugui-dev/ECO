@@ -904,7 +904,7 @@ public class PurchaseMinerProjectServiceImpl implements PurchaseMinerProjectServ
                     return MultiResponse.buildFailure("400", "未设置ESG比例");
                 }
 
-                String value = (Double.parseDouble(minerEcoConfig.getValue()) * 100) + "%ECO+" + (Double.parseDouble(minerEsgConfig.getValue()) * 100) + "%ESG";
+                String value = (int)(Double.parseDouble(minerEcoConfig.getValue()) * 100) + "%ECO+" + (int)(Double.parseDouble(minerEsgConfig.getValue()) * 100) + "%ESG";
                 purchaseMinerBuyWayDTO.setValue(value);
             } else {
                 purchaseMinerBuyWayDTO.setValue(purchaseMinerBuyWay.getValue());
