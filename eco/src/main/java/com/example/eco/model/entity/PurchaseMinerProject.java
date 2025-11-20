@@ -66,6 +66,11 @@ public class PurchaseMinerProject {
     private String type;
 
     /**
+     * 购买方式类型名称
+     */
+    private String typeName;
+
+    /**
      * 状态
      */
     private String status;

@@ -152,6 +152,7 @@ public class PurchaseMinerProjectServiceImpl implements PurchaseMinerProjectServ
         purchaseMinerProject.setComputingPower(minerProject.getComputingPower());
         purchaseMinerProject.setActualComputingPower(minerProject.getComputingPower());
         purchaseMinerProject.setType(purchaseMinerProjectsCreateCmd.getType());
+        purchaseMinerProject.setTypeName(PurchaseMinerType.of(purchaseMinerProjectsCreateCmd.getType()).getName());
         purchaseMinerProject.setWalletAddress(purchaseMinerProjectsCreateCmd.getWalletAddress());
         purchaseMinerProject.setStatus(PurchaseMinerProjectStatus.DEALING.getCode());
         purchaseMinerProject.setOrder(order);
@@ -320,8 +321,13 @@ public class PurchaseMinerProjectServiceImpl implements PurchaseMinerProjectServ
 
 //            amount = amount.add(esgNumber.multiply(esgPrice));
 
+            String value = (int) (Double.parseDouble(minerEcoConfig.getValue()) * 100) + "%ECO+" + (int) (Double.parseDouble(minerEsgConfig.getValue()) * 100) + "%ESG";
+
+
             purchaseMinerProject.setEsgNumber(esgNumber.toString());
             purchaseMinerProject.setEcoNumber(ecoNumber.toString());
+            purchaseMinerProject.setTypeName(value);
+
 
             AccountDeductCmd ecoAccountDeductCmd = new AccountDeductCmd();
             ecoAccountDeductCmd.setAccountType(AccountType.ECO.getCode());
@@ -579,7 +585,13 @@ public class PurchaseMinerProjectServiceImpl implements PurchaseMinerProjectServ
         for (PurchaseMinerProject purchaseMinerProject : purchaseMinerProjectPage.getRecords()) {
             PurchaseMinerProjectDTO purchaseMinerProjectDTO = new PurchaseMinerProjectDTO();
             BeanUtils.copyProperties(purchaseMinerProject, purchaseMinerProjectDTO);
-            purchaseMinerProjectDTO.setTypeName(PurchaseMinerType.of(purchaseMinerProject.getType()).getName());
+
+            if (StringUtils.hasLength(purchaseMinerProject.getTypeName())) {
+                purchaseMinerProjectDTO.setTypeName(purchaseMinerProject.getTypeName());
+            } else {
+                purchaseMinerProjectDTO.setTypeName(PurchaseMinerType.of(purchaseMinerProject.getType()).getName());
+            }
+
             purchaseMinerProjectDTO.setStatusName(PurchaseMinerProjectStatus.of(purchaseMinerProject.getStatus()).getName());
             purchaseMinerProjectDTO.setActualComputingPower(new BigDecimal(purchaseMinerProject.getActualComputingPower())
                     .setScale(2, RoundingMode.DOWN).toString());
@@ -904,7 +916,7 @@ public class PurchaseMinerProjectServiceImpl implements PurchaseMinerProjectServ
                     return MultiResponse.buildFailure("400", "未设置ESG比例");
                 }
 
-                String value = (int)(Double.parseDouble(minerEcoConfig.getValue()) * 100) + "%ECO+" + (int)(Double.parseDouble(minerEsgConfig.getValue()) * 100) + "%ESG";
+                String value = (int) (Double.parseDouble(minerEcoConfig.getValue()) * 100) + "%ECO+" + (int) (Double.parseDouble(minerEsgConfig.getValue()) * 100) + "%ESG";
                 purchaseMinerBuyWayDTO.setValue(value);
             } else {
                 purchaseMinerBuyWayDTO.setValue(purchaseMinerBuyWay.getValue());
@@ -1126,7 +1138,7 @@ public class PurchaseMinerProjectServiceImpl implements PurchaseMinerProjectServ
             // 查询购买记录
             LambdaQueryWrapper<PurchaseMinerProject> queryWrapper = new LambdaQueryWrapper<>();
             queryWrapper.in(PurchaseMinerProject::getWalletAddress, allWalletAddresses);
-            queryWrapper.eq(PurchaseMinerProject::getType, PurchaseMinerType.ECO_ESG.getCode());
+            queryWrapper.eq(PurchaseMinerProject::getType, qry.getType());
             queryWrapper.ge(PurchaseMinerProject::getCreateTime, startTime);
             queryWrapper.le(PurchaseMinerProject::getCreateTime, endTime);
 
@@ -1192,7 +1204,7 @@ public class PurchaseMinerProjectServiceImpl implements PurchaseMinerProjectServ
 
         LambdaQueryWrapper<PurchaseMinerProjectReward> lambdaQueryWrapper = new LambdaQueryWrapper<>();
         lambdaQueryWrapper.eq(PurchaseMinerProjectReward::getDayTime, dayTime);
-        lambdaQueryWrapper.eq(PurchaseMinerProjectReward::getRewardType, PurchaseMinerProjectDynamicRewardType.BASE.getCode());
+        lambdaQueryWrapper.eq(PurchaseMinerProjectReward::getRewardType, qry.getRewardType());
 
         List<PurchaseMinerProjectReward> rewardList = purchaseMinerProjectRewardMapper.selectList(lambdaQueryWrapper);
 
@@ -1223,6 +1235,7 @@ public class PurchaseMinerProjectServiceImpl implements PurchaseMinerProjectServ
 
         return SingleResponse.of(dto);
     }
+
     /**
      * 递归获取所有下级钱包地址
      */

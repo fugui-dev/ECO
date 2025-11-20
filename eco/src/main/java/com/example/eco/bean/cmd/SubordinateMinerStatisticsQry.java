@@ -32,4 +32,7 @@ public class SubordinateMinerStatisticsQry {
      * 结束时间
      */
     private Long endTIme;
+
+
+    private String type;
 }

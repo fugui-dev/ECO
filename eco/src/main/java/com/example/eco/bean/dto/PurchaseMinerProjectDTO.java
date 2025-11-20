@@ -54,6 +54,7 @@ public class PurchaseMinerProjectDTO {
      */
     private String type;
 
+
     private String typeName;
 
     /**
