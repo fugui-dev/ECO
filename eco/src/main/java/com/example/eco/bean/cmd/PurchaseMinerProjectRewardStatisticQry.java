@@ -5,6 +5,8 @@ import lombok.Data;
 @Data
 public class PurchaseMinerProjectRewardStatisticQry {
 
+    private String type;
+
     private String rewardType;
 
     /**

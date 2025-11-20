@@ -1204,7 +1204,8 @@ public class PurchaseMinerProjectServiceImpl implements PurchaseMinerProjectServ
 
         LambdaQueryWrapper<PurchaseMinerProjectReward> lambdaQueryWrapper = new LambdaQueryWrapper<>();
         lambdaQueryWrapper.eq(PurchaseMinerProjectReward::getDayTime, dayTime);
-        lambdaQueryWrapper.eq(PurchaseMinerProjectReward::getRewardType, qry.getRewardType());
+        lambdaQueryWrapper.eq(StringUtils.hasLength(qry.getType()), PurchaseMinerProjectReward::getType, qry.getType());
+        lambdaQueryWrapper.eq(StringUtils.hasLength(qry.getRewardType()), PurchaseMinerProjectReward::getRewardType, qry.getRewardType());
 
         List<PurchaseMinerProjectReward> rewardList = purchaseMinerProjectRewardMapper.selectList(lambdaQueryWrapper);
 
