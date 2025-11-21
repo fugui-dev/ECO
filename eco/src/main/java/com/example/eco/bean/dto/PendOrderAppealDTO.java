@@ -14,6 +14,11 @@ public class PendOrderAppealDTO {
     private String order;
 
     /**
+     * 订单状态
+     */
+    private String orderStatus;
+
+    /**
      * 挂单id
      */
     private Integer pendOrderId;

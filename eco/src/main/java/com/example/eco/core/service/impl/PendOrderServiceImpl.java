@@ -34,7 +34,10 @@ import javax.annotation.Resource;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -653,11 +656,23 @@ public class PendOrderServiceImpl implements PendOrderService {
             return MultiResponse.buildSuccess();
         }
 
+        List<String> orderList = pendOrderAppealPage.getRecords().stream().map(PendOrderAppeal::getOrder).collect(Collectors.toList());
+
+        List<PendOrder> pendOrderList = pendOrderMapper.selectList(new LambdaQueryWrapper<PendOrder>().in(PendOrder::getOrder, orderList));
+
+        Map<String, PendOrder> pendOrderMap = pendOrderList.stream().collect(Collectors.toMap(PendOrder::getOrder, Function.identity()));
+
         List<PendOrderAppealDTO> pendOrderAppealDTOList = new ArrayList<>();
         for (PendOrderAppeal pendOrderAppeal : pendOrderAppealPage.getRecords()) {
             PendOrderAppealDTO pendOrderAppealDTO = new PendOrderAppealDTO();
             BeanUtils.copyProperties(pendOrderAppeal, pendOrderAppealDTO);
             pendOrderAppealDTO.setStatusName(PendOrderAppealStatus.of(pendOrderAppeal.getStatus()).getName());
+
+            PendOrder relatedPendOrder = pendOrderMap.get(pendOrderAppeal.getOrder());
+            if (relatedPendOrder != null) {
+                pendOrderAppealDTO.setOrderStatus(relatedPendOrder.getStatus());
+            }
+
             pendOrderAppealDTOList.add(pendOrderAppealDTO);
         }
 
